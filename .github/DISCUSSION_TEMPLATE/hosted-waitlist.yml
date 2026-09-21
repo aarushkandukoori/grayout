@@ -1,0 +1,42 @@
+title: "Hosted plan (no API key needed) — reply to be notified"
+labels: ["hosted-waitlist"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Grayout is free and uses your own Anthropic or OpenAI API key. A hosted version that needs no key is being considered. It is not built, there is no price, and there is no date. The number of people in this category is the only signal used to decide whether to build it.
+
+        Replying to the pinned thread is enough. If you want to say more, the fields below help, and all of them are optional. Do not post your email address; GitHub will notify you on the thread.
+  - type: dropdown
+    id: blocker
+    attributes:
+      label: What stopped you, or would have?
+      options:
+        - Creating an Anthropic or OpenAI account and adding credit
+        - Pasting a key felt risky
+        - I would rather pay one bill than two
+        - Nothing, I just want to know when it exists
+        - Something else (say what below)
+  - type: dropdown
+    id: student
+    attributes:
+      label: Are you a student?
+      description: A student price with .edu verification is part of the plan.
+      options:
+        - "Yes"
+        - "No"
+        - Prefer not to say
+  - type: dropdown
+    id: usage
+    attributes:
+      label: How many hours a day would Grayout be watching?
+      options:
+        - Under 2
+        - 2 to 4
+        - 4 to 8
+        - More than 8
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else
+      description: What would make hosted worth paying for, or what would make you keep using your own key.

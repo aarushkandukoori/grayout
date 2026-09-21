@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:">
+<title>Welcome to Grayout</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  /* Onboarding-only layout. Window is 560x700, hiddenInset, not resizable. */
+  html, body { overflow: hidden; }
+  body { display: flex; flex-direction: column; height: 100vh; }
+  .titlebar .progress { font-variant-numeric: tabular-nums; -webkit-app-region: drag; }
+  main { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  .screen { display: none; flex: 1 1 auto; min-height: 0; flex-direction: column; padding: 4px 28px 20px; }
+  .screen.on { display: flex; }
+  .screen .body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-right: 2px; }
+  .screen h1 { margin-bottom: 10px; }
+  .lede { margin-bottom: 12px; }
+  .block { margin: 12px 0; }
+  .block-tight { margin: 8px 0; }
+  .actions {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-top: 14px;
+    margin-top: 6px;
+    border-top: 1px solid var(--line);
+  }
+  .actions .grow { flex: 1 1 auto; }
+  .actions .btn-primary { min-width: 120px; justify-content: center; }
+  .actions-note { font-size: 12px; color: var(--muted); }
+
+  /* screen 1 */
+  .privacy { margin-top: 10px; }
+  .privacy p { margin-bottom: 4px; }
+  #move-bar { margin-top: 12px; }
+
+  /* screen 2 */
+  .pill-line { display: flex; align-items: center; gap: 10px; margin: 6px 0 12px; font-size: 13px; color: var(--muted); }
+  .step-btn { margin: 4px 0 2px; }
+  .cmd { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+  .cmd code { flex: 1 1 auto; padding: 5px 8px; font-size: 12px; white-space: pre-wrap; word-break: break-all; }
+
+  /* screen 3 */
+  .key-note { margin: 4px 0 10px; }
+  .test-result { margin-top: 8px; }
+  #test-result.status { font-size: 13.5px; }
+
+  /* screen 4 */
+  .setup-block { margin-bottom: 14px; }
+  .setup-block .label { margin-bottom: 6px; }
+
+  /* screen 5 */
+  .preview-row { display: flex; align-items: center; gap: 12px; margin: 6px 0 14px; }
+  .sentences p { margin-bottom: 8px; }
+
+  #no-bridge { display: none; margin: 16px 28px; }
+  #loading { margin: 16px 28px; }
+</style>
+</head>
+<body>
+
+<div class="titlebar">
+  <span class="progress" id="progress" aria-live="polite">1 of 5</span>
+</div>
+
+<div id="no-bridge" class="banner banner-bad">This window has to be opened from Grayout.</div>
+<div id="loading" class="status muted" role="status" aria-live="polite">Loading…</div>
+
+<main id="screens" hidden>
+
+  <!-- ============ 1 of 5 ============ -->
+  <section class="screen" data-step="1" aria-labelledby="h1-1">
+    <div class="body">
+      <h1 id="h1-1">How Grayout works</h1>
+      <p>Every 45 seconds, Grayout looks at your screen and asks Claude (or GPT) one question: is this person clearly not working?</p>
+      <p>Two yeses in a row, and your whole Mac goes gray with a red border.</p>
+      <p>Color comes back the moment you get back to work.</p>
+
+      <div class="privacy card">
+        <p><strong>What leaves your Mac.</strong> A screenshot of each display, resized, goes from this Mac to Anthropic's or OpenAI's API under your own key, whichever key you enter. Nothing goes to us. There is no account, no server, and no analytics. Screenshots are deleted from this Mac right after each check.</p>
+        <a href="#" class="link" data-external="https://aarushkandukoori.github.io/grayout/privacy.html">Read the full privacy page</a>
+      </div>
+
+      <p class="block">It never blocks, closes, or locks anything. Quit is one click in the menu bar.</p>
+
+      <div id="move-bar" class="banner banner-warn" hidden>
+        <span class="grow">Grayout needs to live in your Applications folder to remember its permissions and to start at login.</span>
+        <button type="button" class="btn btn-sm" id="btn-move">Move to Applications</button>
+        <span class="status" id="move-status" aria-live="polite"></span>
+      </div>
+    </div>
+    <div class="actions">
+      <span class="grow"></span>
+      <button type="button" class="btn btn-primary" id="btn-1-continue">Continue</button>
+    </div>
+  </section>
+
+  <!-- ============ 2 of 5 ============ -->
+  <section class="screen" data-step="2" aria-labelledby="h1-2">
+    <div class="body">
+      <h1 id="h1-2">Allow Screen Recording</h1>
+      <p class="lede">Grayout can't do anything until macOS lets it see the screen.</p>
+
+      <div class="pill-line">
+        <span>Screen Recording</span>
+        <span class="pill pill-bad" id="screen-pill"><span class="dot"></span><span id="screen-pill-text">Not allowed</span></span>
+      </div>
+
+      <ol class="ol">
+        <li>
+          Click <strong>Open System Settings</strong>.
+          <div class="step-btn">
+            <button type="button" class="btn" id="btn-open-screen">Open System Settings</button>
+            <button type="button" class="btn btn-primary" id="btn-relaunch" hidden>Relaunch Grayout</button>
+          </div>
+          <div class="hint" id="relaunch-note" hidden>macOS applies Screen Recording only after the app restarts. Grayout will reopen right here.</div>
+        </li>
+        <li>Turn on <strong>Grayout</strong> in the list. macOS may ask you to quit and reopen the app.</li>
+        <li>Come back here.</li>
+      </ol>
+
+      <div class="card block" id="stale-box" hidden>
+        <p>macOS thinks Grayout is allowed, but captures come back empty. This happens after an update. Fix: turn Grayout off and on in the list, or paste this in Terminal:</p>
+        <div class="cmd">
+          <code id="tcc-cmd" class="selectable">tccutil reset ScreenCapture com.aarushkandukoori.grayout</code>
+          <button type="button" class="btn btn-sm" id="btn-copy-tcc">Copy</button>
+        </div>
+      </div>
+    </div>
+    <div class="actions">
+      <button type="button" class="link link-small" id="btn-2-back">Back</button>
+      <span class="grow"></span>
+      <button type="button" class="link link-small" id="btn-2-skip">Continue without it (nothing is checked until you allow it)</button>
+      <button type="button" class="btn btn-primary" id="btn-2-continue" disabled>Continue</button>
+    </div>
+  </section>
+
+  <!-- ============ 3 of 5 ============ -->
+  <section class="screen" data-step="3" aria-labelledby="h1-3">
+    <div class="body">
+      <h1 id="h1-3">Your API key</h1>
+      <p class="lede">Grayout runs on your own Anthropic or OpenAI account, so you pay them directly and nothing goes through us.</p>
+
+      <div class="key-note">
+        <a href="#" class="link" data-external="https://aarushkandukoori.github.io/grayout/api-key.html">Get a key in two minutes →</a>
+        <div class="hint">New accounts at either need a $5 prepaid credit: about a week of checks with Anthropic, about a month with OpenAI.</div>
+      </div>
+
+      <div class="status muted small" id="key-existing" aria-live="polite"></div>
+
+      <div class="field-row block-tight">
+        <input class="field mono" type="password" id="key" placeholder="sk-ant-… or sk-proj-…" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Anthropic or OpenAI API key">
+        <button type="button" class="btn" id="btn-reveal" aria-label="Show key">Show</button>
+        <button type="button" class="btn" id="btn-test">Test key</button>
+      </div>
+
+      <div class="status test-result" id="test-result" role="status" aria-live="polite"></div>
+
+      <p class="block muted small" id="cost-line">About a quarter of a cent per check with Anthropic, about a fifteenth of a cent with OpenAI. The dashboard shows exactly what you have spent.</p>
+
+      <div class="hint" id="keychain-note">macOS will ask once whether Grayout may use its own Keychain item. Click <strong>Always Allow</strong>.</div>
+
+      <div class="status status-bad block-tight" id="save-status" role="status" aria-live="polite"></div>
+    </div>
+    <div class="actions">
+      <button type="button" class="link link-small" id="btn-3-back">Back</button>
+      <span class="grow"></span>
+      <button type="button" class="link link-small" id="btn-3-skip">Skip for now</button>
+      <button type="button" class="btn" id="btn-session" hidden disabled>Use for this session only</button>
+      <button type="button" class="btn btn-primary" id="btn-3-save" disabled>Save and continue</button>
+    </div>
+  </section>
+
+  <!-- ============ 4 of 5 ============ -->
+  <section class="screen" data-step="4" aria-labelledby="h1-4">
+    <div class="body">
+      <h1 id="h1-4">Set it up</h1>
+      <p class="lede muted">All optional.</p>
+
+      <div class="setup-block">
+        <label class="label" for="work">What does your work look like?</label>
+        <input class="field" type="text" id="work" maxlength="500" placeholder="CS coursework in VS Code, papers, Canvas" autocomplete="off" spellcheck="true">
+      </div>
+
+      <div class="setup-block">
+        <div class="label" id="interval-label">How often should it check?</div>
+        <div role="radiogroup" aria-labelledby="interval-label">
+          <label class="radio-row"><input type="radio" name="interval" value="30"><span class="radio-text"><b>Strict</b> — every 30 seconds — <span class="mono" id="est-30">about $1.35 a day</span></span></label>
+          <label class="radio-row"><input type="radio" name="interval" value="45" checked><span class="radio-text"><b>Balanced</b> — every 45 seconds — <span class="mono" id="est-45">about $0.90 a day</span></span></label>
+          <label class="radio-row"><input type="radio" name="interval" value="90"><span class="radio-text"><b>Light</b> — every 90 seconds — <span class="mono" id="est-90">about $0.45 a day</span></span></label>
+        </div>
+        <div class="hint" id="est-note">Estimates for Anthropic claude-haiku-4-5 on one display, at prices on 2026-09-21. A second display roughly doubles it.</div>
+      </div>
+
+      <div class="setup-block">
+        <label class="toggle">
+          <input type="checkbox" id="camera">
+          <span class="toggle-track"></span>
+          <span class="toggle-text">Also use the webcam to notice a phone in your hand
+            <div class="hint">Adds about 15% to the cost. Frames go with the screenshot to the same API, under your key, and are never saved.</div>
+            <div class="status small" id="camera-status" aria-live="polite"></div>
+          </span>
+        </label>
+      </div>
+
+      <div class="setup-block" id="login-block" hidden>
+        <label class="toggle">
+          <input type="checkbox" id="login">
+          <span class="toggle-track"></span>
+          <span class="toggle-text">Start Grayout at login
+            <div class="status small" id="login-status" aria-live="polite"></div>
+          </span>
+        </label>
+      </div>
+
+      <p class="muted small">Video calls (Zoom, FaceTime, Teams, Webex, Meet, Discord) never trigger it. Password managers are never captured. Change both in Settings.</p>
+      <div class="status status-bad" id="setup-status" role="status" aria-live="polite"></div>
+    </div>
+    <div class="actions">
+      <button type="button" class="link link-small" id="btn-4-back">Back</button>
+      <span class="grow"></span>
+      <button type="button" class="btn btn-primary" id="btn-4-continue">Continue</button>
+    </div>
+  </section>
+
+  <!-- ============ 5 of 5 ============ -->
+  <section class="screen" data-step="5" aria-labelledby="h1-5">
+    <div class="body">
+      <h1 id="h1-5">See what it does</h1>
+
+      <div class="preview-row">
+        <button type="button" class="btn" id="btn-preview">Preview the gray</button>
+        <span class="status" id="preview-status" role="status" aria-live="polite"></span>
+      </div>
+
+      <div class="sentences">
+        <p>Grayout only does this after two clearly-off-task checks in a row. A single flag costs you nothing.</p>
+        <p>If it ever gets it wrong, click <strong>I'm working</strong> in the menu bar: color comes back and it backs off for ten minutes.</p>
+        <p>Quit or Pause always restores color.</p>
+      </div>
+    </div>
+    <div class="actions">
+      <button type="button" class="link link-small" id="btn-5-back">Back</button>
+      <span class="grow"></span>
+      <button type="button" class="btn btn-primary" id="btn-finish">Start watching</button>
+    </div>
+  </section>
+
+</main>
+
+<script src="onboarding.js"></script>
+</body>
+</html>

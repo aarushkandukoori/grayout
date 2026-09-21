@@ -1,0 +1,97 @@
+name: My screen is stuck gray
+description: Color did not come back when it should have, or Grayout is not running and the Mac is still gray.
+title: "Stuck gray: "
+labels: ["stuck-gray"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        First, get your color back. Any one of these works, in this order:
+
+        1. Menu bar > **Restore color now**.
+        2. Quit Grayout and open it again. It turns grayscale off on every launch before doing anything else.
+        3. In Terminal:
+
+           ```bash
+           "/Applications/Grayout.app/Contents/Resources/helper/grayscale" off
+           ```
+
+        4. Without a terminal: System Settings > Accessibility > Display > **Color Filters**. Turn it on, then off.
+
+        Then tell us what happened below so it does not happen again. Do not attach screenshots.
+  - type: checkboxes
+    id: restored
+    attributes:
+      label: What restored color?
+      description: Tick everything you tried; say which one worked in the next box.
+      options:
+        - label: Restore color now in the menu bar
+        - label: Quitting and relaunching Grayout
+        - label: The Terminal one-liner
+        - label: Color Filters on, then off
+        - label: It came back on its own after a while
+        - label: Nothing has worked yet
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What was Grayout doing right before? Was the screen locked, did the Mac sleep, did you force quit it, did it crash, did you install an update over it?
+      placeholder: Screen went gray while I was on a feed, I closed the lid, and when I opened it the tray icon was gone but the display stayed gray.
+    validations:
+      required: true
+  - type: dropdown
+    id: running
+    attributes:
+      label: Was Grayout running when you noticed?
+      options:
+        - Yes, the icon was in the menu bar
+        - No, it was not running
+        - Not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: tray-line
+    attributes:
+      label: What did the menu bar say?
+      options:
+        - Watching
+        - Off task
+        - Paused
+        - Blocked (no Screen Recording access)
+        - API key needed
+        - Grayout was not running
+        - Something else (say what below)
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: macOS 26.0.1
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Grayout version
+      description: Menu bar > About Grayout, or the DMG you downloaded.
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: displays
+    attributes:
+      label: Displays
+      options:
+        - "1"
+        - "2"
+        - "3 or more"
+  - type: textarea
+    id: log
+    attributes:
+      label: Last lines of the app log
+      description: |
+        Optional. The log has no screen content, prompt text, or key, but read it before pasting. In Terminal:
+
+        ```bash
+        tail -n 60 ~/Library/Application\ Support/Grayout/logs/grayout.log
+        ```
+      render: text

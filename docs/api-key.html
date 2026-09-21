@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Get an API key — Grayout for Mac</title>
+  <meta name="description" content="Five steps to an Anthropic or OpenAI API key for Grayout, with a spend limit so the app can never exceed what you set, and what each check interval costs per day with either.">
+  <link rel="canonical" href="https://aarushkandukoori.github.io/grayout/api-key.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Grayout for Mac">
+  <meta property="og:title" content="Get an API key in two minutes">
+  <meta property="og:description" content="Five steps to an Anthropic or OpenAI API key for Grayout, with a spend limit, and what each check interval costs per day with either.">
+  <meta property="og:url" content="https://aarushkandukoori.github.io/grayout/api-key.html">
+  <meta property="og:image" content="https://aarushkandukoori.github.io/grayout/img/hero-gray.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%238a8a8a'/%3E%3Cpath d='M16 16 L16 2 A14 14 0 0 1 30 16 Z' fill='%23d03b3b'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav>
+  <a class="brand" href="index.html">Grayout for Mac</a> ·
+  <a href="index.html#how">How it works</a> ·
+  <a href="install.html">Install</a> ·
+  <a href="index.html#cost">Cost</a> ·
+  <a href="privacy.html">Privacy</a> ·
+  <a href="https://github.com/aarushkandukoori/grayout">GitHub</a>
+</nav>
+
+<main>
+
+  <h1>Get an API key in two minutes</h1>
+
+  <p class="lead">Grayout runs on your own Anthropic or OpenAI account, so you pay them directly and nothing goes through us. You need one key, from either; the app tells them apart and keeps it in your macOS Keychain.</p>
+
+  <div class="cols">
+    <div>
+      <h2 id="anthropic">Anthropic</h2>
+      <ol>
+        <li>
+          <p><strong>Sign up.</strong> Go to <a href="https://console.anthropic.com/">console.anthropic.com</a> and create an account. This is the developer console, separate from a Claude.ai subscription; a Claude Pro or Max plan does not include API credit.</p>
+        </li>
+        <li>
+          <p><strong>Add $5.</strong> Open Billing and add $5 of prepaid credit, the minimum. That is about a week of Grayout checks at the default setting. Credit is only spent when checks run.</p>
+        </li>
+        <li>
+          <p><strong>Set a ceiling (optional but recommended).</strong> Settings &gt; Workspaces &gt; create a workspace named Grayout and give it a monthly spend limit, for example $30. Keys made inside that workspace cannot spend past it, so the app can never exceed what you set, whatever happens.</p>
+        </li>
+        <li>
+          <p><strong>Create the key.</strong> API keys &gt; Create key, inside that workspace. Copy it. It starts with <code>sk-ant-</code> and is shown once; if you lose it, make a new one.</p>
+        </li>
+        <li>
+          <p><strong>Paste it into Grayout.</strong> Step 3 of the welcome window: paste the key and click <strong>Test key</strong>. Grayout runs one real check on a synthetic screenshot and tells you what it cost, about a quarter of a cent. Click <strong>Save and continue</strong>, then <strong>Always Allow</strong> on the Keychain prompt.</p>
+        </li>
+      </ol>
+    </div>
+    <div>
+      <h2 id="openai">OpenAI</h2>
+      <ol>
+        <li>
+          <p><strong>Sign up.</strong> Go to <a href="https://platform.openai.com/">platform.openai.com</a> and create an account. This is the developer platform, separate from a ChatGPT subscription; ChatGPT Plus or Pro does not include API credit.</p>
+        </li>
+        <li>
+          <p><strong>Add $5.</strong> Settings &gt; Billing &gt; add $5 of prepaid credit, the minimum. That is about a month of Grayout checks at the default setting. Credit is only spent when checks run.</p>
+        </li>
+        <li>
+          <p><strong>Set a ceiling (optional).</strong> Projects &gt; create a project named Grayout and give it a monthly budget. Keys made inside that project cannot spend past it.</p>
+        </li>
+        <li>
+          <p><strong>Create the key.</strong> API keys &gt; Create new secret key, inside that project. Copy it. It starts with <code>sk-proj-</code> and is shown once; if you lose it, make a new one.</p>
+        </li>
+        <li>
+          <p><strong>Paste it into Grayout.</strong> Step 3 of the welcome window: paste the key and click <strong>Test key</strong>. Grayout runs one real check on a synthetic screenshot and tells you what it cost, about a fifteenth of a cent. Click <strong>Save and continue</strong>, then <strong>Always Allow</strong> on the Keychain prompt.</p>
+        </li>
+      </ol>
+    </div>
+  </div>
+
+  <p>Grayout never sees your account; the key is stored in your macOS Keychain. It is never logged and never written to a plain file. You can change it later under Settings, and revoke it at any time at console.anthropic.com or platform.openai.com.</p>
+
+  <h2 id="cost">What the checks cost</h2>
+
+  <p>The app is free. Your provider bills each check: about a quarter of a cent on Anthropic’s Claude Haiku 4.5 ($0.0025), about a fifteenth of a cent on OpenAI’s gpt-5-mini ($0.0007). What that adds up to depends on how often Grayout looks, which you choose in the welcome window and can change in Settings.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Setting</th><th>Checks every</th><th class="num">Anthropic, per working day</th><th class="num">Anthropic, per month</th><th class="num">OpenAI, per working day</th><th class="num">OpenAI, per month</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Strict</td><td>30 seconds</td><td class="num">about $1.35</td><td class="num">about $30</td><td class="num">about $0.38</td><td class="num">about $8</td></tr>
+        <tr><td>Balanced (default)</td><td>45 seconds</td><td class="num">about $0.90</td><td class="num">about $20</td><td class="num">about $0.26</td><td class="num">about $6</td></tr>
+        <tr><td>Light</td><td>90 seconds</td><td class="num">about $0.45</td><td class="num">about $10</td><td class="num">about $0.13</td><td class="num">about $3</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="fine">Prices as of 2026-09-21, for one display on Claude Haiku 4.5 or gpt-5-mini, based on the author’s observed cadence of about 500 checks on an active day at 30 seconds; a month is 22 working days. The webcam adds about 15%. Each additional display roughly doubles the per-check cost. The theoretical ceiling, eight hours nonstop at 30 seconds, is about $2.60 a day with Anthropic and about $0.70 with OpenAI, and a built-in daily cap of 1,200 checks pauses Grayout until tomorrow if it is ever reached.</p>
+
+  <p>The dashboard shows what you have spent today, how many checks that was, and the pace it projects for the month, all computed on your Mac from the token counts your provider returns with every verdict. Your actual bill is whatever your provider charges; check it under Usage at console.anthropic.com or platform.openai.com.</p>
+
+  <h2 id="trouble">If Test key fails</h2>
+  <ul>
+    <li><strong>Anthropic (or OpenAI) rejected this key</strong> — a character is missing or the key was revoked. Paste it again or make a new one.</li>
+    <li><strong>This account has no credit</strong> — go back to step 2. Credit can take a minute to appear after payment.</li>
+    <li><strong>This account can’t use the model</strong> — the key belongs to an account without access to the default model. Try a different key, or set <code>model</code> in config.json to one your account can use.</li>
+    <li><strong>Couldn’t reach Anthropic (or OpenAI)</strong> — check your connection, a VPN, or a firewall that blocks api.anthropic.com or api.openai.com.</li>
+  </ul>
+  <p>You can skip the key during setup and add it later; Grayout stays paused and says so in its menu until it has one.</p>
+
+</main>
+
+<footer>
+  <a href="https://github.com/aarushkandukoori/grayout">GitHub</a> ·
+  <a href="https://github.com/aarushkandukoori/grayout/releases">Releases</a> ·
+  <a href="https://github.com/aarushkandukoori/grayout/issues">Issues</a> ·
+  <a href="https://github.com/aarushkandukoori/grayout/discussions">Hosted plan waitlist</a> ·
+  <a href="privacy.html">Privacy</a> ·
+  <a href="https://github.com/aarushkandukoori/grayout/blob/main/SECURITY.md">Security policy</a> ·
+  <a href="https://github.com/aarushkandukoori/grayout/blob/main/LICENSE">MIT</a>
+  <!-- Sponsor link goes here once .github/FUNDING.yml exists: <a href="https://github.com/sponsors/aarushkandukoori">Sponsor</a> -->
+  <br>
+  Aarush Kandukoori, 2026
+</footer>
+
+</body>
+</html>

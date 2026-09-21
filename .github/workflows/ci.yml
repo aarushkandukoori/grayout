@@ -1,0 +1,26 @@
+# Push / PR gate (BUILD-SPEC §22): syntax check, unit tests, universal helper build,
+# an ad-hoc packed .app (no DMG) and a codesign verification of that .app.
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request: {}
+jobs:
+  test:
+    # macos-latest is what the spec asks for (arm64 image; macOS 26 as of 2026-09).
+    # If a runner image bump ever breaks the build, pin to macos-15 here.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - run: bash scripts/build-helper.sh
+      - run: npx electron-builder --mac dir --arm64 --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - run: codesign --verify --deep --strict --verbose=2 "dist/mac-arm64/Grayout.app"

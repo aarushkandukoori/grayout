@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Install Grayout for Mac</title>
+  <meta name="description" content="How to install Grayout on macOS: the exact Gatekeeper dialogs for an un-notarized app, Screen Recording, your API key, verifying the download, updating, and what to do if your screen is stuck gray.">
+  <link rel="canonical" href="https://aarushkandukoori.github.io/grayout/install.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Grayout for Mac">
+  <meta property="og:title" content="Install Grayout for Mac">
+  <meta property="og:description" content="The exact steps for first launch on macOS, including the Apple could not verify dialog and Open Anyway.">
+  <meta property="og:url" content="https://aarushkandukoori.github.io/grayout/install.html">
+  <meta property="og:image" content="https://aarushkandukoori.github.io/grayout/img/hero-gray.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%238a8a8a'/%3E%3Cpath d='M16 16 L16 2 A14 14 0 0 1 30 16 Z' fill='%23d03b3b'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav>
+  <a class="brand" href="index.html">Grayout for Mac</a> ·
+  <a href="index.html#how">How it works</a> ·
+  <a href="install.html">Install</a> ·
+  <a href="index.html#cost">Cost</a> ·
+  <a href="privacy.html">Privacy</a> ·
+  <a href="https://github.com/aarushkandukoori/grayout">GitHub</a>
+</nav>
+
+<main>
+
+  <h1>Install Grayout</h1>
+
+  <p class="lead">About three minutes. Grayout is not notarized yet, so macOS warns you once on first launch; steps 2 and 3 get you past that. The wording below is from macOS 26.</p>
+
+  <p class="buttons">
+    <a class="button" href="https://github.com/aarushkandukoori/grayout/releases/latest/download/Grayout-arm64.dmg">Download for Apple Silicon</a>
+    <a class="button" href="https://github.com/aarushkandukoori/grayout/releases/latest/download/Grayout-x64.dmg">Download for Intel</a>
+  </p>
+  <p class="fine">macOS 13 (Ventura) or later. Not sure which one? Apple menu &gt; About This Mac. “Chip: Apple M…” means Apple Silicon.</p>
+
+  <h2 id="drag">1. Download and drag</h2>
+  <p>Open the DMG, drag Grayout onto the Applications folder, then eject the disk image. It must be in Applications for the Open Anyway exception and Start at login to work.</p>
+
+  <h2 id="first-launch">2. First launch</h2>
+  <p>Double-click Grayout in Applications. macOS shows:</p>
+  <p><em>Apple could not verify “Grayout” is free of malware that may harm your Mac or compromise your privacy.</em></p>
+  <p>with the buttons <strong>Done</strong> and <strong>Move to Trash</strong>. Click <strong>Done</strong>. (Control-click &gt; Open no longer bypasses this on macOS 15 and 26.)</p>
+
+  <h2 id="allow">3. Allow it</h2>
+  <p>Open System Settings &gt; Privacy &amp; Security and scroll down to the Security section. You’ll see <em>“Grayout” was blocked to protect your Mac.</em> Click <strong>Open Anyway</strong>, enter your password or use Touch ID, then click <strong>Open Anyway</strong> (or <strong>Open</strong>) in the dialog that follows. macOS remembers this.</p>
+  <p>Some guides report the Open Anyway button disappears about an hour after the blocked attempt; if you don’t see it, double-click Grayout again and come back.</p>
+  <p>Terminal alternative that skips the dialog:</p>
+  <pre><code>xattr -dr com.apple.quarantine /Applications/Grayout.app</code></pre>
+  <p>Why this happens: removing this warning requires Apple’s $99/year Developer Program and notarization. That is the first thing on the roadmap.</p>
+
+  <h2 id="screen-recording">4. Screen Recording</h2>
+
+  <figure>
+    <img src="img/onboarding-welcome.png" width="560" height="700" alt="The Grayout welcome window, step 1 of 5: how it works, what leaves your Mac, and a Continue button">
+    <figcaption>The welcome window walks through five short screens. This is the first one.</figcaption>
+  </figure>
+
+  <p>Grayout opens a welcome window. On step 2 click <strong>Open System Settings</strong>, turn on Grayout under Screen Recording, then click <strong>Relaunch Grayout</strong>. macOS only applies this permission after the app restarts.</p>
+  <p>Grayout asks for nothing else: no Accessibility, no Automation, no Full Disk Access. The camera is optional and off by default.</p>
+
+  <h2 id="api-key">5. Your API key</h2>
+  <p>Step 3: paste your Anthropic or OpenAI key (see <a href="api-key.html">the key guide</a>; Grayout tells them apart from the key), click <strong>Test key</strong>, then <strong>Save</strong>. Click <strong>Always Allow</strong> on the Keychain prompt; the key is stored encrypted in your macOS Keychain and never written to a plain file.</p>
+
+  <h2 id="done">6. Done</h2>
+  <p>Step 5: click <strong>Preview the gray</strong> to see what it does and to prove the restore path on your Mac, then <strong>Start watching</strong>. The first check runs within seconds. Grayout lives in the menu bar; there is no Dock icon.</p>
+
+  <h2 id="verify">7. Verify your download</h2>
+  <p>Each release carries a <a href="https://github.com/aarushkandukoori/grayout/releases/latest/download/SHA256SUMS.txt">SHA256SUMS.txt</a>. Compare it with your file:</p>
+  <pre><code>shasum -a 256 ~/Downloads/Grayout-arm64.dmg</code></pre>
+  <p>Use <code>Grayout-x64.dmg</code> for the Intel build. The two hashes must match exactly.</p>
+
+  <h2 id="source">8. Build from source</h2>
+  <pre><code>git clone https://github.com/aarushkandukoori/grayout &amp;&amp; cd grayout &amp;&amp; npm ci &amp;&amp; npm run helper &amp;&amp; npm start</code></pre>
+  <p>Needs Node 22 and the Xcode Command Line Tools for <code>clang</code>, which compiles the 30-line grayscale helper. <code>npm run dist</code> builds the DMGs.</p>
+
+  <h2 id="updating">9. Updating</h2>
+  <p>Download the new DMG, drag Grayout over the old app, relaunch. Grayout checks GitHub once a day and shows <strong>Update available</strong> in its menu when there is one; you can turn that off in Settings.</p>
+  <p>macOS may ask for Screen Recording again after an update. If the toggle is on but captures are blank, use Permissions &gt; <strong>Copy the fix command</strong> and paste it in Terminal:</p>
+  <pre><code>tccutil reset ScreenCapture com.aarushkandukoori.grayout</code></pre>
+
+  <h2 id="stuck-gray">10. If your screen is stuck gray</h2>
+  <p>In order, from the easiest:</p>
+  <ol>
+    <li>Click <strong>Restore color now</strong> in the Grayout menu bar item. It is enabled in every state, including paused and blocked.</li>
+    <li>Click <strong>I’m working</strong> if the item is there: color returns and Grayout backs off for ten minutes.</li>
+    <li>Quit Grayout, or relaunch it. Quitting restores color on the way out, and every launch turns grayscale off before anything else runs, even after a force-kill.</li>
+    <li>Paste this in Terminal, with the quotes:
+      <pre><code>"/Applications/Grayout.app/Contents/Resources/helper/grayscale" off</code></pre>
+    </li>
+    <li>No Terminal: System Settings &gt; Accessibility &gt; Display &gt; Color Filters. Turn it on, then off. This resets the same system flag.</li>
+    <li>Do nothing: a watchdog restores color after 20 minutes no matter what.</li>
+  </ol>
+  <p>If any of these was needed, <a href="https://github.com/aarushkandukoori/grayout/issues/new/choose">open an issue</a> and say which one worked.</p>
+
+</main>
+
+<footer>
+  <a href="https://github.com/aarushkandukoori/grayout">GitHub</a> ·
+  <a href="https://github.com/aarushkandukoori/grayout/releases">Releases</a> ·
+  <a href="https://github.com/aarushkandukoori/grayout/issues">Issues</a> ·
+  <a href="https://github.com/aarushkandukoori/grayout/discussions">Hosted plan waitlist</a> ·
+  <a href="privacy.html">Privacy</a> ·
+  <a href="https://github.com/aarushkandukoori/grayout/blob/main/SECURITY.md">Security policy</a> ·
+  <a href="https://github.com/aarushkandukoori/grayout/blob/main/LICENSE">MIT</a>
+  <!-- Sponsor link goes here once .github/FUNDING.yml exists: <a href="https://github.com/sponsors/aarushkandukoori">Sponsor</a> -->
+  <br>
+  Aarush Kandukoori, 2026
+</footer>
+
+</body>
+</html>

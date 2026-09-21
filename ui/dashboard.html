@@ -1,0 +1,362 @@
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:">
+<title>Grayout</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  /* Page-specific layout only. Tokens and the generic controls (.btn, .pill,
+     .banner, .field, .toggle, .radio-row, .link, .hint, .status) come from
+     shared.css. */
+  .wrap { max-width: 900px; margin: 0 auto; padding: 26px 24px 48px; }
+
+  header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
+  .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: .14em;
+             text-transform: uppercase; color: var(--muted); }
+  .spacer { flex: 1; }
+  .status-line { font-family: var(--mono); font-size: 11.5px; color: var(--muted); margin: 0 0 18px;
+                 white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  /* Pause menu: a <details> so it needs no positioning script. */
+  .menu { position: relative; display: inline-block; }
+  .menu summary { list-style: none; user-select: none; }
+  .menu summary::-webkit-details-marker { display: none; }
+  .menu summary::after { content: "\25BE"; font-size: 11px; }
+  .menu-list {
+    position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; min-width: 190px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 6px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .14); display: flex; flex-direction: column; gap: 2px;
+  }
+  .menu-list button {
+    text-align: left; border: 0; background: transparent; width: 100%; border-radius: 6px;
+    padding: 7px 10px; font: inherit; font-size: 13px; color: var(--ink); cursor: default;
+  }
+  .menu-list button:hover { background: var(--sunken); }
+
+  .days { display: flex; gap: 6px; margin-bottom: 18px; flex-wrap: wrap; }
+  .days .btn.on { background: var(--ink); color: var(--ground); border-color: var(--ink); }
+
+  .verdict {
+    display: grid; grid-template-columns: auto 1fr; gap: 26px; align-items: center;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    padding: 22px 26px; margin-bottom: 12px;
+  }
+  .pct { font-family: var(--mono); font-size: 56px; line-height: 1; font-weight: 600;
+         letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+  .pct span { font-size: 22px; color: var(--muted); }
+  .verdict p { margin: 0; color: var(--ink-2); font-size: 14px; }
+  .verdict strong { color: var(--ink); }
+  .verdict .cost { margin-top: 6px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  .panel { background: var(--surface); border: 1px solid var(--line);
+           border-radius: 14px; padding: 20px 22px; margin-bottom: 12px; }
+  .panel h2 { font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+              color: var(--muted); margin: 0 0 4px; font-weight: 600; }
+  .panel .note { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
+  .panel-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+  .panel-head h2 { margin: 0; }
+  .panel-head .spacer { flex: 1; }
+
+  /* The whole day has to fit without sideways scrolling: cells shrink, runs of
+     checks are bucketed when there are more than fit, and away-breaks are
+     narrow markers with the duration on hover. */
+  .strip { display: flex; align-items: stretch; gap: 2px; padding-bottom: 6px; overflow: hidden; min-width: 0; }
+  .cell { flex: 1 1 4px; min-width: 3px; max-width: 20px; height: 48px; border-radius: 2px; background: var(--good); }
+  .cell.off { background: var(--alert); }
+  .cell.fired { position: relative; }
+  .cell.fired::after { content: ""; position: absolute; left: 0; right: 0; bottom: -7px;
+                       height: 3px; background: var(--alert); border-radius: 2px; }
+  .gap { flex: 0 0 13px; height: 48px; display: flex; align-items: center; justify-content: center; }
+  .gap::before {
+    content: ""; width: 0; height: 34px;
+    border-left: 2px dotted color-mix(in srgb, var(--muted) 55%, transparent);
+  }
+  .axis { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 11px;
+          color: var(--muted); margin-top: 12px; font-variant-numeric: tabular-nums; }
+  .key { display: flex; gap: 16px; margin-top: 12px; font-size: 12.5px; color: var(--ink-2); flex-wrap: wrap; }
+  .key i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+  .key .u { display: inline-block; width: 14px; height: 3px; border-radius: 2px; background: var(--alert);
+            margin-right: 6px; vertical-align: 3px; }
+
+  .tablewrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em;
+       text-transform: uppercase; color: var(--muted); font-weight: 600;
+       padding: 0 0 9px; border-bottom: 1px solid var(--line); }
+  td { padding: 9px 0; border-bottom: 1px solid var(--line); color: var(--ink-2); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  td.t { font-family: var(--mono); color: var(--muted); width: 58px; font-variant-numeric: tabular-nums; }
+  td.r { text-align: right; width: 104px; white-space: nowrap; }
+  td.a { text-align: right; width: 150px; white-space: nowrap; }
+  td .app { display: block; color: var(--muted); font-size: 12px; }
+  .tag { display: inline-block; font-family: var(--mono); font-size: 10.5px; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+  .tag.hit { background: color-mix(in srgb, var(--alert) 16%, transparent); color: var(--alert); }
+  .tag.warn { background: var(--sunken); color: var(--muted); }
+  .tag.disputed { background: var(--sunken); color: var(--ink-2); margin-left: 6px; }
+  td.a .link { margin-left: 10px; }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+  .stat { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .stat .k { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  .stat .v { font-family: var(--mono); font-size: 24px; font-weight: 600; margin-top: 5px;
+             font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+  .stat .v small { font-size: 13px; color: var(--muted); font-weight: 500; }
+
+  #banner-slot .banner { margin-bottom: 12px; }
+  .empty { color: var(--muted); font-size: 14px; padding: 8px 0; }
+  footer { margin-top: 22px; color: var(--muted); font-size: 12.5px; overflow-wrap: anywhere; }
+
+  /* Settings */
+  .settings { margin-top: 36px; }
+  .settings .section-title { font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+                             color: var(--muted); margin: 0 0 10px; font-weight: 600; }
+  .srow { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 6px 18px; padding: 14px 0;
+          border-bottom: 1px solid var(--line); align-items: start; }
+  .srow:last-of-type { border-bottom: none; }
+  .srow .label { margin: 0; padding-top: 3px; font-size: 14px; }
+  .srow .toggle + .toggle { margin-top: 8px; }
+  .srow select.field { width: auto; min-width: 90px; }
+  .hint.warn { color: var(--alert); }
+  .counter { font-family: var(--mono); font-size: 11px; color: var(--muted); text-align: right; margin-top: 3px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px 3px 10px; border: 1px solid var(--line);
+          border-radius: 999px; background: var(--sunken); font-size: 13px; color: var(--ink); max-width: 100%; }
+  .chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chip button { border: 0; background: transparent; padding: 0 6px; font-size: 15px; line-height: 1;
+                 color: var(--muted); cursor: default; font-family: var(--sans); }
+  .chip button:hover { color: var(--alert); }
+  .actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-top: 16px; }
+  .actions .status, .panel-head .status { min-height: 0; }
+  .keyfoot { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-top: 10px; font-size: 12.5px; }
+  .perm { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 8px 18px; align-items: center; }
+  .perm .label { margin: 0; }
+  .perm .val { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .cmd { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 14px; font-size: 13px; }
+  .cmd code { overflow-wrap: anywhere; }
+  .hidden { display: none !important; }
+  @media (max-width: 640px) {
+    .srow, .perm { grid-template-columns: 1fr; }
+    .verdict { grid-template-columns: 1fr; gap: 12px; }
+    td.a { width: auto; }
+  }
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Grayout</span>
+    <span id="pill" class="pill"><span class="dot"></span><span id="pill-text">starting</span></span>
+    <span class="spacer"></span>
+    <button id="btn-working" class="btn btn-primary hidden">I'm working</button>
+    <button id="btn-check" class="btn">Check now</button>
+    <button id="btn-resume" class="btn hidden">Resume</button>
+    <details id="pause-menu" class="menu">
+      <summary class="btn">Pause</summary>
+      <div class="menu-list">
+        <button type="button" data-pause="15">For 15 minutes</button>
+        <button type="button" data-pause="60">For 1 hour</button>
+        <button type="button" data-pause="tomorrow">Until tomorrow</button>
+        <button type="button" data-pause="indefinite">Until I resume</button>
+      </div>
+    </details>
+    <button id="btn-restore" class="link link-small" title="Turns the display back to color right now, whatever state Grayout is in">Restore color</button>
+  </header>
+  <p id="status-line" class="status-line"></p>
+
+  <div id="banner-slot"></div>
+  <div class="days" id="days"></div>
+
+  <div class="verdict">
+    <div class="pct" id="pct">&ndash;</div>
+    <div>
+      <p id="headline">Loading</p>
+      <p class="cost" id="cost"></p>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>The day</h2>
+    <p class="note">One block per check. Hover for the time and what it saw.</p>
+    <div class="strip" id="strip"></div>
+    <div class="axis"><span id="ax-a"></span><span id="ax-b"></span></div>
+    <div class="key">
+      <span><i style="background:var(--good)"></i>working</span>
+      <span><i style="background:var(--alert)"></i>off task</span>
+      <span><span class="u"></span>screen red + grayscale</span>
+      <span>dotted marks are time you were away</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Everything it flagged</h2>
+    <p class="note" id="flags-note">Two flags in a row turn the screen red. One on its own is forgiven.</p>
+    <div id="flags"></div>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <footer id="footer">
+    Only counts time it was actually watching. Checks are skipped while you're away or the display is asleep.
+    Raw history is in <code id="footer-path">verdicts.jsonl</code> <span id="footer-kept"></span>
+  </footer>
+
+  <section id="settings" class="settings">
+    <p class="section-title">Settings</p>
+
+    <form id="settings-form" class="panel" autocomplete="off">
+      <div class="panel-head">
+        <h2>Watching</h2>
+        <span class="spacer"></span>
+        <span id="save-status" class="status"></span>
+        <button type="submit" id="btn-save" class="btn btn-primary">Save</button>
+      </div>
+      <p class="note">Changes apply as soon as you save. Nothing here restarts the app.</p>
+
+      <div class="srow">
+        <div class="label">Check every</div>
+        <div>
+          <div id="interval-radios"></div>
+          <div class="hint" id="interval-note">Estimates for one display. A second display roughly doubles it.</div>
+        </div>
+      </div>
+
+      <div class="srow">
+        <label class="label" for="f-strikes">Strikes</label>
+        <div>
+          <select id="f-strikes" class="field">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+          </select>
+          <div class="hint">Clearly-off-task checks in a row before the screen reacts. One flag on its own never does anything.</div>
+        </div>
+      </div>
+
+      <div class="srow">
+        <label class="label" for="f-work">Work description</label>
+        <div>
+          <textarea id="f-work" class="field" rows="2" maxlength="500" placeholder="CS coursework in VS Code, papers, Canvas"></textarea>
+          <div class="counter" id="work-counter">0 / 500</div>
+          <div class="hint">One line telling the model what your work looks like. It is sent with every check.</div>
+        </div>
+      </div>
+
+      <div class="srow">
+        <div class="label">When off task</div>
+        <div>
+          <label class="toggle"><input type="checkbox" id="f-grayscale"><span class="toggle-track"></span><span class="toggle-text">Turn the whole display gray</span></label>
+          <label class="toggle"><input type="checkbox" id="f-redFlash"><span class="toggle-track"></span><span class="toggle-text">Flash a red border</span></label>
+          <div class="hint" id="consequence-note"></div>
+        </div>
+      </div>
+
+      <div class="srow">
+        <div class="label">Webcam</div>
+        <div>
+          <label class="toggle"><input type="checkbox" id="f-camera"><span class="toggle-track"></span><span class="toggle-text">Also use the webcam to notice a phone in your hand</span></label>
+          <div class="hint">Adds about 15% to the cost. Frames go with the screenshot to the same API, under your key, and are never saved.</div>
+          <div class="hint" id="camera-note"></div>
+        </div>
+      </div>
+
+      <div class="srow">
+        <div class="label">Start at login</div>
+        <div>
+          <label class="toggle"><input type="checkbox" id="f-startAtLogin"><span class="toggle-track"></span><span class="toggle-text">Open Grayout when you log in</span></label>
+          <div class="hint" id="login-note"></div>
+        </div>
+      </div>
+
+      <div class="srow">
+        <div class="label">Housekeeping</div>
+        <div>
+          <label class="toggle"><input type="checkbox" id="f-checkForUpdates"><span class="toggle-track"></span><span class="toggle-text">Check GitHub for a new version once a day</span></label>
+          <div class="hint">Nothing identifying is sent. Updates are never installed on their own.</div>
+          <label class="toggle"><input type="checkbox" id="f-pauseWhenLocked"><span class="toggle-track"></span><span class="toggle-text">Pause while the screen is locked</span></label>
+        </div>
+      </div>
+
+      <div class="srow">
+        <div class="label">Never trigger in</div>
+        <div>
+          <div class="chips" id="chips-allowed"></div>
+          <div class="field-row">
+            <input type="text" id="add-allowed" class="field" maxlength="80" placeholder="App name, for example Zoom">
+            <button type="button" id="btn-add-allowed" class="btn">Add</button>
+          </div>
+          <div class="hint">Matched against the frontmost app's name. Video calls are here by default so a meeting never turns the screen gray.</div>
+        </div>
+      </div>
+
+      <div class="srow">
+        <div class="label">Never capture</div>
+        <div>
+          <div class="chips" id="chips-never"></div>
+          <div class="field-row">
+            <input type="text" id="add-never" class="field" maxlength="80" placeholder="App name, for example 1Password">
+            <button type="button" id="btn-add-never" class="btn">Add</button>
+          </div>
+          <div class="hint">No screenshot is taken while one of these is frontmost. Password managers by default. Other windows on screen may still be visible in a capture taken later.</div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <button type="button" id="btn-revert" class="btn">Discard changes</button>
+        <span id="save-status-2" class="status"></span>
+      </div>
+    </form>
+
+    <div class="panel" id="key-panel">
+      <h2>API key (Anthropic or OpenAI)</h2>
+      <p class="note" id="key-current">Loading</p>
+      <div class="field-row">
+        <input type="password" id="f-key" class="field mono" placeholder="sk-ant-… or sk-proj-…" spellcheck="false" autocapitalize="off">
+        <button type="button" id="btn-key-test" class="btn">Test</button>
+        <button type="button" id="btn-key-save" class="btn btn-primary" disabled>Save</button>
+      </div>
+      <div class="status" id="key-msg"></div>
+      <div class="keyfoot">
+        <span class="muted">Stored in the macOS Keychain and never written anywhere else. The provider and model are read from the key.</span>
+        <button type="button" id="btn-key-remove" class="link">Remove key</button>
+        <button type="button" id="btn-key-get" class="link">Get a key</button>
+      </div>
+    </div>
+
+    <div class="panel" id="perm-panel">
+      <div class="panel-head">
+        <h2>Permissions</h2>
+        <span class="spacer"></span>
+        <button type="button" id="btn-perm-recheck" class="btn">Recheck</button>
+      </div>
+      <p class="note">Grayout asks for Screen Recording (required) and Camera (optional). Nothing else.</p>
+      <div class="perm">
+        <div class="label">Screen Recording</div>
+        <div class="val"><span id="perm-screen" class="pill">checking</span><button type="button" id="btn-perm-screen" class="link">Open Screen Recording settings</button></div>
+        <div class="label">Camera</div>
+        <div class="val"><span id="perm-camera" class="pill">checking</span><button type="button" id="btn-perm-camera" class="link">Open Camera settings</button></div>
+        <div class="label">Login item</div>
+        <div class="val"><span id="perm-login" class="pill">checking</span><button type="button" id="btn-perm-login" class="link">Open Login Items settings</button></div>
+      </div>
+      <div class="cmd">
+        <span class="muted">Captures look blank after an update? Paste this in Terminal, then allow Grayout again:</span>
+        <code id="tcc-cmd"></code>
+        <button type="button" id="btn-tcc-copy" class="btn btn-sm">Copy</button>
+      </div>
+    </div>
+
+    <div class="panel" id="adv-panel">
+      <h2>Advanced</h2>
+      <p class="note">Everything else lives in config.json: the model, Canvas, a tasks file, the daily cap, timing. Grayout reloads it a couple of seconds after you save the file.</p>
+      <div class="actions" style="padding-top:0">
+        <button type="button" id="btn-open-config" class="btn">Open config.json</button>
+        <button type="button" id="btn-reveal" class="btn">Reveal data folder</button>
+        <button type="button" id="btn-clear" class="btn">Delete all history</button>
+        <span id="adv-status" class="status"></span>
+      </div>
+      <p class="note" style="margin:14px 0 0" id="version-line"></p>
+    </div>
+  </section>
+</div>
+
+<script src="dashboard.js"></script>

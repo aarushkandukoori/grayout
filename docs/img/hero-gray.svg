@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" width="640" height="400" role="img" aria-label="Placeholder — real screenshot coming: the same Mac desktop in gray with a red border and the Grayout menu open">
+  <!-- PLACEHOLDER. Replace with a real capture (docs/img/README.md). -->
+  <rect width="640" height="400" fill="#dcdcdc"/>
+
+  <!-- menu bar -->
+  <rect width="640" height="22" fill="#f4f4f4"/>
+  <circle cx="16" cy="11" r="5" fill="#333"/>
+  <rect x="30" y="7" width="42" height="8" rx="2" fill="#333"/>
+  <rect x="82" y="7" width="28" height="8" rx="2" fill="#777"/>
+  <rect x="120" y="7" width="28" height="8" rx="2" fill="#777"/>
+  <rect x="452" y="11" width="10" height="10" fill="#333"/>
+  <rect x="448" y="3" width="18" height="18" fill="none" stroke="#333" stroke-width="2"/>
+  <text x="472" y="15" font-family="-apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#333">OFF TASK</text>
+  <rect x="572" y="7" width="52" height="8" rx="2" fill="#333"/>
+
+  <!-- editor window, desaturated -->
+  <rect x="30" y="50" width="340" height="250" rx="8" fill="#1e1e1e" stroke="#555"/>
+  <rect x="30" y="50" width="340" height="26" rx="8" fill="#2d2d2d"/>
+  <rect x="30" y="66" width="340" height="10" fill="#2d2d2d"/>
+  <circle cx="46" cy="63" r="5" fill="#8a8a8a"/>
+  <circle cx="62" cy="63" r="5" fill="#b0b0b0"/>
+  <circle cx="78" cy="63" r="5" fill="#9a9a9a"/>
+  <rect x="160" y="58" width="80" height="10" rx="2" fill="#555"/>
+  <g>
+    <rect x="48" y="92" width="120" height="7" rx="2" fill="#9a9a9a"/>
+    <rect x="48" y="108" width="200" height="7" rx="2" fill="#d4d4d4"/>
+    <rect x="64" y="124" width="150" height="7" rx="2" fill="#a8a8a8"/>
+    <rect x="64" y="140" width="240" height="7" rx="2" fill="#d4d4d4"/>
+    <rect x="64" y="156" width="90" height="7" rx="2" fill="#8c8c8c"/>
+    <rect x="48" y="172" width="170" height="7" rx="2" fill="#9a9a9a"/>
+    <rect x="64" y="188" width="210" height="7" rx="2" fill="#d4d4d4"/>
+    <rect x="64" y="204" width="120" height="7" rx="2" fill="#c4c4c4"/>
+    <rect x="48" y="220" width="60" height="7" rx="2" fill="#a0a0a0"/>
+    <rect x="48" y="252" width="300" height="34" rx="3" fill="#111"/>
+    <rect x="58" y="262" width="140" height="6" rx="2" fill="#9a9a9a"/>
+    <rect x="58" y="274" width="90" height="6" rx="2" fill="#aaa"/>
+  </g>
+
+  <!-- document window, desaturated -->
+  <rect x="300" y="110" width="310" height="240" rx="8" fill="#f2f2f2" stroke="#aaa"/>
+  <rect x="300" y="110" width="310" height="26" rx="8" fill="#e0e0e0"/>
+  <rect x="300" y="126" width="310" height="10" fill="#e0e0e0"/>
+  <circle cx="316" cy="123" r="5" fill="#8a8a8a"/>
+  <circle cx="332" cy="123" r="5" fill="#b0b0b0"/>
+  <circle cx="348" cy="123" r="5" fill="#9a9a9a"/>
+  <rect x="430" y="118" width="70" height="10" rx="2" fill="#999"/>
+  <g>
+    <rect x="324" y="156" width="150" height="10" rx="2" fill="#6f6f6f"/>
+    <rect x="324" y="178" width="260" height="6" rx="2" fill="#c8c8c8"/>
+    <rect x="324" y="192" width="240" height="6" rx="2" fill="#c8c8c8"/>
+    <rect x="324" y="206" width="255" height="6" rx="2" fill="#c8c8c8"/>
+    <rect x="324" y="220" width="180" height="6" rx="2" fill="#c8c8c8"/>
+    <rect x="324" y="244" width="110" height="8" rx="2" fill="#6f6f6f"/>
+    <rect x="324" y="264" width="250" height="6" rx="2" fill="#c8c8c8"/>
+    <rect x="324" y="278" width="230" height="6" rx="2" fill="#c8c8c8"/>
+    <rect x="324" y="292" width="200" height="6" rx="2" fill="#c8c8c8"/>
+    <rect x="324" y="306" width="140" height="6" rx="2" fill="#c8c8c8"/>
+  </g>
+
+  <!-- dock, desaturated -->
+  <rect x="170" y="354" width="300" height="38" rx="10" fill="#ffffff" fill-opacity="0.65"/>
+  <rect x="184" y="361" width="24" height="24" rx="6" fill="#6f6f6f"/>
+  <rect x="220" y="361" width="24" height="24" rx="6" fill="#9a9a9a"/>
+  <rect x="256" y="361" width="24" height="24" rx="6" fill="#8a8a8a"/>
+  <rect x="292" y="361" width="24" height="24" rx="6" fill="#b0b0b0"/>
+  <rect x="328" y="361" width="24" height="24" rx="6" fill="#5e5e5e"/>
+  <rect x="364" y="361" width="24" height="24" rx="6" fill="#1e1e1e"/>
+  <rect x="400" y="361" width="24" height="24" rx="6" fill="#8c8c8c"/>
+  <rect x="436" y="361" width="24" height="24" rx="6" fill="#7f7f7f"/>
+
+  <!-- open tray menu -->
+  <rect x="440" y="24" width="184" height="128" rx="6" fill="#f7f7f7" stroke="#b5b5b5"/>
+  <g font-family="-apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif" font-size="11" fill="#222">
+    <text x="452" y="42" font-weight="600">Off task</text>
+    <text x="452" y="58" fill="#777">last check: social media feed</text>
+    <line x1="446" y1="66" x2="618" y2="66" stroke="#d0d0d0"/>
+    <text x="452" y="82" font-weight="600">I’m working</text>
+    <text x="452" y="98">Pause</text>
+    <text x="452" y="114">Check now</text>
+    <text x="452" y="130">Open dashboard…</text>
+    <text x="452" y="146">Restore color now</text>
+  </g>
+
+  <!-- red border (the real one flashes) -->
+  <rect x="6" y="6" width="628" height="388" fill="none" stroke="#d03b3b" stroke-width="12"/>
+
+  <!-- placeholder label -->
+  <rect x="130" y="168" width="380" height="72" rx="8" fill="#ffffff" stroke="#111" stroke-width="2"/>
+  <text x="320" y="198" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif" font-size="22" font-weight="700" fill="#111">PLACEHOLDER</text>
+  <text x="320" y="222" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif" font-size="14" fill="#111">real screenshot coming — the same desktop, gray, red border</text>
+</svg>

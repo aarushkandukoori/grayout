@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Grayout for Mac — your Mac goes gray until you get back to work</title>
+  <meta name="description" content="Grayout looks at your screen every 45 seconds and asks Claude or GPT whether you are clearly not working. Two yeses in a row and every display loses its color. Free, open source, uses your own Anthropic or OpenAI API key.">
+  <link rel="canonical" href="https://aarushkandukoori.github.io/grayout/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Grayout for Mac">
+  <meta property="og:title" content="Grayout for Mac — your Mac goes gray until you get back to work">
+  <meta property="og:description" content="Grayout looks at your screen every 45 seconds and asks Claude or GPT whether you are clearly not working. Two yeses in a row and every display loses its color. Free, open source, uses your own Anthropic or OpenAI API key.">
+  <meta property="og:url" content="https://aarushkandukoori.github.io/grayout/">
+  <meta property="og:image" content="https://aarushkandukoori.github.io/grayout/img/hero-gray.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%238a8a8a'/%3E%3Cpath d='M16 16 L16 2 A14 14 0 0 1 30 16 Z' fill='%23d03b3b'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav>
+  <a class="brand" href="index.html">Grayout for Mac</a> ·
+  <a href="index.html#how">How it works</a> ·
+  <a href="install.html">Install</a> ·
+  <a href="index.html#cost">Cost</a> ·
+  <a href="privacy.html">Privacy</a> ·
+  <a href="https://github.com/aarushkandukoori/grayout">GitHub</a>
+</nav>
+
+<main>
+
+  <h1>Your Mac goes gray until you get back to work.</h1>
+
+  <p class="lead">Grayout looks at your screen every 45 seconds and asks Claude (or GPT) one question: is this person clearly not working? Two yeses in a row and every display loses its color. It comes back the moment you do.</p>
+
+  <p class="buttons">
+    <a class="button" href="https://github.com/aarushkandukoori/grayout/releases/latest/download/Grayout-arm64.dmg">Download for Apple Silicon</a>
+    <a class="button" href="https://github.com/aarushkandukoori/grayout/releases/latest/download/Grayout-x64.dmg">Download for Intel</a>
+  </p>
+
+  <p class="fine">macOS 13 (Ventura) or later. Free and open source. Uses your own Anthropic or OpenAI API key. Not yet notarized — first launch takes three extra clicks, <a href="#install">shown below</a>.</p>
+  <p class="fine">Not sure which one? Apple menu &gt; About This Mac. “Chip: Apple M…” means Apple Silicon.</p>
+
+  <div class="shots">
+    <figure>
+      <img src="img/hero-color.svg" width="640" height="400" alt="Placeholder — real screenshot coming: a Mac desktop in full color with a code editor and a document open">
+      <figcaption>Working.</figcaption>
+    </figure>
+    <figure>
+      <img src="img/hero-gray.svg" width="640" height="400" alt="Placeholder — real screenshot coming: the same Mac desktop in gray with a red border and the Grayout menu open">
+      <figcaption>Two clearly-off-task checks in a row.</figcaption>
+    </figure>
+  </div>
+
+  <h2 id="how">It doesn’t block. It notices.</h2>
+
+  <p>It reads context instead of lists. A lecture on YouTube is work. A feed on YouTube is not. The model looks at the whole screen and judges what is actually happening, so there is nothing to configure: no blocklists, no allowed hours, no exceptions to maintain. You can describe your work in one sentence if you want to, and that is optional.</p>
+
+  <p>It looks at every display, and at the webcam if you turn that on. A second monitor is not a hiding place, and neither is a phone in your hand.</p>
+
+  <p>The consequence is one you cannot ignore and cannot lose work to. Nothing closes, nothing locks, nothing gets typed for you. Your whole Mac turns gray with a red border, and color returns when you return. It takes two high-confidence flags in a row before anything happens, and clicking <strong>I’m working</strong> in the menu bar backs it off for ten minutes.</p>
+
+  <h2 id="flags">What it flags and what it never flags</h2>
+
+  <p>Both lists are lifted from <a href="https://github.com/aarushkandukoori/grayout/blob/main/src/analyzer.js">the prompt</a>, which is public and short.</p>
+
+  <div class="cols">
+    <div>
+      <h3>Flags</h3>
+      <ul>
+        <li>Social media feeds</li>
+        <li>Entertainment video</li>
+        <li>Games</li>
+        <li>Shopping and sports scores</li>
+        <li>Chat that is plainly social</li>
+        <li>A phone in your hand with nothing being worked on on screen</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Never flags</h3>
+      <ul>
+        <li>Editors, terminals, notebooks</li>
+        <li>Documents, spreadsheets, slides</li>
+        <li>Email and calendars</li>
+        <li>GitHub, documentation, papers</li>
+        <li>Technical video and lectures</li>
+        <li>Search, settings, installers</li>
+        <li>Video calls and screen shares</li>
+        <li>An empty desk</li>
+        <li>Anything ambiguous</li>
+      </ul>
+    </div>
+  </div>
+
+  <p>A single flag costs you nothing. The prompt tells the model that a false alarm is expensive and a miss is cheap, anything it cannot read is work, and Grayout acts only on two high-confidence flags in a row.</p>
+
+  <h2 id="leaves">What leaves your Mac</h2>
+
+  <div class="diagram diagram-wide">
+    <svg viewBox="0 0 720 190" role="img" aria-labelledby="diagram-title diagram-desc">
+      <title id="diagram-title">What leaves your Mac</title>
+      <desc id="diagram-desc">Three boxes. Your Mac sends a resized screenshot per display, an optional webcam frame and your work description to api.anthropic.com or api.openai.com under your own key, whichever key you entered. A three-field JSON verdict comes back. Nothing goes anywhere else.</desc>
+      <g fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="1" y="36" width="206" height="108" rx="8"/>
+        <rect x="254" y="36" width="196" height="108" rx="8"/>
+        <rect x="496" y="36" width="223" height="108" rx="8"/>
+        <path d="M207 76 H248"/>
+        <path d="M242 71 L250 76 L242 81"/>
+        <path d="M450 104 H490"/>
+        <path d="M484 99 L492 104 L484 109"/>
+      </g>
+      <g fill="currentColor" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+        <text x="104" y="62" text-anchor="middle" font-size="16" font-weight="600">Your Mac</text>
+        <text x="104" y="86" text-anchor="middle" font-size="12">one resized screenshot per display</text>
+        <text x="104" y="104" text-anchor="middle" font-size="12">optional webcam frame</text>
+        <text x="104" y="122" text-anchor="middle" font-size="12">your one-line work description</text>
+
+        <text x="352" y="58" text-anchor="middle" font-size="14" font-weight="600">api.anthropic.com</text>
+        <text x="352" y="76" text-anchor="middle" font-size="14" font-weight="600">or api.openai.com</text>
+        <text x="352" y="96" text-anchor="middle" font-size="12">under your own API key</text>
+        <text x="352" y="112" text-anchor="middle" font-size="12">the model answers one question</text>
+        <text x="352" y="128" text-anchor="middle" font-size="12">on their terms, not ours</text>
+
+        <text x="607.5" y="62" text-anchor="middle" font-size="16" font-weight="600">Back to your Mac</text>
+        <text x="607.5" y="86" text-anchor="middle" font-size="12">a three-field JSON verdict</text>
+        <text x="607.5" y="104" text-anchor="middle" font-size="11" font-family="ui-monospace, Menlo, monospace">off_task · activity · confidence</text>
+        <text x="607.5" y="122" text-anchor="middle" font-size="12">about forty tokens</text>
+
+        <text x="228" y="66" text-anchor="middle" font-size="11">sends</text>
+        <text x="470" y="94" text-anchor="middle" font-size="11">returns</text>
+        <text x="360" y="172" text-anchor="middle" font-size="12">Nothing goes anywhere else. There is no Grayout server.</text>
+      </g>
+    </svg>
+  </div>
+
+  <div class="diagram diagram-narrow">
+    <svg viewBox="0 0 360 412" role="img" aria-labelledby="diagram-title-n diagram-desc-n">
+      <title id="diagram-title-n">What leaves your Mac</title>
+      <desc id="diagram-desc-n">Three boxes. Your Mac sends a resized screenshot per display, an optional webcam frame and your work description to api.anthropic.com or api.openai.com under your own key, whichever key you entered. A three-field JSON verdict comes back. Nothing goes anywhere else.</desc>
+      <g fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="20" y="4" width="320" height="96" rx="8"/>
+        <rect x="20" y="148" width="320" height="96" rx="8"/>
+        <rect x="20" y="292" width="320" height="96" rx="8"/>
+        <path d="M180 100 V142"/>
+        <path d="M175 136 L180 144 L185 136"/>
+        <path d="M180 244 V286"/>
+        <path d="M175 280 L180 288 L185 280"/>
+      </g>
+      <g fill="currentColor" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+        <text x="180" y="30" text-anchor="middle" font-size="16" font-weight="600">Your Mac</text>
+        <text x="180" y="52" text-anchor="middle" font-size="12">one resized screenshot per display</text>
+        <text x="180" y="69" text-anchor="middle" font-size="12">optional webcam frame</text>
+        <text x="180" y="86" text-anchor="middle" font-size="12">your one-line work description</text>
+
+        <text x="192" y="126" font-size="11">sends</text>
+
+        <text x="180" y="172" text-anchor="middle" font-size="14" font-weight="600">api.anthropic.com or api.openai.com</text>
+        <text x="180" y="194" text-anchor="middle" font-size="12">under your own API key</text>
+        <text x="180" y="211" text-anchor="middle" font-size="12">the model answers one question</text>
+        <text x="180" y="228" text-anchor="middle" font-size="12">on their terms, not ours</text>
+
+        <text x="192" y="270" font-size="11">returns</text>
+
+        <text x="180" y="318" text-anchor="middle" font-size="16" font-weight="600">Back to your Mac</text>
+        <text x="180" y="340" text-anchor="middle" font-size="12">a three-field JSON verdict</text>
+        <text x="180" y="357" text-anchor="middle" font-size="12" font-family="ui-monospace, Menlo, monospace">off_task · activity · confidence</text>
+        <text x="180" y="374" text-anchor="middle" font-size="12">about forty tokens</text>
+
+        <text x="180" y="408" text-anchor="middle" font-size="12">Nothing goes anywhere else. There is no Grayout server.</text>
+      </g>
+    </svg>
+  </div>
+
+  <p><strong>What is sent.</strong> A resized screenshot of each display, an optional webcam frame if you turned the camera on, your one-line work description, and the titles of your tasks if you configured a Canvas token or a tasks file. All of it goes from your Mac to api.anthropic.com or api.openai.com, under your own key, whichever key you entered. Nothing goes to us.</p>
+
+  <p><strong>What is not.</strong> Nothing goes to us. There is no account, no server, and no analytics. Screenshots are deleted from your Mac right after every check, and the webcam frame is never written to disk. The only thing that stays is a 30-day log of short verdict phrases such as “code editor and terminal”, in <code>~/Library/Application Support/Grayout</code>, which you can delete from Settings.</p>
+
+  <p>How each provider treats what it receives is set by its own terms, not by us: see <a href="https://www.anthropic.com/legal/commercial-terms">Anthropic’s commercial terms</a> or <a href="https://openai.com/policies/api-data-usage-policies">OpenAI’s API data usage policy</a>. Grayout sends OpenAI requests with <code>store: false</code>, so responses are not kept in your OpenAI account’s stored responses; what OpenAI does beyond that is set out in their policy. The exact request Grayout builds is in <a href="https://github.com/aarushkandukoori/grayout/blob/main/src/analyzer.js">src/analyzer.js</a>. More on the <a href="privacy.html">privacy page</a>.</p>
+
+  <h2 id="dashboard">It keeps the receipts</h2>
+
+  <p>Every check is written down: what it saw, whether it fired, and what it cost. If it ever grays you out for something that was work, click <strong>Wrong call?</strong> — that logs the dispute and backs it off for ten minutes.</p>
+
+  <figure>
+    <img src="img/dashboard.png" width="1400" height="1085" alt="The Grayout dashboard: a focus percentage, the day as one block per check with the off-task ones in red, the money spent today, and a table of everything it flagged with Wrong call? buttons">
+    <figcaption>The dashboard, on a day with a few flags. The numbers here come from a sample log.</figcaption>
+  </figure>
+
+  <h2 id="cost">What it costs</h2>
+
+  <p>The app is free. Your provider bills you for the checks. With an Anthropic key and Claude Haiku 4.5 it is about a quarter of a cent each: at the default 45-second setting that is typically about $0.90 per working day, around $20 a month. Thirty seconds is about $1.35 a day; ninety seconds about $0.45. The dashboard shows what you have spent today.</p>
+
+  <p>With an OpenAI key and gpt-5-mini it is about a fifteenth of a cent per check: roughly $0.26 per working day at the default setting, around $6 a month. Both need a small prepaid balance to make a key ($5 is the minimum at either). <a href="api-key.html">Get a key in two minutes</a>.</p>
+
+  <p class="fine">Prices as of 2026-09-21, for one display on Claude Haiku 4.5 or gpt-5-mini. The webcam adds about 15%; a second display roughly doubles it.</p>
+
+  <h2 id="install">Install</h2>
+
+  <ol>
+    <li>Download the DMG above and drag Grayout to your Applications folder.</li>
+    <li>Open it. macOS says <em>Apple could not verify “Grayout” is free of malware</em>. Click <strong>Done</strong>, then go to System Settings &gt; Privacy &amp; Security and click <strong>Open Anyway</strong>. Or skip the dialog from Terminal: <code>xattr -dr com.apple.quarantine /Applications/Grayout.app</code></li>
+    <li>Allow Screen Recording when the welcome window asks, then click Relaunch Grayout.</li>
+    <li>Paste your Anthropic or OpenAI key and click Test key.</li>
+    <li>Click Start watching. The first check runs within seconds.</li>
+  </ol>
+
+  <p>Grayout is a one-person open-source project and is not yet in Apple’s notarization program, so macOS warns you once. The source is public; you can also build it yourself.</p>
+
+  <p><a href="install.html">The full walk-through</a>, with the exact dialog wording for macOS 26, verifying your download, updating, and what to do if your screen is stuck gray.</p>
+
+  <h2 id="author">Built by one person, on himself</h2>
+
+  <p>I’m Aarush Kandukoori, a CS student at Carnegie Mellon. Blockers kept getting turned off, so I built this in August 2026 and ran it every workday for six weeks, 12,650 checks, before letting anyone else download it. It flagged me about 3% of the time.</p>
+
+  <p>Two studies are worth knowing about. A 22-person field study of an LLM that judges screen activity against a stated intention (<a href="https://arxiv.org/abs/2510.14513">arXiv 2510.14513</a>) found less time on intention-irrelevant activity than rule-based reminders or passive logging. A 161-student trial of phone grayscale (<a href="https://doi.org/10.1080/03623319.2020.1737461">Holte and Ferraro, 2020</a>) cut daily screen time by about 38 minutes. Neither studied Grayout.</p>
+
+  <h2 id="employers">Not for employers</h2>
+
+  <p>Grayout reports to nobody but you. There is no team dashboard and there never will be an employer edition. If a workplace installs this on your machine, that is not what it is for.</p>
+
+  <h2 id="questions">Questions</h2>
+
+  <div class="qa">
+    <h3>My Mac is stuck gray.</h3>
+    <p>Click <strong>Restore color now</strong> in the Grayout menu bar item; it works in every state, including paused. If the menu bar item is gone, relaunch Grayout, which turns grayscale off before it does anything else. Without Grayout at all, paste this in Terminal: <code>"/Applications/Grayout.app/Contents/Resources/helper/grayscale" off</code>. Without Terminal: System Settings &gt; Accessibility &gt; Display &gt; Color Filters, turn it on, then off. And a watchdog restores color after 20 minutes no matter what.</p>
+
+    <h3>Can I just quit it?</h3>
+    <p>Yes, always. Quit is one click in the menu bar and restores color on the way out. It is for adults.</p>
+
+    <h3>What if it’s wrong?</h3>
+    <p>Click <strong>I’m working</strong> in the menu bar. Color comes back, it backs off for ten minutes, and the dispute is logged. If you want it fixed, <a href="https://github.com/aarushkandukoori/grayout/issues/new/choose">report it</a> with the verdict line from the dashboard’s Copy button; that line is a short category phrase, never a screenshot.</p>
+
+    <h3>Two monitors?</h3>
+    <p>Yes. Every display is checked and every display goes gray. If any display shows real work, nothing happens.</p>
+
+    <h3>Zoom?</h3>
+    <p>Video-call apps never trigger it. Zoom, FaceTime, Teams, Webex, Meet and Discord are allowed by default, and the prompt treats any call or screen share as work. Edit the list in Settings.</p>
+
+    <h3>Which is better, Anthropic or OpenAI?</h3>
+    <p>The author’s six-week run was on Anthropic’s Haiku 4.5, so that is the one with real mileage. OpenAI’s gpt-5-mini was checked on 2026-09-21: it returns the same verdict format and costs about four times less, but it has not yet been run for weeks on a real desk. Grayout tells the two apart from the key, so there is nothing to configure.</p>
+
+    <h3>Intel Macs?</h3>
+    <p>Yes, there is a separate download above. Both builds need macOS 13 (Ventura) or later.</p>
+
+    <h3>Why not the App Store?</h3>
+    <p>Grayout turns the screen gray through a private display API, and it is not notarized yet. Neither passes review.</p>
+
+    <h3>Will an update ask for Screen Recording again?</h3>
+    <p>It might. macOS sometimes keeps the toggle on but returns blank captures after an update. The Permissions menu shows the status and explains the fix: turn Grayout off and on in the Screen Recording list, or use <strong>Copy the fix command</strong> and paste it in Terminal.</p>
+
+    <h3>Uninstall?</h3>
+    <p>Quit Grayout, drag it from Applications to the Trash, delete <code>~/Library/Application Support/Grayout</code>, and turn off the login item in System Settings &gt; General &gt; Login Items. Revoke the key at console.anthropic.com or platform.openai.com if you no longer need it.</p>
+  </div>
+
+</main>
+
+<footer>
+  <a href="https://github.com/aarushkandukoori/grayout">GitHub</a> ·
+  <a href="https://github.com/aarushkandukoori/grayout/releases">Releases</a> ·
+  <a href="https://github.com/aarushkandukoori/grayout/issues">Issues</a> ·
+  <a href="https://github.com/aarushkandukoori/grayout/discussions">Hosted plan waitlist</a> ·
+  <a href="privacy.html">Privacy</a> ·
+  <a href="https://github.com/aarushkandukoori/grayout/blob/main/SECURITY.md">Security policy</a> ·
+  <a href="https://github.com/aarushkandukoori/grayout/blob/main/LICENSE">MIT</a>
+  <!-- Sponsor link goes here once .github/FUNDING.yml exists: <a href="https://github.com/sponsors/aarushkandukoori">Sponsor</a> -->
+  <br>
+  Aarush Kandukoori, 2026
+</footer>
+
+</body>
+</html>

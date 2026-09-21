@@ -1,0 +1,48 @@
+# Tag v*.*.* -> universal helper -> arm64 + x64 DMGs (retried: hdiutil is flaky on
+# hosted runners) -> signature gate -> SHA256SUMS.txt -> GitHub Release via gh.
+# Only the two DMGs and the checksum file are attached (no blockmaps, no yml).
+name: Release
+on:
+  push:
+    tags: ['v*.*.*']
+permissions:
+  contents: write
+jobs:
+  build-mac:
+    # macos-latest: arm64 image (macOS 26 as of 2026-09); electron-builder cross-builds x64.
+    # Pin to macos-15 if an image bump breaks the build.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/cache@v4
+        with:
+          # electron-builder's download cache on macOS
+          path: ~/Library/Caches/electron
+          key: electron-${{ hashFiles('package-lock.json') }}
+      - run: npm ci
+      - run: npm test
+      - run: bash scripts/build-helper.sh
+      - name: Build DMGs (retry for hdiutil flakes)
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 30
+          max_attempts: 3
+          command: npx electron-builder --mac dmg --arm64 --x64 --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Verify signatures (hard gate)
+        run: |
+          set -euo pipefail
+          for a in dist/mac*/Grayout.app; do
+            codesign --verify --deep --strict --verbose=2 "$a"
+            codesign -d -r- "$a" 2>&1 | grep -q 'identifier "com.aarushkandukoori.grayout"'
+          done
+          lipo -info "dist/mac-arm64/Grayout.app/Contents/Resources/helper/grayscale" | grep -q x86_64
+      - run: cd dist && shasum -a 256 Grayout-arm64.dmg Grayout-x64.dmg > SHA256SUMS.txt
+      - run: gh release create "$GITHUB_REF_NAME" dist/Grayout-arm64.dmg dist/Grayout-x64.dmg dist/SHA256SUMS.txt --title "Grayout for Mac $GITHUB_REF_NAME" --generate-notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

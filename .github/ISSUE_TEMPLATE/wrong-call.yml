@@ -1,0 +1,95 @@
+name: It grayed me out while I was working
+description: Grayout flagged you as off task when you were not. Send the verdict line, not a screenshot.
+title: "Wrong call: "
+labels: ["wrong-call"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting this. Wrong calls are the most useful reports there are, because the prompt only gets fixed from real cases.
+
+        **Do not attach screenshots.** Your screen is yours. The verdict line below contains only a timestamp, the category phrase the model returned, the frontmost app name, token counts, and the cost. That is all that is needed.
+
+        To get the verdict line: open the dashboard (menu bar > Open dashboard…), find the flagged check in the flags table, and click its **Copy** button. Paste the result below. If you already clicked **Wrong call?** on that row, good; the line will say so.
+  - type: textarea
+    id: doing
+    attributes:
+      label: What you were doing
+      description: In your own words, without quoting on-screen text. "Watching a lecture on YouTube in Safari", "reading a paper in Preview next to a chat window", and so on.
+      placeholder: Watching a recorded lecture in Safari with notes open in Obsidian on the second display.
+    validations:
+      required: true
+  - type: textarea
+    id: verdict
+    attributes:
+      label: The verdict line from the dashboard's Copy button
+      description: Paste exactly what Copy put on your clipboard. It is one line of JSON starting with {"ts":.
+      render: json
+      placeholder: '{"ts":1789974318441,"off":true,"conf":"high","activity":"video lecture","app":"Safari","displays":2,"strikes":2,"engine":"api","model":"claude-haiku-4-5","usage":{"input_tokens":3836,"output_tokens":40},"cost":0.004036}'
+    validations:
+      required: true
+  - type: dropdown
+    id: fired
+    attributes:
+      label: Did the screen actually go gray?
+      description: A single flag costs you nothing. Two in a row turn the screen gray.
+      options:
+        - Yes, it went gray
+        - No, one flag only
+        - Not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: displays
+    attributes:
+      label: Displays
+      options:
+        - "1"
+        - "2"
+        - "3 or more"
+    validations:
+      required: true
+  - type: dropdown
+    id: camera
+    attributes:
+      label: Was the camera on?
+      options:
+        - "No"
+        - "Yes"
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: work-description
+    attributes:
+      label: Your work description setting, if any
+      description: The one line under Settings > Work description. Leave blank if empty or if you would rather not share it.
+      placeholder: CS coursework in VS Code, papers, Canvas
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      description: Apple menu > About This Mac.
+      placeholder: macOS 26.0.1
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Grayout version
+      description: Menu bar > About Grayout.
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else
+      description: Was this a one-off or does it happen every time on this kind of screen? Did I'm working behave as expected?
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Confirmation
+      options:
+        - label: I have not attached a screenshot or pasted on-screen text.
+          required: true
