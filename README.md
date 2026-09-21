@@ -19,6 +19,12 @@ macOS 13 (Ventura) or later. Free and open source. Uses your own Anthropic or Op
 
 Not sure which one you have: Apple menu > About This Mac. "Chip: Apple M…" means Apple Silicon.
 
+Or with Homebrew:
+
+```bash
+brew install --cask aarushkandukoori/tap/grayout
+```
+
 To verify a download, compare it against `SHA256SUMS.txt` on the release page:
 
 ```bash
