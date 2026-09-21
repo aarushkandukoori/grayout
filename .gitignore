@@ -1,0 +1,10 @@
+node_modules/
+dist/
+data/
+config.json
+secrets.bin
+*.p12
+helper/grayscale
+*.dmg
+.DS_Store
+npm-debug.log*

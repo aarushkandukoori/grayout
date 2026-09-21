@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:">
+<style>
+  html, body {
+    margin: 0; padding: 0; background: transparent; overflow: hidden;
+    width: 100vw; height: 100vh; pointer-events: none;
+  }
+  #frame {
+    position: fixed; inset: 0;
+    box-sizing: border-box;
+    border: 0 solid transparent;
+    opacity: 0;
+    transition: opacity 200ms ease;
+  }
+  /* Flashing red: a hard red border plus an inward red wash, pulsing.
+     Never fully opaque — the overlay is click-through and must not blind you. */
+  #frame.alert {
+    border: 9px solid #d03b3b;
+    box-shadow: inset 0 0 90px 12px rgba(208, 59, 59, 0.55);
+    animation: flash 900ms steps(1, end) infinite;
+  }
+  @keyframes flash {
+    0%, 49%  { opacity: 1; }
+    50%, 100% { opacity: 0.18; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #frame.alert { animation: none; opacity: 1; }
+  }
+</style>
+</head>
+<body>
+  <div id="frame"></div>
+  <script src="overlay.js"></script>
+</body>
+</html>

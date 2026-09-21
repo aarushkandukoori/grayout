@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions, ideas, and anything that is not a bug
+    url: https://github.com/aarushkandukoori/grayout/discussions
+    about: Discussions is the place for how-do-I questions, feature ideas, and telling the author what you built.
+  - name: Hosted plan waitlist (no API key needed)
+    url: https://github.com/aarushkandukoori/grayout/discussions/categories/hosted-waitlist
+    about: A version that does not need an Anthropic or OpenAI key is being considered. Reply to the pinned thread to be notified. No price is set.
+  - name: Report a security problem privately
+    url: https://github.com/aarushkandukoori/grayout/security/advisories/new
+    about: Use this instead of a public issue for anything that could expose screen contents or an API key.
+  - name: Install walk-through and FAQ
+    url: https://aarushkandukoori.github.io/grayout/install.html
+    about: The Gatekeeper steps, permissions, and the stuck-gray escape hatches, with screenshots.

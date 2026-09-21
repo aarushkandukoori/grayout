@@ -1,0 +1,110 @@
+name: Install, permission, or API key problem
+description: Gatekeeper dialogs, Screen Recording that will not stick, the Keychain prompt, a key that fails to test.
+title: "Install: "
+labels: ["install"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The install walk-through is at https://aarushkandukoori.github.io/grayout/install.html and the key guide at https://aarushkandukoori.github.io/grayout/api-key.html. If you got stuck anywhere in those pages, that is a bug in the pages or the app, and this is the right place. Do not attach screenshots of your own screen; a photo of a macOS dialog is fine.
+
+        Never paste your API key here, not even part of it.
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where did it stop?
+      options:
+        - Download did not start or the DMG would not open
+        - The dialog said Grayout is "damaged and can't be opened"
+        - The dialog said "Apple could not verify" but there was no Open Anyway button in Privacy & Security
+        - Open Anyway worked but Grayout did not appear in the menu bar
+        - Screen Recording stays "Not allowed" after I turned it on
+        - Screen Recording says "Allowed, but stale"
+        - Grayout did not come back after Relaunch Grayout
+        - The Keychain prompt kept coming back or I clicked Deny
+        - Test key failed
+        - Camera permission
+        - Start at login did not work
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: What happened
+      description: The exact text of any dialog or error line, and what you clicked. If Test key failed, copy the message it showed (it names the cause, not your key).
+    validations:
+      required: true
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Which provider is the key from?
+      description: Grayout reads this from the key. Anthropic keys start with sk-ant-, OpenAI keys with sk-proj- or sk-. Only relevant if Test key failed.
+      options:
+        - Anthropic
+        - OpenAI
+        - Not sure
+        - Not a key problem
+  - type: dropdown
+    id: chip
+    attributes:
+      label: Chip
+      description: 'Apple menu > About This Mac. "Chip: Apple M…" means Apple Silicon.'
+      options:
+        - Apple Silicon
+        - Intel
+        - Not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: dmg
+    attributes:
+      label: Which download
+      options:
+        - Grayout-arm64.dmg
+        - Grayout-x64.dmg
+        - Built from source
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: macOS 26.0.1
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Grayout version
+      placeholder: "1.0.0"
+  - type: dropdown
+    id: applications
+    attributes:
+      label: Is Grayout in /Applications?
+      options:
+        - "Yes"
+        - "No, somewhere else"
+        - Not sure
+  - type: textarea
+    id: checksum
+    attributes:
+      label: Checksum, if the dialog said "damaged"
+      description: |
+        Optional. Paste the output of this command and the matching line from SHA256SUMS.txt on the release page.
+
+        ```bash
+        shasum -a 256 ~/Downloads/Grayout-arm64.dmg
+        ```
+      render: text
+  - type: checkboxes
+    id: tried
+    attributes:
+      label: Already tried
+      options:
+        - label: Double-clicking Grayout again and going back to Privacy & Security
+        - label: Turning Grayout off and on in the Screen Recording list
+        - label: The tccutil reset command from Permissions > Copy the fix command
+        - label: Removing quarantine with xattr
+        - label: Making a new key in a fresh workspace at console.anthropic.com or a fresh project at platform.openai.com

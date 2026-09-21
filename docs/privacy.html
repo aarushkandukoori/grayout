@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Privacy — Grayout for Mac</title>
+  <meta name="description" content="What Grayout sends, to whom, what stays on your Mac, the complete list of outbound connections, and your controls. There is no Grayout server.">
+  <link rel="canonical" href="https://aarushkandukoori.github.io/grayout/privacy.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Grayout for Mac">
+  <meta property="og:title" content="Privacy — Grayout for Mac">
+  <meta property="og:description" content="What Grayout sends, to whom, what stays on your Mac, and the complete list of outbound connections. There is no Grayout server.">
+  <meta property="og:url" content="https://aarushkandukoori.github.io/grayout/privacy.html">
+  <meta property="og:image" content="https://aarushkandukoori.github.io/grayout/img/hero-gray.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%238a8a8a'/%3E%3Cpath d='M16 16 L16 2 A14 14 0 0 1 30 16 Z' fill='%23d03b3b'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav>
+  <a class="brand" href="index.html">Grayout for Mac</a> ·
+  <a href="index.html#how">How it works</a> ·
+  <a href="install.html">Install</a> ·
+  <a href="index.html#cost">Cost</a> ·
+  <a href="privacy.html">Privacy</a> ·
+  <a href="https://github.com/aarushkandukoori/grayout">GitHub</a>
+</nav>
+
+<main>
+
+  <h1>Privacy</h1>
+  <p class="dated">Effective 2026-09-21. The same text ships in the repository as <a href="https://github.com/aarushkandukoori/grayout/blob/main/PRIVACY.md">PRIVACY.md</a>.</p>
+
+  <p class="lead">Grayout runs entirely on your Mac and talks to exactly one AI service on your behalf: Anthropic’s API or OpenAI’s API, whichever your key belongs to, under your own key. There is no Grayout server, no account, and no analytics.</p>
+
+  <h2 id="collects">What Grayout collects about you</h2>
+  <p>Nothing. There is no server to collect it. We never see your screenshots, your verdicts, your key, or the fact that you installed the app.</p>
+
+  <h2 id="sends">What the app sends and to whom</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>What</th><th>To whom</th><th>When</th><th>Notes</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>A screenshot of each display, resized to 1366 px wide and JPEG-compressed</td>
+          <td>api.anthropic.com or api.openai.com (whichever your key belongs to), under your API key</td>
+          <td>Every check (every 45 seconds by default)</td>
+          <td>Written to a private temp folder for the moment it takes to encode, then deleted, within seconds. Up to three displays; mirrored displays are sent once.</td>
+        </tr>
+        <tr>
+          <td>A webcam frame, 640 × 480</td>
+          <td>The same API, under your API key</td>
+          <td>Every check, only if you turned the camera on</td>
+          <td>Off by default. Never written to disk.</td>
+        </tr>
+        <tr>
+          <td>Your one-line work description and, if configured, the titles of your Canvas assignments or tasks-file lines</td>
+          <td>The same API, under your API key</td>
+          <td>Every check</td>
+          <td>Sent as text inside the prompt, fenced as untrusted data.</td>
+        </tr>
+        <tr>
+          <td>A version check</td>
+          <td>api.github.com</td>
+          <td>Once a day, and when you click Check for updates</td>
+          <td>An anonymous request for the latest release; the only header is a User-Agent of <code>Grayout/1.0.0</code>. No identifiers. Switch it off in Settings.</td>
+        </tr>
+        <tr>
+          <td>A request for your assignment list</td>
+          <td>Your Canvas host (canvas.cmu.edu by default)</td>
+          <td>Every check, only if you configured a Canvas token in config.json</td>
+          <td>Advanced, off by default. The token is stored encrypted next to the API key.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="stored">What is stored on your Mac and for how long</h2>
+  <p>Everything lives in <code>~/Library/Application Support/Grayout/</code>, readable only by your user account:</p>
+  <ul>
+    <li><strong>config.json</strong> — your settings. No secrets.</li>
+    <li><strong>secrets.bin</strong> — your Anthropic or OpenAI API key (and Canvas token, if any), encrypted by macOS with a key held in your Keychain under the item <em>Grayout Safe Storage</em>. There is no plaintext fallback; if the Keychain is unavailable the app simply has no key.</li>
+    <li><strong>verdicts.jsonl</strong> — a log of each check: time, on or off task, confidence, a short category phrase such as “code editor and terminal”, the frontmost app’s name, token counts and cost. Kept 30 days, then pruned. Delete it any time with Settings &gt; Delete all history. The phrases are chosen by the model under an instruction never to quote on-screen text, names, messages or URLs; treat the file as a plaintext list of categories, because that is what it is.</li>
+    <li><strong>logs/grayout.log</strong> — an app log for debugging, rotated at 1 MB. It never contains prompt text, images, or your key; anything that looks like a key is redacted before it is written.</li>
+    <li><strong>state.json</strong> — onboarding progress, the last update check, today’s check count.</li>
+  </ul>
+  <p>Screenshots are never kept. They exist in a per-process temp folder for the moment it takes to encode them, are deleted immediately afterwards, and any leftover folder from a crash is removed at the next launch.</p>
+
+  <h2 id="connections">The complete list of outbound connections</h2>
+  <ol>
+    <li><strong>api.anthropic.com</strong> — the checks, under your key, when your key is an Anthropic key. Every check.</li>
+    <li><strong>api.openai.com</strong> — the checks, under your key, only when your key is an OpenAI key. Every check. Requests are sent with <code>store: false</code>, so responses are not saved to your OpenAI account’s stored responses.</li>
+    <li><strong>api.github.com</strong> — the version check. Once a day. Can be turned off.</li>
+    <li><strong>Your Canvas host</strong> — only if you configured one. Off by default.</li>
+  </ol>
+  <p>That is all. Only one of the two AI hosts is ever contacted, the one your key belongs to. Links you click in the app (this site, GitHub, console.anthropic.com, platform.openai.com) open in your own browser. The app makes no other request of any kind, and you can confirm this by reading <a href="https://github.com/aarushkandukoori/grayout">the source</a> or watching it with a network monitor.</p>
+
+  <h2 id="camera">Camera</h2>
+  <p>Off by default. If you turn it on, macOS asks for camera permission, and from then on a small frame from the webcam is sent with each screenshot so the model can notice a phone in your hand. The frame stays in memory and is never written to disk. Being away from the desk, out of frame, or looking away is never treated as slacking; the prompt says so explicitly. Turn it off in Settings at any time, and revoke it in System Settings &gt; Privacy &amp; Security &gt; Camera.</p>
+
+  <h2 id="other-people">Other people on your screen</h2>
+  <p>Video calls are exempt by default: when Zoom, FaceTime, Microsoft Teams, Webex, Google Meet or Discord is the frontmost app, Grayout takes no screenshot at all, and the prompt treats any call or screen share as work. Password managers (1Password, Bitwarden, Passwords, Keychain Access) are on a never-capture list that is checked before the screenshot is taken. Both lists are yours to edit in Settings.</p>
+  <p>Both lists apply to the frontmost app only. If a chat window or a document that belongs to someone else is visible on screen while you work in another app, it is in the screenshot. Chat apps are deliberately not exempt.</p>
+
+  <h2 id="controls">Your controls</h2>
+  <ul>
+    <li><strong>Pause</strong> — for 15 minutes, an hour, until tomorrow, or until you resume. No checks, no sends.</li>
+    <li><strong>I’m working</strong> — clears the gray and stops checks from firing for ten minutes.</li>
+    <li><strong>Never trigger in</strong> and <strong>Never capture</strong> — the two app lists above.</li>
+    <li><strong>Delete all history</strong> — truncates the verdict log.</li>
+    <li><strong>Quit</strong> — one click in the menu bar. Nothing runs in the background afterwards unless you turned on Start at login.</li>
+    <li><strong>Revoke the key</strong> at console.anthropic.com or platform.openai.com. Grayout cannot make a single request without it.</li>
+    <li><strong>Uninstall</strong> — quit, drag the app to the Trash, delete <code>~/Library/Application Support/Grayout</code>.</li>
+  </ul>
+
+  <h2 id="unsigned">Unsigned app status</h2>
+  <p>Grayout 1.0 is signed ad hoc and not notarized, which is why macOS shows the “Apple could not verify” dialog on first launch. That dialog is about Apple’s verification program, not about what the app does. You can check the download against the <code>SHA256SUMS.txt</code> on each release, or <a href="install.html#source">build it from source</a> in one command. Notarization is the first item on the roadmap.</p>
+
+  <h2 id="not-monitoring">Not for monitoring other people</h2>
+  <p>Grayout reports only to the person sitting at the Mac. There is no remote view, no team dashboard, no export to anyone else, and there will not be one. Installing it on someone else’s machine is a misuse of it.</p>
+
+  <h2 id="anthropic">How Anthropic and OpenAI handle API inputs</h2>
+  <p>Once a screenshot leaves your Mac it is governed by the provider’s terms, not ours. We link to them rather than paraphrase them, because they are the provider’s commitments and we cannot make them on its behalf.</p>
+  <ul>
+    <li><strong>Anthropic</strong> — read <a href="https://www.anthropic.com/legal/commercial-terms">Anthropic’s commercial terms</a> and <a href="https://www.anthropic.com/legal/privacy">privacy policy</a> directly.</li>
+    <li><strong>OpenAI</strong> — read <a href="https://openai.com/policies/api-data-usage-policies">OpenAI’s API data usage policy</a> directly. Grayout sends every OpenAI request with <code>store: false</code>, which asks OpenAI not to keep the response in your account’s stored responses; see their policy for what that does and does not cover.</li>
+  </ul>
+
+  <h2 id="changes">Changes to this policy</h2>
+  <p>Any change is dated at the top of this page, noted in the <a href="https://github.com/aarushkandukoori/grayout/blob/main/CHANGELOG.md">changelog</a>, and visible in the git history of <a href="https://github.com/aarushkandukoori/grayout/blob/main/PRIVACY.md">PRIVACY.md</a>. A change that sends anything new anywhere will come with a new version number, not a quiet edit.</p>
+
+  <h2 id="contact">Contact</h2>
+  <p>Questions go to <a href="https://github.com/aarushkandukoori/grayout/issues">GitHub Issues</a> until a support address exists. Security reports go through the repository’s private vulnerability reporting, described in <a href="https://github.com/aarushkandukoori/grayout/blob/main/SECURITY.md">SECURITY.md</a>.</p>
+
+</main>
+
+<footer>
+  <a href="https://github.com/aarushkandukoori/grayout">GitHub</a> ·
+  <a href="https://github.com/aarushkandukoori/grayout/releases">Releases</a> ·
+  <a href="https://github.com/aarushkandukoori/grayout/issues">Issues</a> ·
+  <a href="https://github.com/aarushkandukoori/grayout/discussions">Hosted plan waitlist</a> ·
+  <a href="privacy.html">Privacy</a> ·
+  <a href="https://github.com/aarushkandukoori/grayout/blob/main/SECURITY.md">Security policy</a> ·
+  <a href="https://github.com/aarushkandukoori/grayout/blob/main/LICENSE">MIT</a>
+  <!-- Sponsor link goes here once .github/FUNDING.yml exists: <a href="https://github.com/sponsors/aarushkandukoori">Sponsor</a> -->
+  <br>
+  Aarush Kandukoori, 2026
+</footer>
+
+</body>
+</html>

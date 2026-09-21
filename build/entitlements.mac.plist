@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Not applied by the v1.0.0 build: hardenedRuntime is false and build/afterSign.js
+  re-signs ad-hoc without entitlements. Kept for the notarized (Developer ID,
+  hardened runtime) v1.1 build. Only what Grayout needs: camera access for the
+  opt-in webcam check, and the two JIT-related exceptions Electron/V8 require
+  under the hardened runtime. No microphone, no audio input.
+-->
+<plist version="1.0">
+<dict>
+  <key>com.apple.security.device.camera</key>
+  <true/>
+  <key>com.apple.security.cs.allow-jit</key>
+  <true/>
+  <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+  <true/>
+</dict>
+</plist>

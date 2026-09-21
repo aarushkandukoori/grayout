@@ -1,0 +1,114 @@
+{
+  "name": "grayout",
+  "version": "1.0.0",
+  "description": "Your Mac goes gray until you get back to work.",
+  "main": "main.js",
+  "author": "Aarush Kandukoori",
+  "license": "MIT",
+  "homepage": "https://aarushkandukoori.github.io/grayout/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aarushkandukoori/grayout.git"
+  },
+  "bugs": {
+    "url": "https://github.com/aarushkandukoori/grayout/issues"
+  },
+  "type": "commonjs",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test 'tests/**/*.test.js'",
+    "check": "for f in main.js src/*.js ui/preload/*.js build/afterSign.js scripts/*.js; do node --check \"$f\" || exit 1; done",
+    "helper": "bash scripts/build-helper.sh",
+    "icons": "bash scripts/make-icons.sh",
+    "pack": "npm run helper && electron-builder --mac dir --arm64 --publish never",
+    "dist": "npm run helper && electron-builder --mac dmg --arm64 --x64 --publish never",
+    "verify:dmg": "bash scripts/verify-dmg.sh",
+    "smoke:api": "node scripts/smoke-api.js"
+  },
+  "devDependencies": {
+    "electron": "44.4.3",
+    "electron-builder": "26.15.3"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.127.0",
+    "openai": "^7.20.0"
+  },
+  "build": {
+    "appId": "com.aarushkandukoori.grayout",
+    "productName": "Grayout",
+    "copyright": "Copyright © 2026 Aarush Kandukoori",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "src/**",
+      "ui/**",
+      "assets/**",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "helper",
+        "to": "helper",
+        "filter": [
+          "grayscale"
+        ]
+      }
+    ],
+    "afterSign": "build/afterSign.js",
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-${arch}.${ext}",
+      "category": "public.app-category.productivity",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "minimumSystemVersion": "13.0",
+      "icon": "build/icon.icns",
+      "x64ArchFiles": "Contents/Resources/helper/grayscale",
+      "extendInfo": {
+        "LSUIElement": true,
+        "NSCameraUsageDescription": "Grayout can use your camera, only if you turn it on, to notice a phone in your hand. Frames go to Anthropic or OpenAI under your own API key and are never stored.",
+        "NSScreenCaptureUsageDescription": "Grayout takes a screenshot of each display about every 45 seconds and asks an AI model whether you are clearly not working. Screenshots go to Anthropic or OpenAI under your own API key and are deleted from this Mac immediately.",
+        "NSAppleEventsUsageDescription": "Grayout does not need to control other apps. If you see this prompt, you can decline it."
+      }
+    },
+    "dmg": {
+      "sign": false,
+      "title": "Grayout ${version}",
+      "background": "build/dmg-background.png",
+      "iconSize": 128,
+      "window": {
+        "width": 660,
+        "height": 400
+      },
+      "contents": [
+        {
+          "x": 170,
+          "y": 190,
+          "type": "file"
+        },
+        {
+          "x": 490,
+          "y": 190,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    }
+  }
+}

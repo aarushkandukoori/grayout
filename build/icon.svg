@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Grayout app icon: a gray disc where one quarter keeps its color.
+  1024x1024 canvas. The rounded square is the icon's own backdrop (macOS does not
+  mask Electron icons), sized like a real macOS icon: 824 px wide, corner radius 185 (~22%).
+  scripts/make-icons.sh rasterizes this file; its Pillow fallback redraws the same
+  three shapes with the same numbers, so keep the two in sync.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <rect x="100" y="100" width="824" height="824" rx="185" ry="185" fill="#e8e8ea"/>
+  <circle cx="512" cy="512" r="272" fill="#86868b"/>
+  <path d="M512 512 L784 512 A272 272 0 0 0 512 240 Z" fill="#d03b3b"/>
+</svg>
