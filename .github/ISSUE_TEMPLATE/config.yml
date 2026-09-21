@@ -4,7 +4,7 @@ contact_links:
     url: https://github.com/aarushkandukoori/grayout/discussions
     about: Discussions is the place for how-do-I questions, feature ideas, and telling the author what you built.
   - name: Hosted plan waitlist (no API key needed)
-    url: https://github.com/aarushkandukoori/grayout/discussions/categories/hosted-waitlist
+    url: https://github.com/aarushkandukoori/grayout/discussions/1
     about: A version that does not need an Anthropic or OpenAI key is being considered. Reply to the pinned thread to be notified. No price is set.
   - name: Report a security problem privately
     url: https://github.com/aarushkandukoori/grayout/security/advisories/new
