@@ -4,8 +4,9 @@ Your Mac goes gray until you get back to work.
 
 Grayout is a menu-bar app. Every 45 seconds it takes a screenshot of each display and asks Claude (or GPT) one question: is this person clearly not working? Two yeses in a row and every display loses its color and gets a red border. Color comes back the moment you get back to work. It never blocks, closes, or locks anything.
 
-<!-- Placeholder image. When the real capture lands as docs/img/hero-gray.png (see docs/img/README.md), change the path here too. -->
-![A desktop in color on the left; the same desktop gray with a red border and the Grayout menu open on the right](docs/img/hero-gray.svg)
+![The Grayout dashboard: a focus percentage, the day as one block per check with the off-task ones in red, what it spent today, and a table of everything it flagged](docs/img/dashboard.png)
+
+*The dashboard, on a day with a few flags. The hero shot of a real desk going gray is still to come; see [docs/img/README.md](docs/img/README.md).*
 
 Site: https://aarushkandukoori.github.io/grayout/
 
