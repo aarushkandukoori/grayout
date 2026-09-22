@@ -1,0 +1,110 @@
+name: Billing or subscription problem
+description: You paid and the app did not unlock, the trial or the free checks behaved oddly, or you need a refund or a license moved.
+title: "Billing: "
+labels: ["billing"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Never paste your license key, your card number, or any part of either into this issue.** This is a public page. A license key posted here is treated as compromised and revoked, and you will have to wait for a new one.
+
+        Nothing needed to fix your problem is secret. The request id below identifies the failing call without identifying you, and your subscription is found through the email address that paid for it, which we will ask for privately if it comes to that.
+
+        Two things you can do right now without an issue:
+
+        - **Change the card, switch plans, or cancel** — Settings > Manage subscription in the app opens Stripe's billing portal.
+        - **Refunds** — ask here within 30 days and you get one, no argument, subscription cancelled at the same time.
+
+        Nothing about billing can gray your screen. A lapsed subscription, an expired trial, exhausted free checks, or an unreachable service all stop checks; none of them start an alert. If your screen is stuck gray, use the "My screen is stuck gray" template instead.
+  - type: dropdown
+    id: what
+    attributes:
+      label: What went wrong?
+      options:
+        - I paid and the app did not unlock
+        - Checkout would not open, or failed on Stripe's page
+        - The trial ended early, or I was charged sooner than expected
+        - I was charged twice
+        - The app says my subscription is inactive but Stripe says it is active
+        - The app says I am out of checks and I do not think I should be
+        - The free checks ended too fast
+        - I want a refund
+        - I want to move my license to another Mac
+        - I cannot find how to cancel
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: What happened
+      description: What you clicked, what the app said, what Stripe said. The exact wording of any error line helps. No secrets, and no screenshots of your own screen.
+      placeholder: Paid on Stripe, got the receipt email, came back to the app and the menu bar still says subscription needed after ten minutes and a relaunch.
+    validations:
+      required: true
+  - type: input
+    id: request-id
+    attributes:
+      label: Request id, if the app showed one
+      description: Errors from the service carry an X-Grayout-Request-Id. If the app or the log shows one, paste it here. It identifies the call, not you.
+      placeholder: 01JQ8F3K2ZP7
+  - type: input
+    id: when
+    attributes:
+      label: When did this happen?
+      description: Date and rough time, with your timezone. This is how the failing request gets found.
+      placeholder: 2026-09-22, about 14:30 US Eastern
+    validations:
+      required: true
+  - type: dropdown
+    id: plan
+    attributes:
+      label: Which plan
+      options:
+        - Free checks (no card)
+        - Monthly, in the 7-day trial
+        - Monthly, paying
+        - Yearly
+        - Not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: state
+    attributes:
+      label: What does the menu bar say?
+      options:
+        - Watching
+        - Free checks used up
+        - Subscription needed
+        - Trial ended
+        - Payment failed
+        - Paused
+        - Something else (say what above)
+  - type: input
+    id: version
+    attributes:
+      label: Grayout version
+      description: Menu bar > About Grayout.
+      placeholder: "2.0.0"
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: macOS 26.0.1
+  - type: checkboxes
+    id: tried
+    attributes:
+      label: Already tried
+      options:
+        - label: Quitting Grayout and opening it again
+        - label: Settings > Manage subscription, to see what Stripe says the state is
+        - label: Checking for a receipt email from Stripe
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Confirmation
+      options:
+        - label: I have not pasted my license key, my card details, or a screenshot of my screen.
+          required: true

@@ -1,14 +1,16 @@
-name: Install, permission, or API key problem
-description: Gatekeeper dialogs, Screen Recording that will not stick, the Keychain prompt, a key that fails to test.
+name: Install or permission problem
+description: Gatekeeper dialogs, Screen Recording that will not stick, the Keychain prompt, the app not starting its free checks.
 title: "Install: "
 labels: ["install"]
 body:
   - type: markdown
     attributes:
       value: |
-        The install walk-through is at https://aarushkandukoori.github.io/grayout/install.html and the key guide at https://aarushkandukoori.github.io/grayout/api-key.html. If you got stuck anywhere in those pages, that is a bug in the pages or the app, and this is the right place. Do not attach screenshots of your own screen; a photo of a macOS dialog is fine.
+        The install walk-through is at https://aarushkandukoori.github.io/grayout/install.html. If you got stuck anywhere in it, that is a bug in the page or the app, and this is the right place.
 
-        Never paste your API key here, not even part of it.
+        Anything about payment, a license key, a trial, or a refund goes in the **Billing or subscription problem** template instead.
+
+        Do not attach screenshots of your own screen; a photo of a macOS dialog is fine. Never paste your license key here, not even part of it.
   - type: dropdown
     id: where
     attributes:
@@ -22,7 +24,8 @@ body:
         - Screen Recording says "Allowed, but stale"
         - Grayout did not come back after Relaunch Grayout
         - The Keychain prompt kept coming back or I clicked Deny
-        - Test key failed
+        - Onboarding finished but no check ever ran
+        - The free checks did not start
         - Camera permission
         - Start at login did not work
         - Something else
@@ -32,19 +35,23 @@ body:
     id: details
     attributes:
       label: What happened
-      description: The exact text of any dialog or error line, and what you clicked. If Test key failed, copy the message it showed (it names the cause, not your key).
+      description: The exact text of any dialog or error line, and what you clicked.
     validations:
       required: true
   - type: dropdown
-    id: provider
+    id: state
     attributes:
-      label: Which provider is the key from?
-      description: Grayout reads this from the key. Anthropic keys start with sk-ant-, OpenAI keys with sk-proj- or sk-. Only relevant if Test key failed.
+      label: What does the menu bar say?
       options:
-        - Anthropic
-        - OpenAI
-        - Not sure
-        - Not a key problem
+        - Watching
+        - Starting
+        - Setup not finished
+        - Blocked (no Screen Recording access)
+        - Paused
+        - Free checks used up
+        - Subscription needed
+        - Nothing, Grayout is not in the menu bar
+        - Something else (say what above)
   - type: dropdown
     id: chip
     attributes:
@@ -63,6 +70,7 @@ body:
       options:
         - Grayout-arm64.dmg
         - Grayout-x64.dmg
+        - Homebrew cask
         - Built from source
         - Not sure
     validations:
@@ -78,7 +86,8 @@ body:
     id: version
     attributes:
       label: Grayout version
-      placeholder: "1.0.0"
+      description: Menu bar > About Grayout, or the DMG you downloaded.
+      placeholder: "2.0.0"
   - type: dropdown
     id: applications
     attributes:
@@ -86,6 +95,16 @@ body:
       options:
         - "Yes"
         - "No, somewhere else"
+        - Not sure
+  - type: dropdown
+    id: selfhosted
+    attributes:
+      label: Are you self-hosting?
+      description: Self-hosting means provider is set to anthropic or openai in config.json and the app runs on your own key.
+      options:
+        - "No, I am using the subscription or the free checks"
+        - "Yes, provider is anthropic"
+        - "Yes, provider is openai"
         - Not sure
   - type: textarea
     id: checksum
@@ -107,4 +126,4 @@ body:
         - label: Turning Grayout off and on in the Screen Recording list
         - label: The tccutil reset command from Permissions > Copy the fix command
         - label: Removing quarantine with xattr
-        - label: Making a new key in a fresh workspace at console.anthropic.com or a fresh project at platform.openai.com
+        - label: Quitting Grayout and opening it again

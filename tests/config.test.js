@@ -117,8 +117,9 @@ describe('coerce', () => {
     assert.equal(coerce({ model: '' }).model, 'claude-haiku-4-5');
   });
 
-  test('provider is auto | anthropic | openai, else auto', () => {
+  test('provider is auto | grayout | anthropic | openai, else auto', () => {
     assert.equal(DEFAULT_CONFIG.provider, 'auto');
+    assert.equal(coerce({ provider: 'grayout' }).provider, 'grayout');
     assert.equal(coerce({ provider: 'openai' }).provider, 'openai');
     assert.equal(coerce({ provider: 'anthropic' }).provider, 'anthropic');
     assert.equal(coerce({ provider: 'OpenAI' }).provider, 'auto', 'case-sensitive enum');
@@ -259,5 +260,38 @@ describe('saveConfig', () => {
     assert.equal(c.strikes, 4);
     assert.equal(c.checkIntervalSec, 45);
     assert.deepEqual(readJson(), c);
+  });
+});
+
+describe('v2 keys', () => {
+  test('change-gating is on by default with a 3-minute forced check', () => {
+    assert.equal(DEFAULT_CONFIG.changeGating, true);
+    assert.equal(DEFAULT_CONFIG.forceCheckSec, 180);
+    assert.equal(coerce({ changeGating: false }).changeGating, false);
+    assert.equal(coerce({ changeGating: 'no' }).changeGating, true, 'only real booleans');
+    assert.equal(coerce({ forceCheckSec: 10 }).forceCheckSec, 30, 'clamped to the bounds');
+    assert.equal(coerce({ forceCheckSec: 99999 }).forceCheckSec, 3600);
+    assert.equal(coerce({ forceCheckSec: '300' }).forceCheckSec, 300);
+    assert.equal(coerce({ forceCheckSec: null }).forceCheckSec, 180);
+  });
+
+  test('apiBase is empty by default and must be https, or http on localhost', () => {
+    assert.equal(DEFAULT_CONFIG.apiBase, '');
+    assert.equal(coerce({ apiBase: 'https://grayout-api.workers.dev' }).apiBase, 'https://grayout-api.workers.dev');
+    assert.equal(coerce({ apiBase: 'https://api.grayout.app/' }).apiBase, 'https://api.grayout.app', 'trailing slash dropped');
+    assert.equal(coerce({ apiBase: 'http://localhost:8787' }).apiBase, 'http://localhost:8787');
+    // Frames must never be posted to a plain-http host on the open internet.
+    for (const bad of ['http://example.com', 'ftp://x', 'not a url', 'javascript:alert(1)', 42, null]) {
+      assert.equal(coerce({ apiBase: bad }).apiBase, '', String(bad));
+    }
+  });
+
+  test('a hand-edited file keeps the new keys through a load/save round trip', () => {
+    writeRaw(JSON.stringify({ changeGating: false, forceCheckSec: 240, apiBase: 'https://api.grayout.app', provider: 'grayout' }));
+    const c = loadConfig();
+    assert.equal(c.changeGating, false);
+    assert.equal(c.forceCheckSec, 240);
+    assert.equal(c.provider, 'grayout');
+    assert.equal(readJson().forceCheckSec, 240);
   });
 });

@@ -1,7 +1,49 @@
 'use strict';
-// List prices, USD per million tokens, as of PRICE_DATE. Used only for the
-// local cost meter and the estimates shown in onboarding/settings; the user's
-// real bill is whatever their provider charges.
+// Two separate things live here.
+//
+// 1. What Grayout costs the person: the subscription facts (PLANS, FREE_CHECKS,
+//    INCLUDED_CHECKS). Every window that prints a price reads them from here so
+//    there is one place to change a price.
+// 2. What a check costs to run: the model list prices below, in USD per million
+//    tokens, as of PRICE_DATE. Those matter only to self-hosters running on
+//    their own API key, and to the local cost meter.
+
+// Subscription, decided from measured unit costs (docs/API-CONTRACT.md).
+const FREE_CHECKS = 100;        // the free taste: no card, no account, device-bound
+const INCLUDED_CHECKS = 15000;  // checks a month on either paid plan
+
+const PLANS = {
+  monthly: {
+    id: 'monthly',
+    name: 'Monthly',
+    price: 9.99,
+    priceLabel: '$9.99',
+    period: 'month',
+    periodLabel: 'a month',
+    trialDays: 7,
+    includedChecks: INCLUDED_CHECKS
+  },
+  yearly: {
+    id: 'yearly',
+    name: 'Yearly',
+    price: 79,
+    priceLabel: '$79',
+    period: 'year',
+    periodLabel: 'a year',
+    trialDays: 0,
+    includedChecks: INCLUDED_CHECKS
+  }
+};
+
+// Derived, never hand-written: a stale "save 34%" is a false claim.
+PLANS.yearly.perMonth = Math.round((PLANS.yearly.price / 12) * 100) / 100;
+PLANS.yearly.perMonthLabel = `$${PLANS.yearly.perMonth.toFixed(2)}`;
+PLANS.yearly.savingsPercent = Math.round((1 - PLANS.yearly.price / (PLANS.monthly.price * 12)) * 100);
+
+function planFacts(id) {
+  return PLANS[id] || null;
+}
+
 const PRICES = {
   // Anthropic
   'claude-haiku-4-5': { input: 1.00, output: 5.00 },
@@ -98,6 +140,7 @@ function estimateMonthly(intervalSec, opts = {}) {
 }
 
 module.exports = {
+  PLANS, FREE_CHECKS, INCLUDED_CHECKS, planFacts,
   PRICES, PRICE_DATE, priceFor, providerOf, imageTokens, costUsd, perCheckUsd, estimateDaily, estimateMonthly,
   checksPerDay, PROMPT_TOKENS, OUTPUT_TOKENS, SCREEN_W, SCREEN_H
 };

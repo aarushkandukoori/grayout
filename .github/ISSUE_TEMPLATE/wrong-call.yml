@@ -8,7 +8,7 @@ body:
       value: |
         Thanks for reporting this. Wrong calls are the most useful reports there are, because the prompt only gets fixed from real cases.
 
-        **Do not attach screenshots.** Your screen is yours. The verdict line below contains only a timestamp, the category phrase the model returned, the frontmost app name, token counts, and the cost. That is all that is needed.
+        **Do not attach screenshots.** Your screen is yours. The verdict line below contains only a timestamp, the category phrase the model returned, the frontmost app name, and a few counters. That is all that is needed.
 
         To get the verdict line: open the dashboard (menu bar > Open dashboard…), find the flagged check in the flags table, and click its **Copy** button. Paste the result below. If you already clicked **Wrong call?** on that row, good; the line will say so.
   - type: textarea
@@ -23,9 +23,9 @@ body:
     id: verdict
     attributes:
       label: The verdict line from the dashboard's Copy button
-      description: Paste exactly what Copy put on your clipboard. It is one line of JSON starting with {"ts":.
+      description: Paste exactly what Copy put on your clipboard. It is one line of JSON starting with {"ts":. It contains no screen content and no license key.
       render: json
-      placeholder: '{"ts":1789974318441,"off":true,"conf":"high","activity":"video lecture","app":"Safari","displays":2,"strikes":2,"engine":"api","model":"claude-haiku-4-5","usage":{"input_tokens":3836,"output_tokens":40},"cost":0.004036}'
+      placeholder: '{"ts":1789974318441,"off":true,"conf":"high","activity":"video lecture","app":"Safari","displays":2,"strikes":2,"gated":false}'
     validations:
       required: true
   - type: dropdown
@@ -78,7 +78,7 @@ body:
     attributes:
       label: Grayout version
       description: Menu bar > About Grayout.
-      placeholder: "1.0.0"
+      placeholder: "2.0.0"
     validations:
       required: true
   - type: textarea

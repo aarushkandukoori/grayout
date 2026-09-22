@@ -63,6 +63,7 @@
   function pillState(live) {
     if (!live) return { cls: '', text: 'starting' };
     if (live.needsScreenPermission) return { cls: 'pill-bad', text: 'blocked' };
+    if (live.needsSubscription) return { cls: 'pill-warn', text: 'subscription' };
     if (live.needsKey) return { cls: 'pill-warn', text: 'key needed' };
     if (live.paused) {
       return { cls: '', text: live.pausedUntil ? `paused until ${hhmm(live.pausedUntil)}` : 'paused' };
@@ -96,7 +97,7 @@
   function providerOf(cfg) {
     const c = cfg || {};
     return {
-      id: c.provider === 'openai' ? 'openai' : 'anthropic',
+      id: c.provider === 'grayout' ? 'grayout' : c.provider === 'openai' ? 'openai' : 'anthropic',
       label: (typeof c.providerLabel === 'string' && c.providerLabel) || 'The provider',
       model: typeof c.model === 'string' ? c.model : ''
     };
@@ -114,13 +115,20 @@
         h('button', { class: 'btn', type: 'button', onclick: () => api.openScreenSettings() }, 'Open Screen Recording settings'),
         h('button', { class: 'btn', type: 'button', onclick: () => { api.recheck(); scheduleRefresh(600); } }, 'Recheck')));
     }
-    if (live.needsKey && !live.needsScreenPermission) {
+    if (live.needsSubscription && !live.needsScreenPermission) {
+      // The loop's own sentence says which of the plan states this is, and it is
+      // the only place that knows. Never invent a second wording for it here.
+      out.push(h('div', { class: 'banner banner-warn' },
+        h('span', { class: 'grow' }, live.lastLine || 'Grayout needs an active subscription to keep checking.'),
+        h('button', { class: 'btn btn-primary', type: 'button', onclick: () => goToAccount() }, 'Open plan')));
+    }
+    if (live.needsKey && !live.needsSubscription && !live.needsScreenPermission) {
       const rejected = live.errorKind === 'key_rejected';
       out.push(h('div', { class: 'banner banner-warn' },
         h('span', { class: 'grow' }, rejected
-          ? `${who.label} rejected the saved API key. Checks are paused until you replace it.`
-          : 'No API key. Checks are paused until you add one.'),
-        h('button', { class: 'btn btn-primary', type: 'button', onclick: () => goToSettings(true) }, 'Add API key')));
+          ? `${who.label} rejected the saved model key. Checks are paused until you replace it.`
+          : 'No model key for the self-hosted provider. Checks are paused until you add one.'),
+        h('button', { class: 'btn btn-primary', type: 'button', onclick: () => goToSettings(true) }, 'Add key')));
     }
     if (live.errorKind === 'no_credit') {
       out.push(h('div', { class: 'banner banner-bad' },
@@ -252,13 +260,54 @@
       ['Screen punished', s.punishedMin, ' min'],
       ['Longest streak', s.longestStreak, ' checks'],
       ['Displays', s.maxDisplays || 1, ''],
-      ['Spent', spent(s.costToday), '']
+      // On the subscription the price is the subscription, so a dollar figure
+      // here would be a number nobody is billed. Show the allowance instead.
+      selfHosted() ? ['Spent', spent(s.costToday), ''] : ['Checks this month', monthChecksLabel(), '']
     ];
     replace($('stats'), ...tiles.map(([k, v, u]) =>
       h('div', { class: 'stat' }, h('div', { class: 'k' }, k), h('div', { class: 'v' }, String(v), h('small', null, u)))));
   }
 
+  /** true only while config.json pins a self-hosted provider. */
+  function selfHosted() {
+    if (lastData && typeof lastData.selfHosted === 'boolean') return lastData.selfHosted;
+    if (settings && typeof settings.selfHosted === 'boolean') return settings.selfHosted;
+    return false;
+  }
+
+  function accountOf() {
+    return (lastData && lastData.account) || (settings && settings.account) || null;
+  }
+
+  /** The paid monthly allowance, from src/pricing.js by way of the main process. */
+  function includedChecks() {
+    for (const src of [lastData, settings]) {
+      if (src && Number.isFinite(src.includedChecks)) return src.includedChecks;
+    }
+    return null;
+  }
+
+  function monthChecksLabel() {
+    const a = accountOf();
+    const u = a && a.usage;
+    if (!u || !Number.isFinite(u.checksUsed)) return '–';
+    return Number.isFinite(u.checksIncluded)
+      ? `${u.checksUsed.toLocaleString('en-US')} / ${u.checksIncluded.toLocaleString('en-US')}`
+      : u.checksUsed.toLocaleString('en-US');
+  }
+
   function renderCost(s) {
+    if (!selfHosted()) {
+      // A subscriber's meaningful number is checks against the allowance.
+      const a = accountOf();
+      const u = a && a.usage;
+      $('cost').textContent = (!s.checks || !u || !Number.isFinite(u.checksUsed))
+        ? ''
+        : a.hasLicense
+          ? `${u.checksUsed.toLocaleString('en-US')} of ${Number.isFinite(u.checksIncluded) ? u.checksIncluded.toLocaleString('en-US') : '?'} checks used this month.`
+          : `${u.checksUsed.toLocaleString('en-US')} of ${Number.isFinite(u.checksIncluded) ? u.checksIncluded.toLocaleString('en-US') : '?'} free checks used.`;
+      return;
+    }
     const when = s.isToday ? 'today' : 'that day';
     let line;
     if (!s.checks) line = '';
@@ -292,13 +341,16 @@
     if (d.dataDir) $('footer-path').textContent = `${d.dataDir}/verdicts.jsonl`;
     $('footer-kept').textContent = cfg.historyDays ? `(kept ${cfg.historyDays} days).` : '';
     if (d.version) $('version-line').textContent = `Grayout ${d.version}`;
+    renderAccount(d);
     if (!keyEditing()) renderKeyCurrent(d.hasKey, d.keyMasked, d.config);
 
     if (s.empty || !s.checks) {
       $('pct').textContent = '–';
-      $('headline').textContent = d.live && d.live.needsKey
-        ? 'No checks yet. Add an API key below to start.'
-        : 'No checks recorded for this day yet.';
+      $('headline').textContent = d.live && d.live.needsSubscription
+        ? 'No checks yet. Sort out the plan below to start.'
+        : d.live && d.live.needsKey
+          ? 'No checks yet. Add a model key below to start.'
+          : 'No checks recorded for this day yet.';
       $('cost').textContent = '';
       clear($('strip')); $('ax-a').textContent = ''; $('ax-b').textContent = '';
       replace($('flags'), h('div', { class: 'empty' }, 'Nothing yet.'));
@@ -382,13 +434,29 @@
     const list = INTERVALS.slice();
     if (!list.includes(current)) list.push(current);
     list.sort((a, b) => a - b);
+    const hosted = !selfHosted();
     replace(box, ...list.map(s => {
-      const est = by[s] && typeof by[s].daily === 'number' ? `about ${money(by[s].daily)} a day` : (INTERVALS.includes(s) ? 'price unknown for this model' : 'set in config.json');
+      const row = by[s];
+      const est = hosted
+        ? (row && Number.isFinite(row.checks) ? `about ${row.checks.toLocaleString('en-US')} checks a day` : '')
+        : (row && typeof row.daily === 'number' ? `about ${money(row.daily)} a day` : (INTERVALS.includes(s) ? 'price unknown for this model' : 'set in config.json'));
       const input = h('input', { type: 'radio', name: 'interval', value: String(s), checked: s === current });
       return h('label', { class: 'radio-row' }, input,
         h('span', { class: 'radio-text' }, `Every ${s} seconds`),
         h('span', { class: 'radio-aside' }, est));
     }));
+    if (hosted) {
+      // The allowance to quote is the PLAN's, from src/pricing.js — never
+      // account.usage.checksIncluded, which on the free taste is the 100-check
+      // taste and is not a monthly allowance at all.
+      const acct = accountOf();
+      const included = includedChecks();
+      const tail = !included ? ''
+        : acct && acct.hasLicense ? ` Your plan includes ${commas(included)} checks a month.`
+        : ` A paid plan includes ${commas(included)} checks a month.`;
+      $('interval-note').textContent = `An upper bound: change-gating skips the check when nothing on screen moved, so the real count is usually about half of this.${tail}`;
+      return;
+    }
     const who = providerOf(estimates);
     const pd = estimates && estimates.priceDate ? `, at prices on ${estimates.priceDate}` : '';
     $('interval-note').textContent = `Estimates for ${who.label} ${who.model || cfg.model || 'the configured model'} on one display${pd}. A second display roughly doubles it; the webcam adds about 15%.`;
@@ -491,7 +559,7 @@
     const using = active && active.providerLabel ? ` Using ${who.label}${who.model ? `, ${who.model}` : ''}.` : '';
     $('key-current').textContent = hasKey
       ? `Current key: ${masked || 'saved'}.${using} Paste a new one to replace it.`
-      : 'No key saved. Checks are paused until you add one. Anthropic keys start with sk-ant-, OpenAI keys with sk-proj- or sk-.';
+      : 'No model key saved. Checks are paused until you add one. Anthropic keys start with sk-ant-, OpenAI keys with sk-proj- or sk-.';
     show($('btn-key-remove'), !!hasKey);
   }
 
@@ -513,6 +581,8 @@
     renderChips('neverCaptureApps');
     renderLogin(st.loginItem);
     renderPermissions(st.permissions, st.loginItem, st.tccResetCmd);
+    renderAccount(st);
+    show($('key-panel'), st.selfHosted !== false);
     renderKeyCurrent(st.hasKey, st.keyMasked, st.estimates);
     $('consequence-note').textContent = (!cfg.grayscale && !cfg.redFlash)
       ? 'Both off: Grayout will only log what it sees.' : '';
@@ -713,6 +783,162 @@
     }
   }
 
+  /* ---------------- the plan ----------------
+     Every price and count here comes from the main process (src/pricing.js), so
+     nothing on this panel can drift from what the service charges. A failure in
+     any of it changes wording only: nothing here can gray or un-gray a Mac. */
+
+  let claiming = false;   // a browser checkout is open and /v1/claim is polling
+  let acctBusy = false;
+
+  const commas = n => (Number.isFinite(n) ? n.toLocaleString('en-US') : '–');
+
+  function planLabel(d, id) {
+    const p = d && d.plans && d.plans[id];
+    return p && p.priceLabel ? `${p.priceLabel} ${p.periodLabel}` : null;
+  }
+
+  function accountSentence(d) {
+    const a = d.account || {};
+    const u = a.usage || {};
+    const used = commas(u.checksUsed);
+    const included = commas(u.checksIncluded);
+    if (!a.hasLicense) {
+      const m = planLabel(d, 'monthly');
+      const y = planLabel(d, 'yearly');
+      const prices = m && y ? ` Grayout is ${m}, or ${y}.` : '';
+      return `Free taste: ${used} of ${included} checks used. No card, no account.${prices}`;
+    }
+    const masked = a.licenseMasked ? ` (${a.licenseMasked})` : '';
+    switch (a.status) {
+      case 'trialing': return `On the free trial${masked}. It becomes a paid subscription when the trial ends.`;
+      case 'active': return `Subscribed${masked}.`;
+      case 'past_due': return `The last payment did not go through${masked}. Open the billing portal to update the card.`;
+      case 'canceled':
+      case 'cancelled': return `This subscription is cancelled${masked}. Subscribe again to keep Grayout watching.`;
+      case 'free': return `A license is saved${masked}, but the service has not confirmed a plan for it yet.`;
+      default: return `A license is saved${masked}. Checking with the service.`;
+    }
+  }
+
+  function renderAccount(d) {
+    if (!d) return;
+    const self = d.selfHosted === true;
+    show($('account-panel'), !self);
+    if (self) return;
+
+    const a = d.account || {};
+    const u = a.usage || {};
+    $('account-line').textContent = accountSentence(d);
+    $('account-usage').textContent = a.hasLicense && Number.isFinite(u.checksUsed)
+      ? `${commas(u.checksUsed)} of ${commas(u.checksIncluded)} checks used this month${u.periodEnd ? `, through ${dayLabel(u.periodEnd)}` : ''}.`
+      : '';
+
+    // Subscribe is the way out of every state except a healthy paid one.
+    const healthy = a.hasLicense && (a.status === 'active' || a.status === 'trialing');
+    show($('btn-subscribe'), !healthy);
+    show($('btn-manage'), !!a.hasLicense);
+    show($('license-row'), !a.hasLicense || !healthy);
+    if (!claiming && !acctBusy) syncAccountButtons();
+  }
+
+  function dayLabel(iso) {
+    const t = Date.parse(iso);
+    if (!Number.isFinite(t)) return String(iso).slice(0, 10);
+    try { return new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }); }
+    catch { return String(iso).slice(0, 10); }
+  }
+
+  function syncAccountButtons() {
+    const locked = claiming || acctBusy;
+    $('btn-subscribe').disabled = locked;
+    $('btn-manage').disabled = locked;
+    $('btn-license-save').disabled = locked || !$('f-license').value.trim();
+    show($('btn-cancel-claim'), claiming);
+    $('btn-subscribe').textContent = claiming ? 'Waiting for checkout…' : 'Subscribe';
+  }
+
+  function acctMsg(text, cls) { setMsg('account-msg', text, cls); }
+
+  function acctDetail(r) {
+    return r && typeof r.message === 'string' ? r.message.replace(/\s+/g, ' ').trim().slice(0, 160) : '';
+  }
+
+  async function startCheckout(which) {
+    if (claiming || acctBusy) return;
+    acctBusy = true;
+    syncAccountButtons();
+    acctMsg('Opening checkout in your browser…');
+    let r;
+    try { r = await api.startCheckout(which); } catch (e) { r = { ok: false, kind: 'unknown', message: e && e.message }; }
+    acctBusy = false;
+    if (!r || !r.ok) { syncAccountButtons(); acctMsg(acctDetail(r) || 'Checkout did not start. Try again.', 'err'); return; }
+    if (r.opened === false) {
+      syncAccountButtons();
+      acctMsg('Grayout could not open your browser. Subscribe on the Grayout site, then paste the license key here.', 'err');
+      return;
+    }
+    claiming = true;
+    syncAccountButtons();
+    acctMsg('Finish in your browser. This panel updates itself the moment the payment goes through.');
+    let c;
+    try { c = await api.pollClaim(r.deviceCode); } catch (e) { c = { ok: false, kind: 'unknown', message: e && e.message }; }
+    claiming = false;
+    syncAccountButtons();
+    if (c && c.ok) {
+      acctMsg('Subscribed.', 'ok');
+      loadSettings(true);
+      scheduleRefresh(300);
+      return;
+    }
+    if (c && c.kind === 'cancelled') { acctMsg(''); return; }
+    if (c && c.kind === 'timeout') { acctMsg('Checkout was not finished in time. Press Subscribe to start again.', 'err'); return; }
+    if (c && c.kind === 'claim_expired') { acctMsg('That checkout link has expired. Press Subscribe to start again.', 'err'); return; }
+    acctMsg(acctDetail(c) || 'Checkout did not finish. Press Subscribe to try again.', 'err');
+  }
+
+  function wireAccount() {
+    $('btn-subscribe').addEventListener('click', () => startCheckout('monthly'));
+    $('btn-cancel-claim').addEventListener('click', () => { api.cancelClaim().catch(() => {}); });
+    $('btn-manage').addEventListener('click', async () => {
+      if (acctBusy || claiming) return;
+      acctBusy = true;
+      syncAccountButtons();
+      acctMsg('Opening the billing portal…');
+      let r;
+      try { r = await api.openBillingPortal(); } catch (e) { r = { ok: false, message: e && e.message }; }
+      acctBusy = false;
+      syncAccountButtons();
+      if (r && r.ok && r.opened !== false) { acctMsg('The billing portal is open in your browser.', 'ok'); return; }
+      acctMsg(acctDetail(r) || 'Could not open the billing portal. Try again in a moment.', 'err');
+    });
+    $('f-license').addEventListener('input', syncAccountButtons);
+    $('btn-license-save').addEventListener('click', async () => {
+      const key = $('f-license').value.trim();
+      if (!key || acctBusy || claiming) return;
+      acctBusy = true;
+      syncAccountButtons();
+      acctMsg('Checking that key…');
+      let r;
+      try { r = await api.activateLicense(key); } catch (e) { r = { ok: false, kind: 'unknown', message: e && e.message }; }
+      acctBusy = false;
+      if (r && r.ok) {
+        $('f-license').value = '';
+        syncAccountButtons();
+        acctMsg('That license is active on this Mac.', 'ok');
+        loadSettings(true);
+        scheduleRefresh(300);
+        return;
+      }
+      syncAccountButtons();
+      const kind = r && r.kind;
+      acctMsg(kind === 'license_invalid' || kind === 'key_rejected'
+        ? 'That key is not one this service issued. Check it for missing characters.'
+        : (acctDetail(r) || 'That key could not be activated.'), 'err');
+    });
+    $('btn-plans').addEventListener('click', () => api.openExternal('https://aarushkandukoori.github.io/grayout/pricing.html'));
+  }
+
   function wireKey() {
     const field = $('f-key');
     const test = $('btn-key-test');
@@ -770,7 +996,7 @@
       setMsg('key-msg', 'Key removed. Checks are paused until you add one.', '');
       scheduleRefresh(300);
     });
-    $('btn-key-get').addEventListener('click', () => api.openExternal('https://aarushkandukoori.github.io/grayout/api-key.html'));
+    $('btn-key-get').addEventListener('click', () => api.openExternal('https://github.com/aarushkandukoori/grayout#self-hosting'));
   }
 
   /* ---------------- permissions + advanced ---------------- */
@@ -838,9 +1064,16 @@
     });
   }
 
+  function goToAccount() {
+    loadSettings(false).then(() => {
+      $('account-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+
   function onNavigate(section) {
     if (section === 'settings') goToSettings(false);
     else if (section === 'key') goToSettings(true);
+    else if (section === 'account') goToAccount();
     else window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -854,6 +1087,7 @@
     }
     wireHeader();
     wireSettings();
+    wireAccount();
     wireKey();
     refresh();
     loadSettings(true);

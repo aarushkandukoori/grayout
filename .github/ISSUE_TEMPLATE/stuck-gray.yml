@@ -58,7 +58,8 @@ body:
         - Off task
         - Paused
         - Blocked (no Screen Recording access)
-        - API key needed
+        - Free checks used up
+        - Subscription needed
         - Grayout was not running
         - Something else (say what below)
   - type: input
@@ -73,7 +74,7 @@ body:
     attributes:
       label: Grayout version
       description: Menu bar > About Grayout, or the DMG you downloaded.
-      placeholder: "1.0.0"
+      placeholder: "2.0.0"
     validations:
       required: true
   - type: dropdown

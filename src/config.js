@@ -2,16 +2,22 @@
 const fs = require('fs');
 const path = require('path');
 const paths = require('./paths');
+const { normalizeBase } = require('./account');
 
 const DEFAULT_CONFIG = {
   schemaVersion: 1,
   // 'api' is the product. 'cli' is honored only when running unpackaged with
   // GRAYOUT_DEV_ENGINE=cli (maintainer use), see analyzer.resolveEngine.
   engine: 'api',
-  // 'auto' detects Anthropic vs OpenAI from the key; or force 'anthropic' | 'openai'.
+  // 'auto' is the hosted Grayout service unless a model key is saved, in which
+  // case it self-hosts on that provider. Force with 'grayout' | 'anthropic' |
+  // 'openai'. See providers.js.
   provider: 'auto',
-  // Used only if it belongs to the active provider's family; otherwise the
-  // provider default applies (claude-haiku-4-5 / gpt-5-mini). See providers.js.
+  // Hosted service base URL. Empty means https://api.grayout.app. Accepts https
+  // anywhere, http only for localhost. GRAYOUT_API_BASE overrides it unpackaged.
+  apiBase: '',
+  // Self-hosting only: used if it belongs to the active provider's family;
+  // otherwise the provider default applies (claude-haiku-4-5 / gpt-5-mini).
   model: 'claude-haiku-4-5',
   checkIntervalSec: 45,
   // Consecutive clearly-off-task verdicts required before the screen reacts.
@@ -30,6 +36,13 @@ const DEFAULT_CONFIG = {
   disputeGraceMin: 10,
   // After unlock/wake, wait this long before the first check.
   wakeGraceSec: 45,
+  // Skip the call when every display still looks the way it did at the last
+  // real check and the frontmost app has not changed (src/framehash.js). This
+  // roughly halves the number of calls on an idle desk.
+  changeGating: true,
+  // ...but never skip for longer than this: a real check always happens at
+  // least this often, whatever the screen looks like.
+  forceCheckSec: 180,
   // Hard ceiling on checks per local day (~$3.50 on Haiku). Pauses until tomorrow.
   dailyCheckCap: 1200,
   camera: false,
@@ -62,6 +75,7 @@ const NUMERIC_BOUNDS = {
   maxAlertMinutes: { min: 1, max: 240 },
   disputeGraceMin: { min: 1, max: 120 },
   wakeGraceSec: { min: 0, max: 600 },
+  forceCheckSec: { min: 30, max: 3600 },
   dailyCheckCap: { min: 50, max: 20000 },
   historyDays: { min: 1, max: 365 }
 };
@@ -95,8 +109,20 @@ function coerce(cfg) {
   }
 
   if (out.engine !== 'api' && out.engine !== 'cli' && out.engine !== 'auto') out.engine = 'api';
-  if (!['auto', 'anthropic', 'openai'].includes(out.provider)) out.provider = 'auto';
+  if (!['auto', 'grayout', 'anthropic', 'openai'].includes(out.provider)) out.provider = 'auto';
   if (!/^(claude-|gpt-|o\d)[a-z0-9.\-]+$/i.test(out.model)) out.model = DEFAULT_CONFIG.model;
+  // A bad base URL is dropped rather than kept: frames must never be posted to
+  // something that is not a plain https endpoint. Dropping it silently would be
+  // a privacy surprise, though — an empty apiBase means the production service,
+  // so a self-hoster who typos their Worker URL would start sending screenshots
+  // to api.grayout.app instead of the endpoint they asked for. Say so.
+  const rawApiBase = typeof out.apiBase === 'string' ? out.apiBase.trim() : '';
+  out.apiBase = normalizeBase(out.apiBase) || '';
+  if (rawApiBase && !out.apiBase) {
+    console.warn(`[config] apiBase ${JSON.stringify(rawApiBase.slice(0, 200))} is not a usable endpoint ` +
+                 '(https, or http only for localhost). Ignoring it and using the Grayout service at ' +
+                 'https://api.grayout.app.');
+  }
   out.workDescription = out.workDescription.slice(0, MAX_WORK_DESCRIPTION);
 
   const c = cfg.canvas && typeof cfg.canvas === 'object' ? cfg.canvas : {};

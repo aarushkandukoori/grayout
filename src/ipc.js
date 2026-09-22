@@ -15,20 +15,76 @@ const { testApiKey } = require('./analyzer');
 const providers = require('./providers');
 const log = require('./log');
 
-const ALLOWED_HOSTS = new Set(['github.com', 'www.github.com', 'console.anthropic.com', 'aarushkandukoori.github.io', 'docs.anthropic.com', 'platform.claude.com', 'www.anthropic.com', 'platform.openai.com', 'openai.com', 'developers.openai.com']);
+const ALLOWED_HOSTS = new Set(['github.com', 'www.github.com', 'console.anthropic.com', 'aarushkandukoori.github.io', 'docs.anthropic.com', 'platform.claude.com', 'www.anthropic.com', 'platform.openai.com', 'openai.com', 'developers.openai.com', 'grayout.app', 'www.grayout.app']);
 const INTERVAL_CHOICES = new Set([30, 45, 60, 90, 120]);
+// Checkout and billing links come back from the network, so they are untrusted
+// input: only Stripe's own hosted pages, or the service's own host, are opened.
+const PAYMENT_HOSTS = new Set(['checkout.stripe.com', 'billing.stripe.com', 'pay.stripe.com']);
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1']);
+const PLANS_PAYLOAD = { plans: pricing.PLANS, freeChecks: pricing.FREE_CHECKS, includedChecks: pricing.INCLUDED_CHECKS };
+const NO_ACCOUNT = { ok: false, kind: 'unknown', message: 'The Grayout service is not available in this build.' };
 
 function str(v, max = 500) { return typeof v === 'string' ? v.slice(0, max) : ''; }
+
+/** The { plan, status, usage, hasLicense, licenseMasked } every window prints. */
+function accountPayload(account) {
+  const empty = {
+    plan: 'free', status: 'free',
+    usage: { checksUsed: 0, checksIncluded: pricing.FREE_CHECKS, periodEnd: null },
+    hasLicense: false, licenseMasked: '', needsSubscription: false
+  };
+  if (!account || !account.snapshot) return empty;
+  try {
+    const s = account.snapshot();
+    return {
+      plan: s.plan, status: s.status, usage: s.usage,
+      hasLicense: s.hasLicense, licenseMasked: s.licenseMasked,
+      needsSubscription: s.needsSubscription
+    };
+  } catch { return empty; }
+}
+
+function openPaymentUrl(account, url) {
+  let u;
+  try { u = new URL(String(url)); } catch { return false; }
+  if (u.protocol !== 'https:' && !(u.protocol === 'http:' && LOCAL_HOSTS.has(u.hostname))) return false;
+  let apiHost = null;
+  try { apiHost = account && account.apiBase ? new URL(account.apiBase()).hostname : null; } catch { apiHost = null; }
+  if (!PAYMENT_HOSTS.has(u.hostname) && u.hostname !== apiHost) return false;
+  shell.openExternal(u.toString());
+  return true;
+}
 function num(v, min, max, dflt) { const n = Number(v); return Number.isFinite(n) ? Math.min(max, Math.max(min, Math.round(n))) : dflt; }
 
+/**
+ * What each interval means. On the hosted plan the dollar figures are null —
+ * the subscription is the price, and printing a model bill there would be a
+ * number nobody pays. The check counts apply either way (they are an upper
+ * bound: change-gating removes roughly half of them).
+ */
 function estimates(cfg, key) {
   const { provider, model } = providers.resolve(cfg, key === undefined ? secrets.getApiKey() : key);
+  const hosted = provider === providers.HOSTED;
   const opts = { displays: 1, camera: !!cfg.camera, model };
   const out = {};
   for (const s of [30, 45, 60, 90, 120]) {
-    out[s] = { daily: pricing.estimateDaily(s, opts), monthly: pricing.estimateMonthly(s, opts) };
+    const checks = Math.round(pricing.checksPerDay(s));
+    out[s] = {
+      daily: hosted ? null : pricing.estimateDaily(s, opts),
+      monthly: hosted ? null : pricing.estimateMonthly(s, opts),
+      checks,
+      checksMonthly: checks * 22
+    };
   }
-  return { byInterval: out, perCheck: pricing.perCheckUsd(opts), priceDate: pricing.PRICE_DATE, provider, providerLabel: providers.label(provider), model };
+  return {
+    byInterval: out,
+    perCheck: hosted ? null : pricing.perCheckUsd(opts),
+    priceDate: pricing.PRICE_DATE,
+    hosted,
+    provider,
+    providerLabel: providers.label(provider),
+    model
+  };
 }
 
 // Only the keys a user may change from the UI. Everything else is config.json (Advanced).
@@ -56,8 +112,16 @@ function sanitizeSettings(p) {
  */
 function registerIpc(ctx) {
   const { loop, getConfig, applyConfig, windows, updater } = ctx;
+  const account = ctx.account || null;
 
-  const liveWithExtras = () => { const l = loop.getLive(); return { ...l, needsKey: l.needsKey || !secrets.getApiKey() }; };
+  // Self-hosting is the escape hatch, not the product: a model key is only ever
+  // needed when the provider is not the hosted service.
+  const selfHosted = () => providers.resolve(getConfig(), secrets.getApiKey()).provider !== providers.HOSTED;
+  const liveWithExtras = () => {
+    const l = loop.getLive();
+    const self = selfHosted();
+    return { ...l, selfHosted: self, needsKey: self && (l.needsKey || !secrets.getApiKey()) };
+  };
 
   ipcMain.handle('dash:get', (_e, day) => {
     const cfg = getConfig();
@@ -68,6 +132,9 @@ function registerIpc(ctx) {
       live: liveWithExtras(),
       config: { checkIntervalSec: cfg.checkIntervalSec, strikes: cfg.strikes, model: active.model, provider: active.provider, providerLabel: providers.label(active.provider), camera: cfg.camera, grayscale: cfg.grayscale, redFlash: cfg.redFlash, historyDays: cfg.historyDays, disputeGraceMin: cfg.disputeGraceMin },
       version: app.getVersion(),
+      account: accountPayload(account),
+      ...PLANS_PAYLOAD,
+      selfHosted: selfHosted(),
       hasKey: !!secrets.getApiKey(),
       keyMasked: secrets.maskKey(secrets.getApiKey()),
       update: updater ? updater.getAvailable() : null,
@@ -79,6 +146,10 @@ function registerIpc(ctx) {
     const cfg = getConfig();
     return {
       config: cfg,
+      account: accountPayload(account),
+      ...PLANS_PAYLOAD,
+      // The dashboard shows the self-hosted key affordance only on this path.
+      selfHosted: selfHosted(),
       keyMasked: secrets.maskKey(secrets.getApiKey()),
       hasKey: !!secrets.getApiKey(),
       secureStorage: secrets.available(),
@@ -195,6 +266,48 @@ function registerIpc(ctx) {
     return r;
   });
 
+  /* ---------------- account (the hosted service) ----------------
+     Every handler answers with a plain { ok, ... } object: the windows show
+     what happened, and a failure here never changes what the screen looks
+     like. Nothing about a plan can gray a Mac. */
+
+  ipcMain.handle('account:status', async (_e, opts) => {
+    if (!account) return { ...NO_ACCOUNT, ...accountPayload(null) };
+    return account.status({ force: !!(opts && opts.force) });
+  });
+
+  ipcMain.handle('account:startCheckout', async (_e, plan) => {
+    if (!account) return NO_ACCOUNT;
+    const r = await account.startCheckout(plan === 'yearly' ? 'yearly' : 'monthly');
+    if (!r.ok) { log.info('account', `checkout failed: ${r.kind}`); return r; }
+    return { ...r, opened: openPaymentUrl(account, r.url) };
+  });
+
+  // Long-running by design: it resolves when the browser checkout finishes,
+  // when account:cancelClaim is called, or after 15 minutes.
+  ipcMain.handle('account:pollClaim', async (_e, deviceCode) => {
+    if (!account) return NO_ACCOUNT;
+    const r = await account.pollClaim(str(deviceCode, 128).trim());
+    if (r.ok) loop.reload();
+    return r;
+  });
+
+  ipcMain.handle('account:cancelClaim', () => (account ? account.cancelClaim() : { ok: true, cancelled: false }));
+
+  ipcMain.handle('account:activate', async (_e, license) => {
+    if (!account) return NO_ACCOUNT;
+    const r = await account.activate(str(license, 120).trim());
+    if (r.ok) loop.reload();
+    return r;
+  });
+
+  ipcMain.handle('account:portal', async () => {
+    if (!account) return NO_ACCOUNT;
+    const r = await account.portalUrl();
+    if (!r.ok) return r;
+    return { ...r, opened: openPaymentUrl(account, r.url) };
+  });
+
   /* ---------------- onboarding ---------------- */
 
   ipcMain.handle('onb:getState', async () => {
@@ -206,8 +319,9 @@ function registerIpc(ctx) {
       inApplications: loginitem.inApplications(),
       screen: await permissions.screenStatus({ fresh: false }),
       cameraStatus: permissions.cameraStatus(),
-      hasKey: !!secrets.getApiKey(),
-      keyMasked: secrets.maskKey(secrets.getApiKey()),
+      account: accountPayload(account),
+      ...PLANS_PAYLOAD,
+      selfHosted: selfHosted(),
       secureStorage: secrets.available(),
       loginItem: loginitem.getStatus(),
       config: { workDescription: cfg.workDescription, checkIntervalSec: cfg.checkIntervalSec, camera: cfg.camera, startAtLogin: cfg.startAtLogin, model: cfg.model },
@@ -233,7 +347,10 @@ function registerIpc(ctx) {
     app.relaunch();
     app.exit(0);
   });
-  ipcMain.handle('onb:skipKey', () => { state.update(s => { s.onboarding.step = 4; }); return true; });
+  // "Try it free": no card, no account, 100 checks on this device.
+  const startFree = () => { state.update(s => { s.onboarding.step = 4; }); return true; };
+  ipcMain.handle('onb:startFree', startFree);
+  ipcMain.handle('onb:skipKey', startFree); // v1 channel name, kept so an older window still works
   ipcMain.handle('onb:finish', () => {
     state.update(s => { s.onboarding.completed = true; s.onboarding.step = 5; });
     if (ctx.onOnboardingFinished) ctx.onOnboardingFinished();
@@ -244,4 +361,4 @@ function registerIpc(ctx) {
   ipcMain.on('camera-status', (_e, status) => { if (ctx.onCameraStatus) ctx.onCameraStatus(String(status)); });
 }
 
-module.exports = { registerIpc, sanitizeSettings, ALLOWED_HOSTS, INTERVAL_CHOICES };
+module.exports = { registerIpc, sanitizeSettings, accountPayload, openPaymentUrl, estimates, ALLOWED_HOSTS, PAYMENT_HOSTS, INTERVAL_CHOICES };

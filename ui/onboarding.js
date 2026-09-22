@@ -6,18 +6,8 @@
   const api = window.grayout;
   const $ = id => document.getElementById(id);
   const STEPS = 5;
-  // The privacy and key-guide links live on the <a data-external> elements in
-  // the HTML; these are attached to key-test failures, per provider. Both
-  // hosts are on the main process's allowlist.
-  const KEYS_URL = {
-    anthropic: 'https://console.anthropic.com/settings/keys',
-    openai: 'https://platform.openai.com/api-keys'
-  };
-  const BILLING_URL = {
-    anthropic: 'https://console.anthropic.com/settings/billing',
-    openai: 'https://platform.openai.com/settings/organization/billing'
-  };
-  const providerLabel = r => (r && typeof r.providerLabel === 'string' && r.providerLabel) || 'The provider';
+  // Links on the <a data-external> elements in the HTML go through the main
+  // process's host allowlist (src/ipc.js ALLOWED_HOSTS).
 
   if (!api) {
     $('no-bridge').style.display = 'block';
@@ -33,9 +23,6 @@
   // null until the first getState() resolves; then true if macOS had already
   // granted Screen Recording to this process when it launched.
   let grantedAtBoot = null;
-  let testedKey = '';        // the exact key that passed Test key
-  let testing = false;
-  let frameB64 = null;       // cached synthetic frame
   let loginNoticeShown = false;
   let finishing = false;
 
@@ -49,6 +36,7 @@
   function go(n, opts = {}) {
     const next = Math.min(STEPS, Math.max(1, Number(n) || 1));
     if (next !== 2) stopScreenPoll();
+    if (next !== 3 && claiming) cancelCheckout();
     step = next;
     for (const sec of document.querySelectorAll('.screen')) {
       sec.classList.toggle('on', Number(sec.dataset.step) === step);
@@ -69,7 +57,7 @@
 
   function focusPrimary(n) {
     const target = {
-      1: '#btn-1-continue', 2: '#btn-2-continue', 3: '#key', 4: '#work', 5: '#btn-preview'
+      1: '#btn-1-continue', 2: '#btn-2-continue', 3: '#btn-subscribe', 4: '#work', 5: '#btn-preview'
     }[n];
     const el = target && document.querySelector(target);
     if (el && !el.disabled) setTimeout(() => el.focus({ preventScroll: true }), 0);
@@ -156,388 +144,223 @@
     swallow(api.relaunch());
   }
 
-  /* ---------------- screen 3 ---------------- */
+  /* ---------------- screen 3: the plan ----------------
+     v2 sells a subscription. There is no API key here: the service holds the
+     model key. Every price on this screen comes from src/pricing.js through
+     onb:getState, so a price is changed in exactly one place. */
+
+  let plan = 'monthly';
+  let claiming = false;   // the browser tab is open and /v1/claim is polling
+  let busy = false;       // a checkout or activate call is in flight
+
+  const planFacts = id => {
+    const p = S && S.plans && S.plans[id];
+    return p && typeof p.priceLabel === 'string' ? p : null;
+  };
+  const countOf = (v, dflt) => (Number.isFinite(v) ? v : dflt);
+  const commas = n => n.toLocaleString('en-US');
+
+  function subStatus(text, cls) {
+    const el = $('sub-status');
+    el.classList.remove('status-good', 'status-bad');
+    setText(el, text);
+    if (cls) el.classList.add(cls === 'ok' ? 'status-good' : 'status-bad');
+  }
+
+  function syncPlanButtons() {
+    const locked = claiming || busy;
+    $('btn-subscribe').disabled = locked;
+    $('btn-free').disabled = locked;
+    $('btn-activate').disabled = locked || !$('license').value.trim();
+    for (const r of document.querySelectorAll('input[name="plan"]')) r.disabled = locked;
+    show($('btn-cancel-claim'), claiming);
+    setText($('btn-subscribe'), claiming ? 'Waiting for checkout…' : 'Subscribe');
+  }
 
   function renderScreen3() {
-    const hasKey = !!(S && S.hasKey);
-    setText($('key-existing'), hasKey && S.keyMasked
-      ? `A key is already saved (${S.keyMasked}). Test a new one to replace it, or continue.`
+    const free = countOf(S && S.freeChecks, 100);
+    const included = countOf(S && S.includedChecks, null);
+    const m = planFacts('monthly');
+    const y = planFacts('yearly');
+
+    if (m) {
+      setText($('price-monthly'), `${m.priceLabel} ${m.periodLabel}`);
+      setText($('note-monthly'), m.trialDays
+        ? `${m.trialDays}-day free trial, then ${m.priceLabel} ${m.periodLabel}. Cancel any time.`
+        : 'Cancel any time.');
+    }
+    if (y) {
+      const off = Number.isFinite(y.savingsPercent) ? `, ${y.savingsPercent}% off` : '';
+      setText($('price-yearly'), `${y.priceLabel} ${y.periodLabel}`);
+      setText($('note-yearly'), y.perMonthLabel
+        ? `${y.perMonthLabel} a month, billed yearly${off}.`
+        : `Billed yearly${off}.`);
+    }
+    setText($('plan-included'), included === null
+      ? ''
+      : `Either plan includes ${commas(included)} checks a month, well above ordinary use.`);
+    setText($('btn-free'), `Try ${free} checks free`);
+    setText($('free-note'), `${free} checks on this Mac. No card, no account, no sign-in. That is usually most of a working day.`);
+
+    // A license already on this Mac (a reinstall, a second machine) means there
+    // is nothing to buy: Continue is enough.
+    const acct = (S && S.account) || null;
+    const has = !!(acct && acct.hasLicense);
+    setText($('plan-existing'), has
+      ? `This Mac already has a license${acct.licenseMasked ? ` (${acct.licenseMasked})` : ''}. Continue, or subscribe again to replace it.`
       : '');
-    show($('btn-session'), !!(S && S.secureStorage === false));
-    show($('keychain-note'), !(S && S.secureStorage === false));
-    updateKeyButtons();
+    show($('btn-3-continue'), has);
+
+    for (const r of document.querySelectorAll('input[name="plan"]')) r.checked = r.value === plan;
+    subStatus('');
+    syncPlanButtons();
   }
 
-  function currentKey() { return $('key').value.trim(); }
-
-  function updateKeyButtons() {
-    const key = currentKey();
-    const hasSaved = !!(S && S.hasKey);
-    const passed = !!key && key === testedKey;
-    $('btn-test').disabled = testing || !key;
-    const save = $('btn-3-save');
-    if (!key && hasSaved) {
-      // Nothing new to save; the saved key stays.
-      setText(save, 'Continue');
-      save.disabled = false;
-    } else {
-      setText(save, 'Save and continue');
-      save.disabled = !passed;
-    }
-    $('btn-session').disabled = !passed;
+  function detailOf(r) {
+    return r && typeof r.message === 'string' ? r.message.replace(/\s+/g, ' ').trim().slice(0, 160) : '';
   }
 
-  function toggleReveal() {
-    const input = $('key');
-    const reveal = input.type === 'password';
-    input.type = reveal ? 'text' : 'password';
-    setText($('btn-reveal'), reveal ? 'Hide' : 'Show');
-    $('btn-reveal').setAttribute('aria-label', reveal ? 'Hide key' : 'Show key');
-    input.focus();
-  }
-
-  function onKeyInput() {
-    if (currentKey() !== testedKey) {
-      setText($('test-result'), '');
-      $('test-result').classList.remove('status-good', 'status-bad');
-    }
-    setText($('save-status'), '');
-    updateKeyButtons();
-  }
-
-  function onKeyPaste(e) {
-    // Paste detection: keys often arrive with a trailing newline or spaces.
-    // Normalize, then run the test on the user's behalf if it looks like a key.
-    let text = '';
-    try { text = (e.clipboardData && e.clipboardData.getData('text')) || ''; } catch { text = ''; }
-    const clean = text.replace(/\s+/g, '');
-    if (!clean) return;
-    e.preventDefault();
-    const input = $('key');
-    input.value = clean;
-    onKeyInput();
-    if (/^sk-/.test(clean) && clean.length > 20) setTimeout(testKey, 0);
-  }
-
-  function testedModel(r) {
-    if (r && typeof r.model === 'string' && r.model) return r.model;
-    // A failed test carries no model. The saved key's estimates resolve the
-    // same model when they are for the same provider.
-    const est = S && S.estimates;
-    if (est && r && est.provider === r.provider && typeof est.model === 'string' && est.model) return est.model;
-    return 'the configured model';
-  }
-
-  function resultMessage(r) {
-    const who = providerLabel(r);
-    if (r && r.ok) {
-      const cost = typeof r.costUsd === 'number' && Number.isFinite(r.costUsd) ? `$${r.costUsd.toFixed(4)}` : null;
-      const saw = r.verdict && r.verdict.activity ? r.verdict.activity : 'a code editor';
-      const which = r.model ? `${who}, ${r.model}` : who;
-      return cost
-        ? `Key works (${which}). That check cost ${cost} and the model saw: ${saw}.`
-        : `Key works (${which}). The model saw: ${saw}.`;
-    }
+  function checkoutMessage(r) {
     const kind = r && r.kind;
-    if (kind === 'key_rejected') return `${who} rejected this key. Check for missing characters or make a new one.`;
-    if (kind === 'no_credit') return `This ${who} account has no credit. Add $5 in its billing settings, then test again.`;
-    if (kind === 'network') return `Couldn't reach ${who}. Check your connection and try again.`;
-    if (kind === 'no_key') return 'Paste a key first.';
-    if (kind === 'bad_model') return `This account can't use ${testedModel(r)}. Try a different key or set model in config.json.`;
-    if (kind === 'rate_limited' || kind === 'overloaded') return `${who} is busy right now. Wait a moment and test again.`;
-    const detail = r && typeof r.message === 'string' ? r.message.replace(/\s+/g, ' ').trim().slice(0, 160) : '';
-    return detail ? `The test didn't go through: ${detail}` : "The test didn't go through. Try again.";
+    if (kind === 'network') return 'Could not reach the Grayout service. Check your connection and try again.';
+    if (kind === 'rate_limited') return 'Too many tries just now. Wait a moment and press Subscribe again.';
+    const detail = detailOf(r);
+    return detail ? `Checkout did not start: ${detail}` : 'Checkout did not start. Try again.';
   }
 
-  async function testKey() {
-    const key = currentKey();
-    if (!key || testing) return;
-    testing = true;
-    const btn = $('btn-test');
-    const out = $('test-result');
-    out.classList.remove('status-good', 'status-bad');
-    setText(out, 'Testing… this sends one synthetic frame under your key.');
-    setText(btn, 'Testing…');
-    setText($('save-status'), '');
-    updateKeyButtons();
-    let r;
-    try {
-      if (!frameB64) frameB64 = syntheticFrameB64();
-      r = await api.testApiKey(key, frameB64);
-    } catch (e) {
-      r = { ok: false, kind: 'unknown', message: e && e.message ? e.message : 'unexpected error' };
-    }
-    testing = false;
-    setText(btn, 'Test key');
-    testedKey = r && r.ok ? key : '';
-    out.classList.add(r && r.ok ? 'status-good' : 'status-bad');
-    setText(out, resultMessage(r));
-    if (r && !r.ok && (r.kind === 'key_rejected' || r.kind === 'no_credit')) {
-      const provider = r.provider === 'openai' ? 'openai' : 'anthropic';
-      const url = r.kind === 'no_credit' ? BILLING_URL[provider] : KEYS_URL[provider];
-      const link = document.createElement('button');
-      link.type = 'button'; link.className = 'link';
-      link.textContent = r.kind === 'no_credit' ? `Open ${providerLabel(r)} billing` : `Open ${new URL(url).hostname}`;
-      link.addEventListener('click', () => swallow(api.openExternal(url)));
-      out.append(' ', link);
-    }
-    updateKeyButtons();
-    if (r && r.ok) $('btn-3-save').focus();
+  function claimMessage(r) {
+    const kind = r && r.kind;
+    if (kind === 'timeout') return 'Checkout was not finished in time. Press Subscribe to start again.';
+    if (kind === 'claim_expired') return 'That checkout link has expired. Press Subscribe to start again.';
+    if (kind === 'key_rejected' || kind === 'no_license') return 'The service did not accept that purchase. Press Subscribe to start again.';
+    if (kind === 'network') return 'Grayout lost its connection while waiting. If you did pay, paste the license key below.';
+    const detail = detailOf(r);
+    return detail || 'Checkout did not finish. Press Subscribe to try again.';
   }
 
-  async function saveKey() {
-    const key = currentKey();
-    const hasSaved = !!(S && S.hasKey);
-    if (!key && hasSaved) { go(4); return; }
-    if (!key || key !== testedKey) return;
-    const btn = $('btn-3-save');
-    btn.disabled = true;
-    setText($('save-status'), '');
+  function activateMessage(r) {
+    const kind = r && r.kind;
+    if (kind === 'license_invalid' || kind === 'key_rejected') return 'That key is not one this service issued. Check it for missing characters.';
+    if (kind === 'no_license') return 'Paste your license key first.';
+    if (kind === 'trial_expired' || kind === 'subscription_inactive') return 'That license is no longer active. Subscribe again above to start a new one.';
+    if (kind === 'network') return 'Could not reach the Grayout service. Check your connection and try again.';
+    const detail = detailOf(r);
+    return detail || 'That key could not be activated.';
+  }
+
+  async function subscribe() {
+    if (claiming || busy) return;
+    busy = true;
+    syncPlanButtons();
+    subStatus('Opening checkout in your browser…');
     let r;
-    try { r = await api.saveApiKey(key); } catch (e) { r = { ok: false, secureStorage: true, message: e && e.message }; }
-    if (r && r.ok) {
-      if (S) { S.hasKey = true; S.keyMasked = r.keyMasked || S.keyMasked; }
+    try { r = await api.startCheckout(plan); } catch (e) { r = { ok: false, kind: 'unknown', message: e && e.message }; }
+    busy = false;
+    if (!r || !r.ok) { syncPlanButtons(); subStatus(checkoutMessage(r), 'err'); return; }
+    if (r.opened === false) {
+      syncPlanButtons();
+      subStatus('Grayout could not open your browser. Subscribe on the Grayout site instead, then paste the license key below.', 'err');
+      return;
+    }
+
+    claiming = true;
+    syncPlanButtons();
+    subStatus('Finish in your browser. This window unlocks itself the moment the payment goes through.');
+    let c;
+    try { c = await api.pollClaim(r.deviceCode); } catch (e) { c = { ok: false, kind: 'unknown', message: e && e.message }; }
+    claiming = false;
+    syncPlanButtons();
+
+    if (c && c.ok) {
       await refreshState();
+      subStatus('Subscribed. Grayout is ready.', 'ok');
       go(4);
       return;
     }
-    btn.disabled = false;
-    if (r && r.secureStorage === false) {
-      show($('btn-session'), true);
-      show($('keychain-note'), false);
-      $('btn-session').disabled = false;
-      setText($('save-status'), (r.message || 'Secure storage is not available on this Mac.') + ' You can still use the key until Grayout quits.');
-    } else {
-      setText($('save-status'), (r && r.message) ? `Couldn't save the key: ${r.message}` : "Couldn't save the key.");
-    }
+    if (c && c.kind === 'cancelled') { subStatus(''); return; }
+    subStatus(claimMessage(c), 'err');
   }
 
-  async function useSession() {
-    const key = currentKey();
-    if (!key || key !== testedKey) return;
-    $('btn-session').disabled = true;
+  function cancelCheckout() {
+    // pollClaim resolves with kind 'cancelled'; subscribe() clears the line.
+    swallow(api.cancelClaim());
+  }
+
+  async function startFree() {
+    if (claiming || busy) return;
+    busy = true;
+    syncPlanButtons();
+    await swallow(api.startFree());
+    busy = false;
+    syncPlanButtons();
+    await refreshState();
+    go(4);
+  }
+
+  async function activateLicense() {
+    const key = $('license').value.trim();
+    if (!key || claiming || busy) return;
+    busy = true;
+    syncPlanButtons();
+    subStatus('Checking that key…');
     let r;
-    try { r = await api.useKeyForSession(key); } catch (e) { r = { ok: false, message: e && e.message }; }
-    if (r && r.ok) { await refreshState(); go(4); return; }
-    $('btn-session').disabled = false;
-    setText($('save-status'), (r && r.message) ? `Couldn't use the key: ${r.message}` : "Couldn't use the key.");
+    try { r = await api.activateLicense(key); } catch (e) { r = { ok: false, kind: 'unknown', message: e && e.message }; }
+    busy = false;
+    syncPlanButtons();
+    if (r && r.ok) {
+      $('license').value = '';
+      await refreshState();
+      subStatus('That license is active on this Mac.', 'ok');
+      go(4);
+      return;
+    }
+    subStatus(activateMessage(r), 'err');
   }
 
-  // The estimates on screen 4 are computed for the provider of the saved key,
-  // so re-read the state after a key is stored.
+  function toggleLicenseRow() {
+    const row = $('license-row');
+    const on = !!row.hidden;
+    show(row, on);
+    $('btn-have-key').setAttribute('aria-expanded', on ? 'true' : 'false');
+    if (on) $('license').focus();
+  }
+
+  // The plan and usage shown on screen 4 come from the account, so re-read the
+  // state after anything that changes it.
   async function refreshState() {
     let fresh = null;
     try { fresh = await api.getState(); } catch { fresh = null; }
     if (fresh && typeof fresh === 'object') {
-      S = { ...(S || {}), ...fresh, hasKey: true };
+      S = { ...(S || {}), ...fresh };
       screenState = S.screen || screenState;
     }
   }
 
-  async function skipKey() {
-    $('btn-3-skip').disabled = true;
-    await swallow(api.skipKey());
-    $('btn-3-skip').disabled = false;
-    go(4);
-  }
-
-  /* ---------------- synthetic editor frame ---------------- */
-
-  const CODE_LINES = [
-    "'use strict';",
-    "// Bounded work queue: at most `limit` jobs run at once, the rest wait.",
-    "const { EventEmitter } = require('events');",
-    '',
-    'class WorkQueue extends EventEmitter {',
-    '  constructor(limit = 4) {',
-    '    super();',
-    '    this.limit = limit;',
-    '    this.running = 0;',
-    '    this.pending = [];',
-    '  }',
-    '',
-    '  push(job, priority = 0) {',
-    '    return new Promise((resolve, reject) => {',
-    '      this.pending.push({ job, priority, resolve, reject });',
-    '      this.pending.sort((a, b) => b.priority - a.priority);',
-    '      this.drain();',
-    '    });',
-    '  }',
-    '',
-    '  async drain() {',
-    '    while (this.running < this.limit && this.pending.length) {',
-    '      const next = this.pending.shift();',
-    '      this.running += 1;',
-    '      try {',
-    '        next.resolve(await next.job());',
-    '      } catch (err) {',
-    "        this.emit('error', err);",
-    '        next.reject(err);',
-    '      } finally {',
-    '        this.running -= 1;',
-    "        if (!this.pending.length && !this.running) this.emit('idle');",
-    '      }',
-    '    }',
-    '  }',
-    '}',
-    '',
-    'module.exports = { WorkQueue };'
-  ];
-  const KEYWORDS = new Set(['const', 'let', 'var', 'class', 'extends', 'return', 'new', 'async', 'await', 'while', 'if', 'try', 'catch', 'finally', 'this', 'super', 'require', 'module', 'true', 'false', 'null']);
-
-  function tokenize(line) {
-    // Tiny tokenizer, only for coloring: comment, string, number, word, other.
-    const out = [];
-    const re = /(\/\/.*$)|('(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)|(\b\d+(?:\.\d+)?\b)|([A-Za-z_$][\w$]*)|(\s+)|(.)/g;
-    let m;
-    while ((m = re.exec(line))) {
-      if (m[1]) out.push(['comment', m[1]]);
-      else if (m[2]) out.push(['string', m[2]]);
-      else if (m[3]) out.push(['number', m[3]]);
-      else if (m[4]) {
-        const rest = line.slice(re.lastIndex);
-        const kind = KEYWORDS.has(m[4]) ? 'keyword' : /^\s*\(/.test(rest) ? 'fn' : /^[A-Z]/.test(m[4]) ? 'type' : 'plain';
-        out.push([kind, m[4]]);
-      }
-      else out.push(['plain', m[5] || m[6]]);
-    }
-    return out;
-  }
-
-  function syntheticFrameB64() {
-    const W = 1366, H = 768;
-    const c = document.createElement('canvas');
-    c.width = W; c.height = H;
-    const g = c.getContext('2d');
-    const MONO = '13px Menlo, Monaco, "SF Mono", Consolas, monospace';
-    const SANS = '12px -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif';
-    const colors = { plain: '#d4d4d4', keyword: '#569cd6', string: '#ce9178', comment: '#6a9955', number: '#b5cea8', fn: '#dcdcaa', type: '#4ec9b0' };
-
-    // Menu bar (macOS) and window chrome.
-    g.fillStyle = '#2b2b2f'; g.fillRect(0, 0, W, 24);
-    g.fillStyle = '#e6e6e6'; g.font = 'bold 13px -apple-system, Helvetica, Arial, sans-serif';
-    g.fillText('Code', 40, 17);
-    g.font = SANS;
-    let mx = 84;
-    for (const item of ['File', 'Edit', 'Selection', 'View', 'Go', 'Run', 'Terminal', 'Window', 'Help']) {
-      g.fillText(item, mx, 17); mx += g.measureText(item).width + 18;
-    }
-    g.textAlign = 'right'; g.fillText('Mon 10:42 AM', W - 16, 17); g.textAlign = 'left';
-
-    const top = 24;
-    g.fillStyle = '#1e1e1e'; g.fillRect(0, top, W, H - top);
-
-    // Activity bar + sidebar (file tree).
-    const barW = 48, sideW = 200;
-    g.fillStyle = '#333333'; g.fillRect(0, top, barW, H - top);
-    g.fillStyle = '#252526'; g.fillRect(barW, top, sideW, H - top);
-    for (let i = 0; i < 5; i++) {
-      g.fillStyle = i === 0 ? '#ffffff' : '#858585';
-      g.fillRect(14, top + 16 + i * 44, 20, 20);
-      g.fillStyle = '#333333'; g.fillRect(17, top + 19 + i * 44, 14, 14);
-    }
-    g.fillStyle = '#bbbbbb'; g.font = 'bold 11px -apple-system, Helvetica, Arial, sans-serif';
-    g.fillText('EXPLORER', barW + 16, top + 26);
-    g.font = SANS;
-    const tree = [
-      ['v  PROJECT', 0, '#cccccc'], ['v  src', 1, '#cccccc'], ['index.js', 2, '#cccccc'], ['queue.js', 2, '#ffffff'],
-      ['worker.js', 2, '#cccccc'], ['config.js', 2, '#cccccc'], ['v  tests', 1, '#cccccc'], ['queue.test.js', 2, '#cccccc'],
-      ['worker.test.js', 2, '#cccccc'], ['>  node_modules', 1, '#8c8c8c'], ['.gitignore', 1, '#cccccc'], ['package.json', 1, '#cccccc'],
-      ['README.md', 1, '#cccccc']
-    ];
-    tree.forEach(([name, depth, color], i) => {
-      const y = top + 50 + i * 22;
-      if (name === 'queue.js') { g.fillStyle = '#37373d'; g.fillRect(barW, y - 15, sideW, 22); }
-      g.fillStyle = color; g.fillText(name, barW + 16 + depth * 14, y);
-    });
-
-    // Tabs.
-    const ex = barW + sideW, tabH = 36;
-    g.fillStyle = '#252526'; g.fillRect(ex, top, W - ex, tabH);
-    let tx = ex;
-    for (const [name, active] of [['queue.js', true], ['worker.js', false], ['package.json', false]]) {
-      const w = 130;
-      g.fillStyle = active ? '#1e1e1e' : '#2d2d2d'; g.fillRect(tx, top, w, tabH);
-      g.fillStyle = active ? '#ffffff' : '#969696'; g.font = SANS;
-      g.fillText(name, tx + 14, top + 22);
-      if (active) { g.fillStyle = '#d4d4d4'; g.fillText('×', tx + w - 20, top + 22); }
-      tx += w;
-    }
-    // Breadcrumb.
-    g.fillStyle = '#a0a0a0'; g.font = SANS;
-    g.fillText('src  >  queue.js  >  WorkQueue  >  drain', ex + 14, top + tabH + 17);
-
-    // Editor: line numbers + code.
-    const termH = 210, statusH = 22;
-    const codeTop = top + tabH + 26, lineH = 19;
-    const gutterW = 56;
-    g.font = MONO;
-    const maxLines = Math.floor((H - termH - statusH - codeTop) / lineH);
-    const current = 22;
-    for (let i = 0; i < Math.min(CODE_LINES.length, maxLines); i++) {
-      const y = codeTop + 14 + i * lineH;
-      if (i + 1 === current) { g.fillStyle = '#282828'; g.fillRect(ex, y - 14, W - ex, lineH); }
-      g.fillStyle = i + 1 === current ? '#c6c6c6' : '#858585';
-      g.textAlign = 'right'; g.fillText(String(i + 1), ex + gutterW - 16, y); g.textAlign = 'left';
-      let x = ex + gutterW + 4;
-      for (const [kind, text] of tokenize(CODE_LINES[i])) {
-        g.fillStyle = colors[kind] || colors.plain;
-        g.fillText(text, x, y);
-        x += g.measureText(text).width;
-      }
-    }
-    // Scrollbar + minimap hint.
-    g.fillStyle = '#2a2a2a'; g.fillRect(W - 14, codeTop, 14, H - termH - statusH - codeTop);
-    g.fillStyle = '#4a4a4a'; g.fillRect(W - 11, codeTop + 8, 8, 160);
-
-    // Terminal pane.
-    const ty = H - termH - statusH;
-    g.fillStyle = '#181818'; g.fillRect(ex, ty, W - ex, termH);
-    g.fillStyle = '#3c3c3c'; g.fillRect(ex, ty, W - ex, 1);
-    g.font = 'bold 11px -apple-system, Helvetica, Arial, sans-serif';
-    g.fillStyle = '#e7e7e7'; g.fillText('TERMINAL', ex + 16, ty + 22);
-    g.fillStyle = '#8c8c8c'; g.fillText('PROBLEMS      OUTPUT      DEBUG CONSOLE', ex + 96, ty + 22);
-    g.fillStyle = '#ffffff'; g.fillRect(ex + 16, ty + 28, 60, 1);
-    g.font = MONO;
-    const term = [
-      ['$ node --test tests/', '#d4d4d4'],
-      ['  queue.test.js', '#d4d4d4'],
-      ['    ok 1 - runs at most `limit` jobs at once (18ms)', '#89d185'],
-      ['    ok 2 - higher priority jobs run first (7ms)', '#89d185'],
-      ["    ok 3 - emits 'idle' when the queue drains (4ms)", '#89d185'],
-      ['  worker.test.js', '#d4d4d4'],
-      ['    ok 4 - retries a failed job twice (41ms)', '#89d185'],
-      ['', '#d4d4d4'],
-      ['  4 passing (92ms)', '#d4d4d4'],
-      ['$ ', '#d4d4d4']
-    ];
-    term.forEach(([text, color], i) => {
-      g.fillStyle = color; g.fillText(text, ex + 16, ty + 52 + i * 17);
-    });
-    g.fillStyle = '#d4d4d4'; g.fillRect(ex + 16 + g.measureText('$ ').width, ty + 52 + (term.length - 1) * 17 - 12, 8, 15);
-
-    // Status bar.
-    g.fillStyle = '#007acc'; g.fillRect(0, H - statusH, W, statusH);
-    g.fillStyle = '#ffffff'; g.font = SANS;
-    g.fillText('main*      0 errors  0 warnings', 12, H - 7);
-    g.textAlign = 'right';
-    g.fillText('Ln 22, Col 27     Spaces: 2     UTF-8     LF     JavaScript', W - 16, H - 7);
-    g.textAlign = 'left';
-
-    return c.toDataURL('image/jpeg', 0.7).split(',')[1];
-  }
 
   /* ---------------- screen 4 ---------------- */
 
   function renderScreen4() {
     const cfg = (S && S.config) || {};
-    const est = (S && S.estimates && S.estimates.byInterval) || {};
-    for (const sec of [30, 45, 90]) {
-      const d = est[sec] && money(est[sec].daily);
-      setText($(`est-${sec}`), d ? `about ${d} a day` : 'estimate unavailable');
-    }
     const e = S && S.estimates;
-    if (e && e.providerLabel && e.model) {
+    const est = (e && e.byInterval) || {};
+    // On the subscription there is no per-check bill to show, so the rows count
+    // checks against the allowance instead of dollars nobody pays.
+    const hosted = !(S && S.selfHosted);
+    for (const sec of [30, 45, 90]) {
+      const row = est[sec];
+      if (hosted) {
+        setText($(`est-${sec}`), row && Number.isFinite(row.checks) ? `about ${commas(row.checks)} checks a day` : '');
+      } else {
+        const d = row && money(row.daily);
+        setText($(`est-${sec}`), d ? `about ${d} a day` : 'estimate unavailable');
+      }
+    }
+    if (hosted) {
+      const included = countOf(S && S.includedChecks, null);
+      setText($('est-note'), included === null
+        ? 'Change-gating skips the check when nothing on screen moved, so the real count is usually about half of this.'
+        : `An upper bound: change-gating skips the check when nothing on screen moved, so the real count is usually about half of this. Your plan includes ${commas(included)} checks a month.`);
+    } else if (e && e.providerLabel && e.model) {
       const when = e.priceDate ? `, at prices on ${e.priceDate}` : '';
       setText($('est-note'), `Estimates for ${e.providerLabel} ${e.model} on one display${when}. A second display roughly doubles it.`);
     }
@@ -698,13 +521,16 @@
   $('btn-2-skip').addEventListener('click', () => go(3));
   $('btn-2-continue').addEventListener('click', () => { if (!$('btn-2-continue').disabled) go(3); });
 
-  $('key').addEventListener('input', onKeyInput);
-  $('key').addEventListener('paste', onKeyPaste);
-  $('btn-reveal').addEventListener('click', toggleReveal);
-  $('btn-test').addEventListener('click', testKey);
-  $('btn-3-save').addEventListener('click', saveKey);
-  $('btn-session').addEventListener('click', useSession);
-  $('btn-3-skip').addEventListener('click', skipKey);
+  for (const r of document.querySelectorAll('input[name="plan"]')) {
+    r.addEventListener('change', () => { if (r.checked) plan = r.value === 'yearly' ? 'yearly' : 'monthly'; });
+  }
+  $('btn-subscribe').addEventListener('click', subscribe);
+  $('btn-cancel-claim').addEventListener('click', cancelCheckout);
+  $('btn-free').addEventListener('click', startFree);
+  $('btn-have-key').addEventListener('click', toggleLicenseRow);
+  $('license').addEventListener('input', syncPlanButtons);
+  $('btn-activate').addEventListener('click', activateLicense);
+  $('btn-3-continue').addEventListener('click', () => go(4));
   $('btn-3-back').addEventListener('click', () => go(2));
 
   $('camera').addEventListener('change', onCameraToggle);
@@ -726,18 +552,16 @@
     if (step === 1) go(2);
     else if (step === 2) { if (!$('btn-2-continue').disabled) go(3); else handled = false; }
     else if (step === 3) {
-      const key = currentKey();
-      if (key && key === testedKey) saveKey();
-      else if (key && !testing) testKey();
-      else if (!key && S && S.hasKey) go(4);
-      else handled = false;
+      if (claiming || busy) handled = false;
+      else if ($('license').value.trim()) activateLicense();
+      else subscribe();
     }
     else if (step === 4) saveSetup();
     else if (step === 5) finish();
     if (handled) e.preventDefault();
   });
 
-  window.addEventListener('beforeunload', stopScreenPoll);
+  window.addEventListener('beforeunload', () => { stopScreenPoll(); if (claiming) cancelCheckout(); });
 
   /* ---------------- boot ---------------- */
 

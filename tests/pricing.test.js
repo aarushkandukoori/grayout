@@ -136,3 +136,51 @@ describe('estimateDaily / estimateMonthly', () => {
     assert.equal(estimateMonthly(30, { model: 'llama-3' }), null);
   });
 });
+
+describe('the subscription', () => {
+  const { PLANS, FREE_CHECKS, INCLUDED_CHECKS, planFacts } = pricing;
+
+  test('the prices the UI prints live here and nowhere else', () => {
+    assert.equal(PLANS.monthly.price, 9.99);
+    assert.equal(PLANS.monthly.priceLabel, '$9.99');
+    assert.equal(PLANS.monthly.period, 'month');
+    assert.equal(PLANS.monthly.trialDays, 7);
+    assert.equal(PLANS.yearly.price, 79);
+    assert.equal(PLANS.yearly.priceLabel, '$79');
+    assert.equal(PLANS.yearly.period, 'year');
+    assert.equal(PLANS.yearly.trialDays, 0, 'the trial is on the monthly plan');
+    assert.equal(PLANS.monthly.includedChecks, INCLUDED_CHECKS);
+    assert.equal(PLANS.yearly.includedChecks, INCLUDED_CHECKS);
+  });
+
+  test('free taste and the monthly allowance', () => {
+    assert.equal(FREE_CHECKS, 100);
+    assert.equal(INCLUDED_CHECKS, 15000);
+  });
+
+  test('the yearly saving is computed, so it can never be a stale claim', () => {
+    assert.equal(PLANS.yearly.savingsPercent, Math.round((1 - 79 / (9.99 * 12)) * 100));
+    assert.equal(PLANS.yearly.savingsPercent, 34);
+    assert.equal(PLANS.yearly.perMonth, 6.58);
+    assert.equal(PLANS.yearly.perMonthLabel, '$6.58');
+    assert.ok(PLANS.yearly.perMonth < PLANS.monthly.price);
+  });
+
+  test('the allowance is well above a typical month at the default interval', () => {
+    // 45 s, 22 working days, before change-gating removes about half.
+    assert.ok(checksPerDay(45) * 22 < INCLUDED_CHECKS);
+  });
+
+  test('planFacts looks a plan up by id', () => {
+    assert.equal(planFacts('monthly'), PLANS.monthly);
+    assert.equal(planFacts('yearly'), PLANS.yearly);
+    assert.equal(planFacts('lifetime'), null);
+    assert.equal(planFacts(undefined), null);
+  });
+
+  test('the hosted "model" has no list price: a subscriber is not billed per check', () => {
+    assert.equal(priceFor('grayout'), null);
+    assert.equal(costUsd({ input_tokens: 2268, output_tokens: 40 }, 'grayout'), null);
+    assert.equal(perCheckUsd({ model: 'grayout' }), null);
+  });
+});

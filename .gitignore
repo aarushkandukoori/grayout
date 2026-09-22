@@ -8,3 +8,6 @@ helper/grayscale
 *.dmg
 .DS_Store
 npm-debug.log*
+server/node_modules/
+server/.dev.vars
+server/.wrangler/

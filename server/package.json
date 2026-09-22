@@ -1,0 +1,14 @@
+{
+  "name": "grayout-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Grayout's hosted API: subscriptions, licensing and the vision proxy",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "node --test 'test/**/*.test.js'"
+  },
+  "dependencies": { "stripe": "^20.1.0" },
+  "devDependencies": { "wrangler": "^4.44.0" }
+}

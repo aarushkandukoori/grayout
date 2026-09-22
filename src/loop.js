@@ -4,8 +4,21 @@
 const { classifyApiError } = require('./analyzer');
 const { costUsd } = require('./pricing');
 const providers = require('./providers');
+const framehash = require('./framehash');
 
 const BILLING_URL = { anthropic: 'console.anthropic.com', openai: 'platform.openai.com' };
+
+// Plan problems on the hosted path. Each needs the person to do something, so
+// none of them is retried every tick, and none of them ever leaves the Mac gray.
+const SUBSCRIPTION_LINES = {
+  no_license: 'subscription needed — open Settings to subscribe',
+  key_rejected: 'license key was not accepted — open Settings',
+  trial_expired: 'trial ended — subscribe in Settings',
+  subscription_inactive: 'subscription paused — update payment to resume',
+  free_exhausted: 'free checks used up — subscribe in Settings',
+  quota_exceeded: 'monthly checks used up — resumes next period'
+};
+const SUBSCRIPTION_BACKOFF_MS = 15 * 60000;
 
 // Longer than any single check (API timeout is 60s, CLI 90s). If `analyzing`
 // is still set past this, something wedged and we take the lock back rather
@@ -29,6 +42,12 @@ function createLoop(deps) {
     grayscale: { set: async () => true, forceOffSync: () => true, available: () => true, usable: () => true },
     secrets: { getApiKey: () => null, getCanvasToken: () => '' },
     requiresKey: () => true,
+    // The hosted-service client (src/account.js). Absent in tests and on the
+    // self-hosted path, where the loop behaves exactly as it did in v1.
+    account: null,
+    // Perceptual hashes of this capture, one per display, for change-gating.
+    // Null disables gating for this tick, which costs a call and never skips one.
+    hashFrames: () => null,
     state: { checksToday: () => 0, bumpChecks: () => 1 },
     setTimer: (fn, ms) => setInterval(fn, ms),
     clearTimer: t => clearInterval(t),
@@ -42,6 +61,11 @@ function createLoop(deps) {
     graceUntil: 0, backoffUntil: 0, backoffStep: 0,
     lastLine: 'starting…', lastActivity: '', lastApp: null, lastVerdictTs: 0, lastCheckAt: 0,
     lastIdleRecheckAt: 0, epoch: 0,
+    // Change-gating: what the displays looked like, and which app was in front,
+    // at the last REAL check. Skipped ticks never update them, so slow drift
+    // still adds up to a change instead of hiding forever.
+    lastHashes: null, lastHashApp: null, skippedChecks: 0,
+    needsSubscription: false,
     // needsScreenPermission is a UI hint set by a capture failure that smelled
     // like permission; screenDenied is the authoritative answer from macOS
     // (fed in by main.js) and is the only thing that stops us capturing.
@@ -219,27 +243,56 @@ function createLoop(deps) {
         status(); return;
       }
 
+      // Change-gating (docs/API-CONTRACT.md). If every display still looks the
+      // way it did at the last real check, and the same app is in front, there
+      // is nothing new to judge: skip the call and let the previous verdict
+      // stand. Nothing is logged and nothing is counted for a skipped tick.
+      //
+      // Never while alerting: a gray screen must always be able to clear itself,
+      // and the person fixing it may not change enough pixels to beat the hash.
+      // A real check happens at least every forceCheckSec regardless.
+      let hashes = null;
+      try { hashes = d.hashFrames(capture.images); } catch { hashes = null; }
+      if (c.changeGating && !s.alerting && hashes && s.lastHashes) {
+        const forced = now - s.lastCheckAt >= c.forceCheckSec * 1000;
+        if (!forced && frontApp === s.lastHashApp && framehash.unchanged(s.lastHashes, hashes)) {
+          s.skippedChecks++;
+          s.errorStreak = 0;
+          s.lastLine = s.lastActivity ? `no change — ${s.lastActivity}` : 'no change since the last check';
+          status(); return;
+        }
+      }
+
       const [webcamB64, taskInfo] = await Promise.all([
         c.camera ? d.captureWebcam() : Promise.resolve(null),
         d.gatherTasks(c, d.secrets.getCanvasToken ? d.secrets.getCanvasToken() : '')
       ]);
       if (stale()) return;
 
-      const { verdict, engine, usage, model } = await d.analyze({
+      const { verdict, engine, usage, model, service } = await d.analyze({
         screenshotsB64: capture.images,
         webcamB64,
         workDescription: c.workDescription,
         canvasTasks: taskInfo.canvas || [],
         fileTasks: taskInfo.file || [],
         frontApp,
-        apiKey
+        apiKey,
+        // The hosted path sends these instead of a model key.
+        license: d.account ? d.account.getLicense() : null,
+        deviceId: d.account ? d.account.deviceId() : null
       }, c);
       if (stale()) return;
 
       s.errorStreak = 0;
       s.backoffStep = 0;
       s.errorKind = null;
+      s.needsSubscription = false;
       s.lastCheckAt = d.now();
+      // This is now the reference frame for change-gating.
+      s.lastHashes = hashes;
+      s.lastHashApp = frontApp;
+      // The service returns the plan and the month's counters with every check.
+      if (service && d.account && d.account.noteCheck) { try { d.account.noteCheck(service); } catch {} }
       s.lastIdleRecheckAt = s.lastCheckAt; // the held-alert recheck clock starts from the last real check
 
       // Punish only on an unambiguous call, repeated `strikes` times in a row.
@@ -283,7 +336,16 @@ function createLoop(deps) {
         s.errorKind = kind;
         const { provider } = providers.resolve(c, d.secrets.getApiKey());
         const who = providers.label(provider);
-        if (kind === 'key_rejected' || kind === 'no_key') {
+        const hosted = provider === providers.HOSTED;
+        if (hosted && SUBSCRIPTION_LINES[kind]) {
+          // A billing state is never a verdict: say what is wrong, stop calling
+          // for a while, and give the color back.
+          s.needsSubscription = true;
+          s.lastLine = SUBSCRIPTION_LINES[kind];
+          s.backoffUntil = d.now() + SUBSCRIPTION_BACKOFF_MS;
+          if (d.account && d.account.noteProblem) { try { d.account.noteProblem(kind); } catch {} }
+          if (s.alerting) await clearAlert(s.lastLine);
+        } else if (kind === 'key_rejected' || kind === 'no_key') {
           s.needsKey = true;
           s.lastLine = kind === 'no_key' ? 'API key needed — open Settings' : `${who} rejected the API key — fix in Settings`;
           // Don't re-send a dead key every tick; saving a new key resets this.
@@ -412,13 +474,36 @@ function createLoop(deps) {
     s.backoffUntil = 0;
     s.backoffStep = 0;
     s.needsKey = false;
+    // A new license, or a changed provider, deserves a real check rather than
+    // a skip against a frame judged under the old settings.
+    s.needsSubscription = false;
+    s.lastHashes = null;
+    s.lastHashApp = null;
     if (timer) start();
     applyAlertState();
     status();
   }
 
+  /** Plan facts for the tray and the windows; nulls when there is no account. */
+  function accountLive() {
+    let snap = null;
+    if (d.account && d.account.snapshot) { try { snap = d.account.snapshot(); } catch { snap = null; } }
+    if (!snap) {
+      return { plan: null, status: null, checksUsed: null, checksIncluded: null, needsSubscription: s.needsSubscription };
+    }
+    const usage = snap.usage || {};
+    return {
+      plan: snap.plan || null,
+      status: snap.status || null,
+      checksUsed: Number.isFinite(usage.checksUsed) ? usage.checksUsed : null,
+      checksIncluded: Number.isFinite(usage.checksIncluded) ? usage.checksIncluded : null,
+      needsSubscription: s.needsSubscription || !!snap.needsSubscription
+    };
+  }
+
   function getLive() {
     return {
+      ...accountLive(),
       paused: s.paused, pausedUntil: s.pausedUntil, locked: s.locked,
       alerting: s.alerting, alertSince: s.alertSince, strikeCount: s.strikeCount,
       lastLine: s.lastLine, lastActivity: s.lastActivity, lastApp: s.lastApp,
@@ -449,4 +534,4 @@ function createLoop(deps) {
   };
 }
 
-module.exports = { createLoop, TICK_HARD_LIMIT_MS, BACKOFF_STEPS_MS };
+module.exports = { createLoop, TICK_HARD_LIMIT_MS, BACKOFF_STEPS_MS, SUBSCRIPTION_LINES, SUBSCRIPTION_BACKOFF_MS };

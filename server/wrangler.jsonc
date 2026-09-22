@@ -1,0 +1,48 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "grayout-api",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-01",
+  // Checked against the built bundle: nothing here imports a Node built-in
+  // today. The flag is insurance for a future Stripe SDK release, and it costs
+  // nothing while it is unused.
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+
+  // Create the namespace once, then paste its id here:
+  //   npx wrangler kv namespace create GRAYOUT_KV
+  "kv_namespaces": [
+    {
+      "binding": "GRAYOUT_KV",
+      "id": "REPLACE_WITH_KV_NAMESPACE_ID"
+    }
+  ],
+
+  // Public settings. Nothing secret goes in this file — it is committed.
+  "vars": {
+    // Where the marketing site lives. Checkout returns the person here.
+    "SITE_BASE": "https://aarushkandukoori.github.io/grayout",
+    // Browser origins allowed to call this API. The app sends no Origin at all
+    // and is unaffected by this list.
+    "SITE_ORIGINS": "https://aarushkandukoori.github.io,https://grayout.app,https://www.grayout.app",
+    "CHECKOUT_SUCCESS_PATH": "/success.html",
+    "CHECKOUT_CANCEL_PATH": "/pricing.html",
+    "PORTAL_RETURN_PATH": "/",
+    // The vision model. Anything on OpenAI's Responses API with image input.
+    "MODEL": "gpt-5-mini"
+  }
+
+  // Secrets — set each one once per environment, before the first deploy:
+  //
+  //   npx wrangler secret put STRIPE_SECRET_KEY       # sk_live_… (sk_test_… while testing)
+  //   npx wrangler secret put STRIPE_WEBHOOK_SECRET   # whsec_… from the webhook endpoint
+  //   npx wrangler secret put OPENAI_API_KEY          # the service's own model key
+  //   npx wrangler secret put STRIPE_PRICE_MONTHLY    # price_… for $9.99 / month
+  //   npx wrangler secret put STRIPE_PRICE_YEARLY     # price_… for $79 / year
+  //
+  // The price ids are not strictly secret; they live here so that switching a
+  // price never needs a code change or a redeploy of this file.
+  //
+  // For `wrangler dev`, put the same five names in server/.dev.vars — see
+  // .dev.vars.example. That file is gitignored.
+}

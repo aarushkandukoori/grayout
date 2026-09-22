@@ -307,8 +307,28 @@
       </div>
     </form>
 
-    <div class="panel" id="key-panel">
-      <h2>API key (Anthropic or OpenAI)</h2>
+    <div class="panel" id="account-panel">
+      <h2>Your plan</h2>
+      <p class="note" id="account-line">Loading</p>
+      <p class="note" id="account-usage"></p>
+      <div class="actions" style="padding-top:0">
+        <button type="button" id="btn-subscribe" class="btn btn-primary">Subscribe</button>
+        <button type="button" id="btn-manage" class="btn">Manage subscription</button>
+        <button type="button" id="btn-cancel-claim" class="link hidden">Cancel</button>
+        <span id="account-msg" class="status"></span>
+      </div>
+      <div class="field-row" id="license-row">
+        <input type="text" id="f-license" class="field mono" placeholder="gry_live_…" spellcheck="false" autocapitalize="characters" autocomplete="off" aria-label="Grayout license key">
+        <button type="button" id="btn-license-save" class="btn" disabled>Activate</button>
+      </div>
+      <div class="keyfoot">
+        <span class="muted">Billing goes through Stripe. Grayout never sees your card details. Your license key is stored in the macOS Keychain and never written anywhere else.</span>
+        <button type="button" id="btn-plans" class="link">See plans</button>
+      </div>
+    </div>
+
+    <div class="panel hidden" id="key-panel">
+      <h2>Model key (self-hosting)</h2>
       <p class="note" id="key-current">Loading</p>
       <div class="field-row">
         <input type="password" id="f-key" class="field mono" placeholder="sk-ant-… or sk-proj-…" spellcheck="false" autocapitalize="off">
@@ -317,9 +337,9 @@
       </div>
       <div class="status" id="key-msg"></div>
       <div class="keyfoot">
-        <span class="muted">Stored in the macOS Keychain and never written anywhere else. The provider and model are read from the key.</span>
+        <span class="muted">This panel is here because config.json sets provider to anthropic or openai. Grayout then calls that provider directly with your key and never touches the Grayout service. Stored in the macOS Keychain and never written anywhere else.</span>
         <button type="button" id="btn-key-remove" class="link">Remove key</button>
-        <button type="button" id="btn-key-get" class="link">Get a key</button>
+        <button type="button" id="btn-key-get" class="link">Self-hosting guide</button>
       </div>
     </div>
 

@@ -31,7 +31,9 @@ function minutesUntilTomorrow6() {
 }
 
 /**
- * ctx: { loop, getConfig, windows, updater, onboardingDone: () => bool, permState: () => {screen, camera}, spentToday: () => {cost, checks}, sponsorUrl }
+ * ctx: { loop, getConfig, windows, updater, onboardingDone: () => bool,
+ *        permState: () => {screen, camera}, spentToday: () => {cost, checks},
+ *        selfHosted: () => bool, manageSubscription: () => void, sponsorUrl }
  */
 function createTray(ctx) {
   tray = new Tray(loadIcon('trayTemplate'));
@@ -45,7 +47,10 @@ function refresh(ctx) {
   const live = ctx.loop.getLive();
   const cfg = ctx.getConfig();
   const setup = !ctx.onboardingDone();
-  const needsKey = live.needsKey || !secrets.getApiKey();
+  // A model key is only ever needed when self-hosting; on the hosted plan the
+  // credential is a license key and the tray talks about the subscription.
+  const selfHosted = ctx.selfHosted ? ctx.selfHosted() : true;
+  const needsKey = selfHosted && (live.needsKey || !secrets.getApiKey());
   const perm = ctx.permState();
 
   const icon = live.needsScreenPermission ? 'trayBlockedTemplate'
@@ -70,9 +75,12 @@ function refresh(ctx) {
   tray.setToolTip(`Grayout — ${tip}`);
 
   const spent = ctx.spentToday();
+  const usageLine = !selfHosted && Number.isFinite(live.checksUsed) && Number.isFinite(live.checksIncluded)
+    ? `${live.checksUsed.toLocaleString()} of ${live.checksIncluded.toLocaleString()} checks this period`
+    : (spent.checks ? `Spent today: $${spent.cost.toFixed(2)} · ${spent.checks} checks` : live.lastLine);
   const secondLine = live.lastActivity
     ? `last check: ${live.lastActivity}${live.lastApp ? ` (${live.lastApp})` : ''}`
-    : (spent.checks ? `Spent today: $${spent.cost.toFixed(2)} · ${spent.checks} checks` : live.lastLine);
+    : usageLine;
 
   const statusLabel = setup ? 'Setup not finished'
     : live.paused ? (live.pausedUntil ? `Paused until ${fmtTime(live.pausedUntil)}` : 'Paused')
@@ -87,6 +95,13 @@ function refresh(ctx) {
 
   const keyItems = (!setup && needsKey) ? [
     { label: 'API key needed — open Settings…', click: () => ctx.windows.openDashboard('settings') },
+    { type: 'separator' }
+  ] : [];
+
+  // A plan problem never grays the Mac; it says so here and offers the fix.
+  const subscriptionItems = (!setup && live.needsSubscription) ? [
+    { label: 'Subscription needs attention', enabled: false },
+    { label: 'Manage subscription…', click: () => (ctx.manageSubscription ? ctx.manageSubscription() : ctx.windows.openDashboard('account')) },
     { type: 'separator' }
   ] : [];
 
@@ -116,6 +131,7 @@ function refresh(ctx) {
   const template = [
     ...permissionItems,
     ...grayNote,
+    ...subscriptionItems,
     ...keyItems,
     ...setupItems,
     { label: statusLabel, enabled: false },
@@ -151,6 +167,7 @@ function refresh(ctx) {
       ]
     },
     { label: 'Settings…', accelerator: 'CmdOrCtrl+,', click: () => ctx.windows.openDashboard('settings') },
+    ...(selfHosted ? [] : [{ label: 'Manage subscription…', click: () => (ctx.manageSubscription ? ctx.manageSubscription() : ctx.windows.openDashboard('account')) }]),
     { label: 'Restore color now', click: () => ctx.loop.restoreColor() },
     updateItem,
     {

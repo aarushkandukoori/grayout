@@ -1,12 +1,22 @@
 'use strict';
-// Which AI provider a key belongs to, and which model to use with it.
-// Grayout speaks to Anthropic (claude-*) or OpenAI (gpt-*) with the user's own
-// key; the provider is detected from the key so there is nothing to configure.
+// Who runs the check.
+//
+// By default that is the hosted Grayout service ('grayout'): the app sends the
+// frames with its license key and the service calls the model with its own.
+// Self-hosters keep the v1 path — set `provider` to anthropic/openai in
+// config.json, or just save a model key, and the app talks to that provider
+// directly and never touches the service.
+
+const HOSTED = 'grayout';
 
 const DEFAULT_MODELS = {
   anthropic: 'claude-haiku-4-5',
-  openai: 'gpt-5-mini'
+  openai: 'gpt-5-mini',
+  // The hosted service picks and pays for the model; the client never names one.
+  grayout: 'grayout'
 };
+
+const PROVIDERS = ['grayout', 'anthropic', 'openai'];
 
 const FAMILY = {
   anthropic: /^claude-/i,
@@ -29,24 +39,34 @@ function providerOfModel(model) {
 
 /**
  * Resolve { provider, model } for a config + key. An explicit config.provider
- * wins; otherwise the key decides; otherwise the model family; otherwise
- * Anthropic. The model is used only if it belongs to the provider's family.
+ * wins; otherwise a saved model key means self-hosting on that provider;
+ * otherwise the hosted service. The model is used only if it belongs to the
+ * provider's family.
  */
 function resolve(config, key) {
   const cfg = config || {};
-  let provider = (cfg.provider === 'anthropic' || cfg.provider === 'openai') ? cfg.provider : null;
-  if (!provider) provider = detectProviderFromKey(key);
-  if (!provider) provider = providerOfModel(cfg.model) || 'anthropic';
+  const explicit = PROVIDERS.includes(cfg.provider) ? cfg.provider : null;
+  if (explicit === HOSTED) return { provider: HOSTED, model: DEFAULT_MODELS[HOSTED] };
+  // No choice made and no model key on this Mac: the product is the service.
+  const provider = explicit || detectProviderFromKey(key);
+  if (!provider) return { provider: HOSTED, model: DEFAULT_MODELS[HOSTED] };
   const model = providerOfModel(cfg.model) === provider ? cfg.model : DEFAULT_MODELS[provider];
   return { provider, model };
 }
 
+/** True when this config + key runs through the hosted service. */
+function isHosted(config, key) {
+  return resolve(config, key).provider === HOSTED;
+}
+
 function label(provider) {
-  return provider === 'openai' ? 'OpenAI' : 'Anthropic';
+  if (provider === 'openai') return 'OpenAI';
+  if (provider === HOSTED) return 'Grayout';
+  return 'Anthropic';
 }
 
 function isReasoningModel(model) {
   return /^(gpt-5|o\d)/i.test(model || '');
 }
 
-module.exports = { DEFAULT_MODELS, FAMILY, detectProviderFromKey, providerOfModel, resolve, label, isReasoningModel };
+module.exports = { HOSTED, PROVIDERS, DEFAULT_MODELS, FAMILY, detectProviderFromKey, providerOfModel, resolve, isHosted, label, isReasoningModel };

@@ -45,14 +45,14 @@ describe('with a fake safeStorage (identity encryption)', () => {
     assert.ok(fs.existsSync(paths.SECRETS_PATH));
     assert.equal(helpers.fileMode(paths.SECRETS_PATH), 0o600);
     assert.equal(fs.existsSync(paths.SECRETS_PATH + '.tmp'), false);
-    assert.deepEqual(readStore(), { anthropicApiKey: KEY, canvasToken: '' });
+    assert.deepEqual(readStore(), { anthropicApiKey: KEY, canvasToken: '', grayoutLicense: '' });
   });
 
   test('canvas token round trip keeps the api key', () => {
     secrets.setCanvasToken('  ctok  ');
     assert.equal(secrets.getCanvasToken(), 'ctok');
     assert.equal(secrets.getApiKey(), KEY);
-    assert.deepEqual(readStore(), { anthropicApiKey: KEY, canvasToken: 'ctok' });
+    assert.deepEqual(readStore(), { anthropicApiKey: KEY, canvasToken: 'ctok', grayoutLicense: '' });
     secrets.setCanvasToken(null);
     assert.equal(secrets.getCanvasToken(), '');
   });
@@ -116,6 +116,90 @@ describe('with a fake safeStorage (identity encryption)', () => {
     secrets.useSessionKey('sk-ant-session-key');
     secrets.setApiKey(KEY);
     assert.equal(secrets.getApiKey(), KEY);
+  });
+});
+
+describe('the Grayout license', () => {
+  const LICENSE = 'gry_live_7KQ2R9XW4M0ZT8VN3HJ5CB6D';
+
+  test('round trips next to the API key, in canonical form', () => {
+    secrets._setSafeStorage(identity());
+    secrets.setLicense(`  ${LICENSE.toLowerCase()}  `);
+    assert.equal(secrets.getLicense(), LICENSE, 'trimmed, prefix lowercase, body uppercase');
+    assert.equal(readStore().grayoutLicense, LICENSE);
+    assert.equal(secrets.getApiKey(), KEY, 'the self-hosted key is untouched');
+  });
+
+  test('only gry_live_ + 24 Crockford base32 characters is accepted', () => {
+    const before = fs.readFileSync(paths.SECRETS_PATH, 'utf8');
+    for (const bad of [
+      'gry_live_7KQ2R9XW4M0ZT8VN3HJ5CB6',      // 23 characters
+      'gry_live_7KQ2R9XW4M0ZT8VN3HJ5CB6DD',    // 25
+      'gry_live_7KQ2R9XW4M0ZT8VN3HJ5CB6U',     // U is not in the alphabet
+      'gry_test_7KQ2R9XW4M0ZT8VN3HJ5CB6D',
+      'sk-ant-api03-nope'
+    ]) {
+      assert.throws(() => secrets.setLicense(bad), /Grayout license key/, bad);
+      assert.equal(secrets.isLicense(bad), false, bad);
+    }
+    assert.equal(fs.readFileSync(paths.SECRETS_PATH, 'utf8'), before, 'nothing was written');
+    assert.equal(secrets.isLicense(LICENSE), true);
+  });
+
+  test('a paste is normalized exactly the way the service normalizes it', () => {
+    // server/src/license.js normalizeLicense: dashes and spaces dropped, the
+    // prefix optional and case-insensitive, the body upper-cased with the
+    // Crockford look-alikes folded (I and L to 1, O to zero). If the app is
+    // stricter than the service, it refuses keys the service would have taken
+    // and the person is told their real license is not a license.
+    const canonical = 'gry_live_7KQ2R9XW4M0ZT8VN3HJ5CB6D';
+    for (const typed of [
+      canonical,
+      `  ${canonical}  `,
+      canonical.toUpperCase(),
+      'gry_live_7KQ2-R9XW-4M0Z-T8VN-3HJ5-CB6D',   // wrapped in an email
+      'gry_live_7KQ2 R9XW 4M0Z T8VN 3HJ5 CB6D',   // read out loud
+      '7KQ2R9XW4M0ZT8VN3HJ5CB6D'                  // body only, prefix assumed
+    ]) {
+      assert.equal(secrets.normalizeLicense(typed), canonical, typed);
+    }
+    // O and I are not in the alphabet, so someone typing them meant 0 and 1.
+    assert.equal(secrets.normalizeLicense('gry_live_7KQ2R9XW4MOZT8VN3HJ5CB6I'),
+      'gry_live_7KQ2R9XW4M0ZT8VN3HJ5CB61');
+    // The service is still the authority on whether the folded key exists; the
+    // app only promises not to reject it before asking.
+  });
+
+  test('masking shows the prefix and the last four, never the body', () => {
+    assert.equal(secrets.maskLicense(LICENSE), 'gry_live_…CB6D');
+    assert.equal(secrets.maskLicense(''), '');
+    assert.equal(secrets.maskLicense(null), '');
+    assert.equal(secrets.maskLicense('gry_live_'), 'gry_live_…');
+    assert.equal(secrets.maskLicense(LICENSE).includes('7KQ2'), false);
+  });
+
+  test('clearing blanks it and leaves the API key alone', () => {
+    secrets.clearLicense();
+    assert.equal(secrets.getLicense(), null);
+    assert.equal(readStore().grayoutLicense, '');
+    assert.equal(secrets.getApiKey(), KEY);
+  });
+
+  test('a session license wins over the environment, and both need no keychain', t => {
+    const saved = process.env.GRAYOUT_LICENSE;
+    t.after(() => { if (saved === undefined) delete process.env.GRAYOUT_LICENSE; else process.env.GRAYOUT_LICENSE = saved; secrets.useSessionLicense(null); });
+    process.env.GRAYOUT_LICENSE = 'gry_live_ABCDEFGHJKMNPQRSTVWXYZ23';
+    assert.equal(secrets.getLicense(), 'gry_live_ABCDEFGHJKMNPQRSTVWXYZ23');
+    secrets.useSessionLicense(LICENSE);
+    assert.equal(secrets.getLicense(), LICENSE);
+    secrets.useSessionLicense(null);
+    delete process.env.GRAYOUT_LICENSE;
+    assert.equal(secrets.getLicense(), null);
+  });
+
+  test('the log never prints a license key', () => {
+    const log = require('../src/log');
+    assert.equal(log.redact(`activated ${LICENSE}`), 'activated [redacted]');
   });
 });
 

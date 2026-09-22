@@ -1,6 +1,6 @@
 {
   "name": "grayout",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "description": "Your Mac goes gray until you get back to work.",
   "main": "main.js",
   "author": "Aarush Kandukoori",
@@ -21,7 +21,7 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test 'tests/**/*.test.js'",
-    "check": "for f in main.js src/*.js ui/preload/*.js build/afterSign.js scripts/*.js; do node --check \"$f\" || exit 1; done",
+    "check": "for f in main.js src/*.js ui/*.js ui/preload/*.js build/afterSign.js scripts/*.js; do node --check \"$f\" || exit 1; done",
     "helper": "bash scripts/build-helper.sh",
     "icons": "bash scripts/make-icons.sh",
     "pack": "npm run helper && electron-builder --mac dir --arm64 --publish never",
@@ -82,8 +82,8 @@
       "x64ArchFiles": "Contents/Resources/helper/grayscale",
       "extendInfo": {
         "LSUIElement": true,
-        "NSCameraUsageDescription": "Grayout can use your camera, only if you turn it on, to notice a phone in your hand. Frames go to Anthropic or OpenAI under your own API key and are never stored.",
-        "NSScreenCaptureUsageDescription": "Grayout takes a screenshot of each display about every 45 seconds and asks an AI model whether you are clearly not working. Screenshots go to Anthropic or OpenAI under your own API key and are deleted from this Mac immediately.",
+        "NSCameraUsageDescription": "Grayout can use your camera, only if you turn it on, to notice a phone in your hand. Frames go to the Grayout service with the screenshot, are deleted from this Mac immediately, and are never stored by the service.",
+        "NSScreenCaptureUsageDescription": "Grayout takes a screenshot of each display about every 45 seconds and asks the Grayout service whether you are clearly not working. Screenshots are deleted from this Mac immediately and are never stored by the service.",
         "NSAppleEventsUsageDescription": "Grayout does not need to control other apps. If you see this prompt, you can decline it."
       }
     },
