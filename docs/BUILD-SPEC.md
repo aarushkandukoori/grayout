@@ -1,5 +1,15 @@
 # Grayout — v1.0.0 build spec
 
+> **Historical. Superseded for anything v2 touches.** This describes the 1.x
+> product, in which every person brought their own Anthropic or OpenAI API key.
+> 2.0.0 sells a subscription and the service makes the model calls, so the key
+> screen, the per-check cost copy, `docs/api-key.html` as a key guide, and the
+> pricing sections below no longer describe what ships. **`docs/API-CONTRACT.md`
+> is binding** for the app, the service and the site; `README.md` and
+> `CHANGELOG.md` describe the shipped behaviour. Everything here about capture,
+> permissions, packaging, the helper, and the release gates is still accurate.
+
+
 Date: 2026-09-21. Author/owner: Aarush Kandukoori (github `aarushkandukoori`). This document is the single source of truth for the engineers building v1.0.0 in one session. It starts from the winning "ship-today" plan and grafts in every judge-nominated idea and every fatal-flaw fix. Where it says "existing", it refers to the proven code in `~/AIBuddyHelper` (6 weeks, 12,650 real verdicts); copy that logic, do not rewrite it.
 
 Governing question for every scope decision: **does it make a stranger's first 10 minutes fail less?**

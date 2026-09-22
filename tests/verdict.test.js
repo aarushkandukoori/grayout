@@ -153,27 +153,38 @@ describe('engine and key guard', () => {
     assert.equal(resolveEngine({}), 'api');
   });
 
-  test('analyze() without an apiKey throws NoKeyError before any network', async t => {
+  test('analyze() on a self-hosted provider without an apiKey throws NoKeyError before any network', async t => {
     const saved = process.env.GRAYOUT_DEV_ENGINE;
     t.after(() => { if (saved === undefined) delete process.env.GRAYOUT_DEV_ENGINE; else process.env.GRAYOUT_DEV_ENGINE = saved; });
     delete process.env.GRAYOUT_DEV_ENGINE;
+    // provider must be explicit: with neither a provider nor a key, v2 resolves
+    // to the hosted service, which needs no key at all.
+    const cfg = { provider: 'anthropic', model: 'claude-haiku-4-5' };
     const ctx = { screenshotsB64: ['AAAA'], webcamB64: null, workDescription: '', canvasTasks: [], fileTasks: [], frontApp: 'Code', apiKey: null };
-    await assert.rejects(analyze(ctx, { model: 'claude-haiku-4-5' }), e => e instanceof NoKeyError && e.kind === 'no_key');
-    await assert.rejects(analyze({ ...ctx, apiKey: '' }, { model: 'claude-haiku-4-5' }), NoKeyError);
+    await assert.rejects(analyze(ctx, cfg), e => e instanceof NoKeyError && e.kind === 'no_key');
+    await assert.rejects(analyze({ ...ctx, apiKey: '' }, cfg), NoKeyError);
     assert.equal(ctx.screenshotCount, 1);
     assert.equal(ctx.hasWebcam, false);
   });
 
-  test('providers.resolve: explicit provider > key prefix > model family > anthropic; model must match the family', () => {
+  test('providers.resolve: explicit provider > key prefix > the hosted service; model must match the family', () => {
     const providers = require('../src/providers');
+    // v2 default: no explicit provider and no model key → the hosted service.
+    assert.deepEqual(providers.resolve({ provider: 'auto', model: 'claude-haiku-4-5' }, null), { provider: 'grayout', model: 'grayout' });
+    assert.deepEqual(providers.resolve({}, ''), { provider: 'grayout', model: 'grayout' });
+    assert.deepEqual(providers.resolve({ provider: 'grayout', model: 'gpt-5-nano' }, 'sk-ant-x'), { provider: 'grayout', model: 'grayout' }, 'an explicit grayout beats a saved key');
+    assert.equal(providers.isHosted({ provider: 'auto' }, null), true);
+    assert.equal(providers.isHosted({ provider: 'auto' }, 'sk-ant-x'), false, 'a saved key means self-hosting');
+    assert.equal(providers.isHosted({ provider: 'openai' }, null), false);
+    assert.equal(providers.label('grayout'), 'Grayout');
     assert.deepEqual(providers.resolve({ provider: 'auto', model: 'claude-haiku-4-5' }, 'sk-ant-api03-x'), { provider: 'anthropic', model: 'claude-haiku-4-5' });
     assert.deepEqual(providers.resolve({ provider: 'auto', model: 'claude-haiku-4-5' }, 'sk-proj-x'), { provider: 'openai', model: 'gpt-5-mini' });
     assert.deepEqual(providers.resolve({ provider: 'auto', model: 'gpt-5-nano' }, 'sk-proj-x'), { provider: 'openai', model: 'gpt-5-nano' });
-    assert.deepEqual(providers.resolve({ provider: 'auto', model: 'gpt-5-nano' }, null), { provider: 'openai', model: 'gpt-5-nano' }, 'no key: model family decides');
-    assert.deepEqual(providers.resolve({ provider: 'auto', model: 'nonsense' }, null), { provider: 'anthropic', model: 'claude-haiku-4-5' });
+    assert.deepEqual(providers.resolve({ provider: 'auto', model: 'gpt-5-nano' }, null), { provider: 'grayout', model: 'grayout' }, 'no key: the model family no longer selects a provider');
+    assert.deepEqual(providers.resolve({ provider: 'anthropic', model: 'nonsense' }, null), { provider: 'anthropic', model: 'claude-haiku-4-5' });
     assert.deepEqual(providers.resolve({ provider: 'openai', model: 'claude-haiku-4-5' }, 'sk-ant-x'), { provider: 'openai', model: 'gpt-5-mini' }, 'explicit provider wins over the key');
     assert.deepEqual(providers.resolve({ provider: 'anthropic', model: 'gpt-5-mini' }, 'sk-proj-x'), { provider: 'anthropic', model: 'claude-haiku-4-5' });
-    assert.deepEqual(providers.resolve(null, undefined), { provider: 'anthropic', model: 'claude-haiku-4-5' });
+    assert.deepEqual(providers.resolve(null, undefined), { provider: 'grayout', model: 'grayout' });
     assert.equal(providers.detectProviderFromKey('  sk-ant-api03-x '), 'anthropic');
     assert.equal(providers.detectProviderFromKey('sk-proj-abc'), 'openai');
     assert.equal(providers.detectProviderFromKey('abc'), null);

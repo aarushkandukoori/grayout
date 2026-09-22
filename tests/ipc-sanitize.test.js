@@ -205,8 +205,12 @@ describe('registerIpc with fakes', () => {
     assert.equal(onDisk.checkIntervalSec, 90);
     assert.equal('apiKey' in onDisk, false);
     assert.equal(JSON.stringify(onDisk).includes('sk-ant'), false);
-    assert.equal(typeof r.estimates.perCheck, 'number');
-    assert.equal(r.estimates.byInterval[45].daily.toFixed(2), '0.90');
+    // No model key on this Mac → the hosted plan, where a model bill is not
+    // this person's bill. Check counts still come back.
+    assert.equal(r.estimates.hosted, true);
+    assert.equal(r.estimates.perCheck, null);
+    assert.equal(r.estimates.byInterval[45].daily, null);
+    assert.equal(r.estimates.byInterval[45].checks, Math.round(require('../src/pricing').checksPerDay(45)));
     assert.equal(r.loginItem.status, 'not-in-applications');
   });
 
@@ -239,26 +243,49 @@ describe('registerIpc with fakes', () => {
     assert.equal(r.update, null);
     assert.equal(r.stats.empty, true);
     assert.equal(r.live.lastLine, 'watching…');
-    assert.equal(r.live.needsKey, true, 'no key → needsKey');
     assert.deepEqual(Object.keys(r.config).sort(), ['camera', 'checkIntervalSec', 'disputeGraceMin', 'grayscale', 'historyDays', 'model', 'provider', 'providerLabel', 'redFlash', 'strikes']);
-    assert.equal(r.config.provider, 'anthropic', 'no key + claude model → anthropic');
-    assert.equal(r.config.model, 'claude-haiku-4-5');
+    assert.equal(r.config.provider, 'grayout', 'no model key → the hosted service');
+    assert.equal(r.config.model, 'grayout');
+    assert.equal(r.selfHosted, false);
+    assert.equal(r.live.needsKey, false, 'the hosted path never asks for an API key');
+    assert.deepEqual(Object.keys(r.account).sort(), ['hasLicense', 'licenseMasked', 'needsSubscription', 'plan', 'status', 'usage']);
+    assert.equal(r.account.plan, 'free');
+    assert.equal(r.account.hasLicense, false);
+    assert.equal(r.freeChecks, 100);
+    assert.equal(r.includedChecks, 15000);
+    assert.equal(r.plans.monthly.price, 9.99);
   });
 
-  test('estimates follow the provider the key implies', async () => {
+  test('a saved key self-hosts and brings the cost meter back; clearing it returns to the hosted plan', async () => {
     invoke('key:session', 'sk-proj-openai-looking-key');
     const s = await invoke('settings:get');
+    assert.equal(s.selfHosted, true);
+    assert.equal(s.estimates.hosted, false);
     assert.equal(s.estimates.provider, 'openai');
     assert.equal(s.estimates.providerLabel, 'OpenAI');
     assert.equal(s.estimates.model, 'gpt-5-mini', 'claude model is not in the openai family → provider default');
     assert.ok(s.estimates.byInterval[45].daily < 0.90);
     assert.equal(s.hasKey, true);
     assert.equal(s.keyMasked.includes('openai-looking'), false);
+    assert.equal(s.plans.yearly.price, 79);
     invoke('key:clear');
     const a = await invoke('settings:get');
-    assert.equal(a.estimates.provider, 'anthropic');
-    assert.equal(a.estimates.byInterval[45].daily.toFixed(2), '0.90');
+    assert.equal(a.selfHosted, false);
+    assert.equal(a.estimates.provider, 'grayout');
+    assert.equal(a.estimates.providerLabel, 'Grayout');
+    assert.equal(a.estimates.byInterval[45].daily, null);
     assert.equal(a.estimates.priceDate, '2026-09-21');
+    assert.equal(a.account.usage.checksIncluded, 100, 'no license → the free taste');
+  });
+
+  test('an explicit anthropic provider prices the self-hosted path', async () => {
+    const saved = cfg;
+    cfg = configMod.coerce({ ...saved, provider: 'anthropic' });
+    const s = await invoke('settings:get');
+    assert.equal(s.selfHosted, true);
+    assert.equal(s.estimates.provider, 'anthropic');
+    assert.equal(s.estimates.byInterval[45].daily.toFixed(2), '0.90');
+    cfg = saved;
   });
 
   test('onb:setStep clamps to 1..5 and persists; onb:finish marks completion', () => {

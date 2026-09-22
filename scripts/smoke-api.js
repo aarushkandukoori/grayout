@@ -1,5 +1,9 @@
 #!/usr/bin/env node
-// The only production test of the API path (BUILD-SPEC §24 step 3):
+// Production test of the SELF-HOSTED provider path — the escape hatch, not the
+// product. The subscription path (api.grayout.app) is covered by the Worker's
+// own suite: `npm --prefix server test`.
+//
+// Usage (BUILD-SPEC §24 step 3):
 //   ANTHROPIC_API_KEY=sk-ant-... node scripts/smoke-api.js
 // Runs analyzer.testApiKey() — the exact code the watch loop uses — on a synthetic
 // 1366x768 "code editor" frame and prints the verdict, token usage and cost.

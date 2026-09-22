@@ -1,42 +1,67 @@
-title: "Hosted plan (no API key needed) — reply to be notified"
-labels: ["hosted-waitlist"]
+title: "Plans and pricing — what you think"
+labels: ["pricing"]
 body:
   - type: markdown
     attributes:
       value: |
-        Grayout is free and uses your own Anthropic or OpenAI API key. A hosted version that needs no key is being considered. It is not built, there is no price, and there is no date. The number of people in this category is the only signal used to decide whether to build it.
+        **The hosted plan shipped.** This category used to be a waitlist for "a version that needs no API key". That version is Grayout 2.0: $9.99 a month or $79 a year, with 100 checks free first, no card and no account. There is nothing left to wait for.
 
-        Replying to the pinned thread is enough. If you want to say more, the fields below help, and all of them are optional. Do not post your email address; GitHub will notify you on the thread.
+        This is the place to say whether the price and the shape are right. It is a one-person project, so this is genuinely how the plans change.
+
+        Two things that are not open questions, so you know where the line is:
+
+        - **Self-hosting stays.** The repository is MIT and setting `provider` to `anthropic` or `openai` in `config.json` runs the app on your own key with no subscription and no Grayout service in the path. That will not be removed or degraded.
+        - **No team, parent, or employer plan, at any price.** Grayout reports to nobody but the person sitting at the Mac.
+
+        Do not post your license key, your email address, or a receipt. For a billing problem that needs fixing, open a **Billing or subscription problem** issue instead; this category is for opinions, not repairs.
   - type: dropdown
-    id: blocker
+    id: using
     attributes:
-      label: What stopped you, or would have?
+      label: What are you on?
       options:
-        - Creating an Anthropic or OpenAI account and adding credit
-        - Pasting a key felt risky
-        - I would rather pay one bill than two
-        - Nothing, I just want to know when it exists
-        - Something else (say what below)
+        - The free checks
+        - The monthly trial
+        - Monthly, paying
+        - Yearly
+        - Self-hosting on my own key
+        - Not installed yet
   - type: dropdown
-    id: student
+    id: price
     attributes:
-      label: Are you a student?
-      description: A student price with .edu verification is part of the plan.
+      label: Is $9.99 a month right?
       options:
-        - "Yes"
-        - "No"
-        - Prefer not to say
+        - About right
+        - Too much for what it does
+        - Too much for me, though it is worth it
+        - I would pay more for it
+        - I would only ever buy the yearly plan
+        - I would only ever self-host
   - type: dropdown
-    id: usage
+    id: free
     attributes:
-      label: How many hours a day would Grayout be watching?
+      label: Were 100 free checks enough to know?
+      description: A check is spent only when you are at the Mac and something changed, so 100 of them usually stretch across most of a working day.
       options:
-        - Under 2
-        - 2 to 4
-        - 4 to 8
-        - More than 8
+        - Yes, I knew well before they ran out
+        - They ran out before it ever grayed me
+        - They ran out before I had set it up properly
+        - I have not used them up yet
+        - Did not try them
+  - type: dropdown
+    id: stopped
+    attributes:
+      label: If you did not subscribe, what stopped you?
+      options:
+        - Price
+        - Not sure it works for the way I work
+        - The unsigned-app install steps
+        - I would rather not send screenshots to anyone
+        - I would rather run it on my own key
+        - Waiting to see if it lasts
+        - Nothing, I subscribed
+        - Something else (say below)
   - type: textarea
     id: more
     attributes:
       label: Anything else
-      description: What would make hosted worth paying for, or what would make you keep using your own key.
+      description: What would make the plan worth it, what the allowance should be, what you expected and did not get.

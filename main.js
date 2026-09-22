@@ -17,6 +17,9 @@ const { getIdleSeconds } = require('./src/idle');
 const { getFrontmostApp } = require('./src/frontmost');
 const { gatherTasks } = require('./src/tasks');
 const { analyze, resolveEngine } = require('./src/analyzer');
+const providers = require('./src/providers');
+const framehash = require('./src/framehash');
+const { createAccount } = require('./src/account');
 const grayscale = require('./src/grayscale');
 const overlays = require('./src/overlays');
 const camera = require('./src/camera');
@@ -31,6 +34,7 @@ let config = null;
 let loop = null;
 let tray = null;
 let updater = null;
+let account = null;
 let permState = { screen: 'not-determined', camera: 'not-determined' };
 let configWatchTimer = null;
 
@@ -48,6 +52,12 @@ function notify(title, body) {
   } catch {}
 }
 
+// True only when this Mac runs checks on its own model key instead of the
+// hosted service. Self-hosting is documented in the README, never in the UI.
+function selfHosted() {
+  try { return !providers.isHosted(config, secrets.getApiKey()); } catch { return false; }
+}
+
 function spentToday() {
   try {
     const s = stats.summarize(undefined, { intervalSec: config.checkIntervalSec, strikes: config.strikes });
@@ -62,7 +72,11 @@ function onStatus(live) {
   statusTimer = setTimeout(() => {
     statusTimer = null;
     try { if (tray) tray.refresh(); } catch (e) { log.error('tray', e.message); }
-    try { windows.pushLive({ ...loop.getLive(), needsKey: loop.getLive().needsKey || !secrets.getApiKey() }); } catch {}
+    try {
+      const live = loop.getLive();
+      const self = selfHosted();
+      windows.pushLive({ ...live, selfHosted: self, needsKey: self && (live.needsKey || !secrets.getApiKey()) });
+    } catch {}
   }, 200);
 }
 
@@ -178,15 +192,21 @@ if (!app.requestSingleInstanceLock()) {
 
     config = loadConfigWithMigration();
     state.get();
-    log.info('app', `Grayout ${app.getVersion()} starting (packaged=${app.isPackaged}, engine=${resolveEngine(config)})`);
+    log.info('app', `Grayout ${app.getVersion()} starting (packaged=${app.isPackaged}, engine=${resolveEngine(config)}, provider=${providers.resolve(config, secrets.getApiKey()).provider})`);
     if (config._invalid) log.warn('config', 'config.json is invalid — running on defaults');
 
     session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) => cb(permission === 'media'));
 
+    account = createAccount({ getConfig: () => config });
+
     loop = createLoop({
       config: () => config,
       state,
+      account,
       capture: n => captureScreens(nativeImage, n),
+      // Perceptual hashes for change-gating. nativeImage is injected so
+      // src/framehash.js stays loadable (and testable) under plain Node.
+      hashFrames: images => framehash.hashFrames(nativeImage, images),
       analyze,
       getIdleSeconds,
       getFrontmostApp,
@@ -195,7 +215,9 @@ if (!app.requestSingleInstanceLock()) {
       grayscale,
       overlays,
       secrets,
-      requiresKey: () => resolveEngine(config) === 'api',
+      // A model key is needed only when self-hosting; the hosted service is
+      // reached with a license key, or with nothing at all on the free taste.
+      requiresKey: () => resolveEngine(config) === 'api' && selfHosted(),
       logVerdict,
       displays: () => screen.getAllDisplays().length,
       notify,
@@ -214,6 +236,8 @@ if (!app.requestSingleInstanceLock()) {
       getConfig: () => config,
       windows,
       updater,
+      selfHosted,
+      manageSubscription: () => windows.openDashboard('account'),
       onboardingDone: () => !!state.get().onboarding.completed,
       permState: () => permState,
       spentToday,
@@ -223,6 +247,7 @@ if (!app.requestSingleInstanceLock()) {
 
     registerIpc({
       loop,
+      account,
       getConfig: () => config,
       applyConfig,
       windows,
@@ -252,6 +277,13 @@ if (!app.requestSingleInstanceLock()) {
     setInterval(pruneHistory, 24 * 3600 * 1000).unref();
     watchConfigFile();
     if (config.checkForUpdates) updater.start();
+
+    // Re-validate the license on launch (docs/API-CONTRACT.md §/v1/activate).
+    // Best effort and never blocking: a service that cannot be reached changes
+    // nothing about what the screen looks like.
+    if (!selfHosted()) {
+      account.status({ force: true }).then(() => onStatus()).catch(() => {});
+    }
 
     // Registers the app in System Settings > Screen Recording and raises the
     // prompt if it hasn't been approved yet. Must happen before the first tick.

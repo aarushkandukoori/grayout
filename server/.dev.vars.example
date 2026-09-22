@@ -1,0 +1,20 @@
+# Copy to server/.dev.vars for `npx wrangler dev`. .dev.vars is gitignored:
+# real keys must never be committed.
+#
+#   cp .dev.vars.example .dev.vars
+
+# Stripe. Use the test-mode key and a webhook secret from `stripe listen`.
+STRIPE_SECRET_KEY=sk_test_replace_me
+STRIPE_WEBHOOK_SECRET=whsec_replace_me
+
+# The two test-mode prices: $9.99 / month and $79 / year, both recurring.
+STRIPE_PRICE_MONTHLY=price_replace_me
+STRIPE_PRICE_YEARLY=price_replace_me
+
+# The service's own model key. This is the key the whole product runs on.
+OPENAI_API_KEY=sk-replace-me
+
+# Optional overrides of the vars in wrangler.jsonc.
+# SITE_BASE=http://localhost:4000
+# SITE_ORIGINS=http://localhost:4000
+# MODEL=gpt-5-mini

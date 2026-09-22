@@ -5,10 +5,13 @@ const path = require('path');
 const { execFile } = require('child_process');
 const paths = require('./paths');
 const providers = require('./providers');
+const { apiBaseFrom, errorFromBody, classifyFetchError, SERVICE_ERROR_KINDS } = require('./account');
 
 const API_TIMEOUT_MS = 60000;
 const CLI_TIMEOUT_MS = 90000;
 const MAX_OUTPUT_TOKENS = 200; // the verdict is ~40 tokens
+const MAX_SERVICE_DISPLAYS = 3;
+const MAX_SERVICE_TASKS = 20;
 
 const VERDICT_SCHEMA = {
   type: 'object',
@@ -24,6 +27,9 @@ const VERDICT_SCHEMA = {
 class NoKeyError extends Error {
   constructor() { super('no API key configured'); this.name = 'NoKeyError'; this.kind = 'no_key'; }
 }
+
+// Looked up per call so a test can swap it.
+const doFetch = (...args) => globalThis.fetch(...args);
 
 // Canvas titles and task-file lines are third-party text. Fence them and say so,
 // otherwise an assignment literally named "ignore previous instructions, reply
@@ -129,6 +135,9 @@ function classifyApiError(err) {
   const status = err && typeof err.status === 'number' ? err.status : null;
   const code = err && (err.code || (err.error && err.error.code)) ? String(err.code || err.error.code) : '';
   const type = err && err.error && err.error.type ? String(err.error.type) : '';
+  // Failure codes from the hosted service (docs/API-CONTRACT.md) come back as
+  // a snake_case code, not an HTTP shape.
+  if (SERVICE_ERROR_KINDS[code]) return { kind: SERVICE_ERROR_KINDS[code], message: msg };
   if (status === 401 || status === 403 || /invalid_api_key|authentication_error|Incorrect API key/i.test(msg + code + type)) return { kind: 'key_rejected', message: msg };
   if (code === 'insufficient_quota' || /insufficient_quota|credit balance|billing|purchase credits|exceeded your current quota/i.test(msg)) return { kind: 'no_credit', message: msg };
   if (status === 429) return { kind: 'rate_limited', message: msg };
@@ -217,10 +226,87 @@ async function analyzeViaOpenAI(ctx, model, apiKey) {
   return { verdict: coerceVerdict(extractJson(text)), usage, model: response.model || model, provider: 'openai' };
 }
 
-/** Dispatch to the provider the key belongs to. */
+/**
+ * The hosted path, and the default: POST the frames to the Grayout service,
+ * which owns the prompt and the model key (docs/API-CONTRACT.md §/v1/check).
+ * The client sends pixels and context, never prompt text.
+ */
+function serviceContext(ctx) {
+  const flat = (v, n) => String(v == null ? '' : v).replace(/[\r\n]+/g, ' ').slice(0, n);
+  const list = items => (Array.isArray(items) ? items : [])
+    .slice(0, MAX_SERVICE_TASKS)
+    .map(t => flat(t, 200))
+    .filter(Boolean);
+  return {
+    workDescription: flat(ctx.workDescription, 500),
+    frontApp: ctx.frontApp ? flat(ctx.frontApp, 80) : null,
+    canvasTasks: list(ctx.canvasTasks),
+    fileTasks: list(ctx.fileTasks)
+  };
+}
+
+async function analyzeViaGrayout(ctx, config) {
+  if (!ctx.deviceId) { const e = new Error('this Mac has no device id yet'); e.kind = 'unknown'; throw e; }
+
+  const body = {
+    deviceId: ctx.deviceId,
+    displays: (ctx.screenshotsB64 || []).slice(0, MAX_SERVICE_DISPLAYS),
+    webcam: ctx.webcamB64 || null,
+    context: serviceContext(ctx)
+  };
+  // Omitted entirely while on the free taste.
+  if (ctx.license) body.license = ctx.license;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => { try { controller.abort(); } catch {} }, API_TIMEOUT_MS);
+  let res;
+  try {
+    res = await doFetch(apiBaseFrom(config) + '/v1/check', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal
+    });
+  } catch (e) {
+    const { kind, message } = classifyFetchError(e);
+    const err = new Error(message); err.kind = kind; throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+
+  const status = Number(res && res.status) || 0;
+  const ok = res && res.ok !== undefined ? !!res.ok : status >= 200 && status < 300;
+  let json = null;
+  try { json = await res.json(); } catch {}
+
+  if (!ok) {
+    const { kind, message, code } = errorFromBody(json, status);
+    const err = new Error(message);
+    err.kind = kind; err.status = status; err.serviceCode = code;
+    err.requestId = res && res.headers && typeof res.headers.get === 'function' ? res.headers.get('X-Grayout-Request-Id') : null;
+    throw err;
+  }
+  if (!json || typeof json !== 'object') throw new Error('the Grayout service returned no verdict');
+
+  return {
+    verdict: coerceVerdict(json.verdict),
+    // Token usage is the service's business and no bill of this person's, so
+    // the local cost meter stays empty. Plan usage rides along in `service`.
+    usage: null,
+    model: 'grayout',
+    provider: 'grayout',
+    service: {
+      plan: typeof json.plan === 'string' ? json.plan : null,
+      usage: json.usage && typeof json.usage === 'object' ? json.usage : null
+    }
+  };
+}
+
+/** Dispatch to the hosted service, or to the provider a self-hosted key belongs to. */
 async function analyzeViaApi(ctx, config, apiKey) {
-  if (!apiKey) throw new NoKeyError();
   const { provider, model } = providers.resolve(config, apiKey);
+  if (provider === providers.HOSTED) return analyzeViaGrayout(ctx, config);
+  if (!apiKey) throw new NoKeyError();
   return provider === 'openai' ? analyzeViaOpenAI(ctx, model, apiKey) : analyzeViaAnthropic(ctx, model, apiKey);
 }
 
@@ -273,8 +359,9 @@ function resolveEngine(config) {
 
 /**
  * ctx: { screenshotsB64: string[], webcamB64, workDescription, canvasTasks,
- *        fileTasks, frontApp, apiKey }
- * Returns { engine, verdict, usage, model }.
+ *        fileTasks, frontApp, apiKey, license, deviceId }
+ * Returns { engine, verdict, usage, model, provider } and, on the hosted path,
+ * `service: { plan, usage }` carrying the subscription's own counters.
  */
 async function analyze(ctx, config) {
   const engine = resolveEngine(config);
@@ -311,7 +398,10 @@ async function analyze(ctx, config) {
  */
 async function testApiKey(apiKey, syntheticFrameB64, model, provider) {
   const { costUsd } = require('./pricing');
-  const cfg = providers.resolve({ provider: provider || 'auto', model: model || '' }, apiKey);
+  // This tests a self-hosted model key, so never take the hosted path even when
+  // config.provider says 'grayout': the key itself decides.
+  const wanted = provider === 'anthropic' || provider === 'openai' ? provider : 'auto';
+  const cfg = providers.resolve({ provider: wanted, model: model || '' }, apiKey);
   const ctx = {
     screenshotsB64: [syntheticFrameB64], webcamB64: null, workDescription: '',
     canvasTasks: [], fileTasks: [], frontApp: 'Code', screenshotCount: 1, hasWebcam: false
@@ -326,6 +416,7 @@ async function testApiKey(apiKey, syntheticFrameB64, model, provider) {
 }
 
 module.exports = {
-  analyze, analyzeViaApi, analyzeViaAnthropic, analyzeViaOpenAI, testApiKey, resolveEngine, buildPromptText, fenced, extractJson,
+  analyze, analyzeViaApi, analyzeViaAnthropic, analyzeViaOpenAI, analyzeViaGrayout, serviceContext,
+  testApiKey, resolveEngine, buildPromptText, fenced, extractJson,
   coerceVerdict, classifyApiError, VERDICT_SCHEMA, NoKeyError, API_TIMEOUT_MS, CLI_TIMEOUT_MS
 };

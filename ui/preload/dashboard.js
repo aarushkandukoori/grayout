@@ -5,8 +5,8 @@ const invoke = (ch, ...args) => ipcRenderer.invoke(ch, ...args);
 
 contextBridge.exposeInMainWorld('grayout', {
   // data
-  get: day => invoke('dash:get', day || null),            // { stats, live, config, version, keyMasked, hasKey, update, dataDir }
-  getSettings: () => invoke('settings:get'),               // { config, keyMasked, hasKey, secureStorage, loginItem, estimates, permissions, paths, tccResetCmd, version, isPackaged }
+  get: day => invoke('dash:get', day || null),            // { stats, live, config, version, account, plans, freeChecks, includedChecks, selfHosted, keyMasked, hasKey, update, dataDir }
+  getSettings: () => invoke('settings:get'),               // { config, account, plans, freeChecks, includedChecks, selfHosted, keyMasked, hasKey, secureStorage, loginItem, estimates, permissions, paths, tccResetCmd, version, isPackaged }
   saveSettings: partial => invoke('settings:save', partial), // { config, loginItem, estimates }
   // loop control
   pause: () => invoke('loop:pause'),
@@ -22,7 +22,14 @@ contextBridge.exposeInMainWorld('grayout', {
   openLoginItems: () => invoke('perm:openLoginItems'),
   requestCamera: () => invoke('perm:requestCamera'),
   recheck: () => invoke('perm:recheck'),
-  // API key
+  // subscription — the same names the welcome window exposes
+  accountStatus: opts => invoke('account:status', opts || null),      // { ok, plan, status, usage, hasLicense, licenseMasked, needsSubscription }
+  startCheckout: plan => invoke('account:startCheckout', plan),        // { ok, url, deviceCode, plan, expiresIn, opened }
+  pollClaim: deviceCode => invoke('account:pollClaim', deviceCode),    // resolves when checkout finishes, is cancelled, or times out
+  cancelClaim: () => invoke('account:cancelClaim'),
+  activateLicense: license => invoke('account:activate', license),
+  openBillingPortal: () => invoke('account:portal'),
+  // self-hosted model key: shown only while settings.selfHosted is true
   setApiKey: key => invoke('key:set', key),
   testApiKey: (key, frameB64) => invoke('key:test', key, frameB64),
   clearApiKey: () => invoke('key:clear'),

@@ -19,6 +19,12 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm test
+      # The Worker is half the product now. Without these a broken service
+      # merges green.
+      - run: npm ci
+        working-directory: server
+      - run: npm test
+        working-directory: server
       - run: bash scripts/build-helper.sh
       - run: npx electron-builder --mac dir --arm64 --publish never
         env:

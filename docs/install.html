@@ -4,15 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src https://api.grayout.app; base-uri 'none'; form-action 'none'">
   <title>Install Grayout for Mac</title>
-  <meta name="description" content="How to install Grayout on macOS: the exact Gatekeeper dialogs for an un-notarized app, Screen Recording, your API key, verifying the download, updating, and what to do if your screen is stuck gray.">
+  <meta name="description" content="How to install Grayout on macOS: the exact Gatekeeper dialogs for an un-notarized app, Screen Recording, starting your trial, verifying the download, updating, and what to do if your screen is stuck gray.">
   <link rel="canonical" href="https://aarushkandukoori.github.io/grayout/install.html">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Grayout for Mac">
   <meta property="og:title" content="Install Grayout for Mac">
   <meta property="og:description" content="The exact steps for first launch on macOS, including the Apple could not verify dialog and Open Anyway.">
   <meta property="og:url" content="https://aarushkandukoori.github.io/grayout/install.html">
-  <meta property="og:image" content="https://aarushkandukoori.github.io/grayout/img/hero-gray.svg">
+  <meta property="og:image" content="https://aarushkandukoori.github.io/grayout/img/dashboard.png">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%238a8a8a'/%3E%3Cpath d='M16 16 L16 2 A14 14 0 0 1 30 16 Z' fill='%23d03b3b'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
@@ -23,7 +24,7 @@
   <a class="brand" href="index.html">Grayout for Mac</a> ·
   <a href="index.html#how">How it works</a> ·
   <a href="install.html">Install</a> ·
-  <a href="index.html#cost">Cost</a> ·
+  <a href="pricing.html">Pricing</a> ·
   <a href="privacy.html">Privacy</a> ·
   <a href="https://github.com/aarushkandukoori/grayout">GitHub</a>
 </nav>
@@ -73,8 +74,9 @@
   <p>Grayout opens a welcome window. On step 2 click <strong>Open System Settings</strong>, turn on Grayout under Screen Recording, then click <strong>Relaunch Grayout</strong>. macOS only applies this permission after the app restarts.</p>
   <p>Grayout asks for nothing else: no Accessibility, no Automation, no Full Disk Access. The camera is optional and off by default.</p>
 
-  <h2 id="api-key">5. Your API key</h2>
-  <p>Step 3: paste your Anthropic or OpenAI key (see <a href="api-key.html">the key guide</a>; Grayout tells them apart from the key), click <strong>Test key</strong>, then <strong>Save</strong>. Click <strong>Always Allow</strong> on the Keychain prompt; the key is stored encrypted in your macOS Keychain and never written to a plain file.</p>
+  <h2 id="start">5. Start watching</h2>
+  <p>Step 3: choose how you want to run it. You can take 100 checks with no card and no account, or subscribe, which opens Stripe’s checkout page in your browser after you pick a plan on <a href="pricing.html">the pricing page</a>. Grayout then claims the license itself within a few seconds: there is no key to copy and no password to make. If you already have a license key, the same screen takes it.</p>
+  <p>There is no API key to create. Grayout makes the model calls on its own account, so nothing of yours goes to Anthropic or OpenAI directly. The license key is stored encrypted on your Mac and is the only credential the app holds.</p>
 
   <h2 id="done">6. Done</h2>
   <p>Step 5: click <strong>Preview the gray</strong> to see what it does and to prove the restore path on your Mac, then <strong>Start watching</strong>. The first check runs within seconds. Grayout lives in the menu bar; there is no Dock icon.</p>
@@ -113,7 +115,7 @@
   <a href="https://github.com/aarushkandukoori/grayout">GitHub</a> ·
   <a href="https://github.com/aarushkandukoori/grayout/releases">Releases</a> ·
   <a href="https://github.com/aarushkandukoori/grayout/issues">Issues</a> ·
-  <a href="https://github.com/aarushkandukoori/grayout/discussions">Hosted plan waitlist</a> ·
+  <a href="pricing.html">Pricing</a> ·
   <a href="privacy.html">Privacy</a> ·
   <a href="https://github.com/aarushkandukoori/grayout/blob/main/SECURITY.md">Security policy</a> ·
   <a href="https://github.com/aarushkandukoori/grayout/blob/main/LICENSE">MIT</a>

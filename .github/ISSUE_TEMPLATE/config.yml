@@ -3,12 +3,15 @@ contact_links:
   - name: Questions, ideas, and anything that is not a bug
     url: https://github.com/aarushkandukoori/grayout/discussions
     about: Discussions is the place for how-do-I questions, feature ideas, and telling the author what you built.
-  - name: Hosted plan waitlist (no API key needed)
-    url: https://github.com/aarushkandukoori/grayout/discussions/1
-    about: A version that does not need an Anthropic or OpenAI key is being considered. Reply to the pinned thread to be notified. No price is set.
+  - name: Manage or cancel your subscription
+    url: https://github.com/aarushkandukoori/grayout#what-it-costs
+    about: Settings > Manage subscription in the app opens Stripe's billing portal, where you can change the card, switch plans, or cancel. You do not need an issue for that.
+  - name: Run Grayout on your own API key instead
+    url: https://github.com/aarushkandukoori/grayout#self-hosting
+    about: The repository is MIT. Set provider to anthropic or openai in config.json and the app calls that provider directly, with no subscription and no Grayout service in the path.
   - name: Report a security problem privately
     url: https://github.com/aarushkandukoori/grayout/security/advisories/new
-    about: Use this instead of a public issue for anything that could expose screen contents or an API key.
+    about: Use this instead of a public issue for anything that could expose screen contents, a license key, or the service.
   - name: Install walk-through and FAQ
     url: https://aarushkandukoori.github.io/grayout/install.html
     about: The Gatekeeper steps, permissions, and the stuck-gray escape hatches, with screenshots.

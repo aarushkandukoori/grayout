@@ -1,15 +1,16 @@
 'use strict';
 // Rotating app log. Never receives prompt text, images, task titles, the work
-// description, or the API key: callers pass short status strings only, and a
-// redaction guard catches a key that slips through anyway.
+// description, an API key or a license key: callers pass short status strings
+// only, and a redaction guard catches a credential that slips through anyway.
 const fs = require('fs');
 const path = require('path');
 const paths = require('./paths');
 
 const MAX_BYTES = 1024 * 1024;
 const KEEP = 3;
-// Anthropic keys start with sk-ant-, OpenAI keys with sk-proj-/sk-; redact both.
-const KEY_RE = /sk-(?:ant-|proj-|svcacct-)?[A-Za-z0-9_\-]{16,}/g;
+// Anthropic keys start with sk-ant-, OpenAI keys with sk-proj-/sk-, Grayout
+// license keys with gry_live_; redact all three.
+const KEY_RE = /sk-(?:ant-|proj-|svcacct-)?[A-Za-z0-9_\-]{16,}|gry_live_[A-Za-z0-9]{8,}/g;
 
 function redact(s) {
   return String(s).replace(KEY_RE, '[redacted]');

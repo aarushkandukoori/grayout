@@ -89,7 +89,11 @@ function restoreRealUserData() {
     const step = await evaluateIn(onboarding.webSocketDebuggerUrl, 'document.querySelector(".progress")?.textContent || ""');
     log('progress reads:', JSON.stringify(step.result && step.result.value));
 
-    if (PACKAGED && USE_API) {
+    if (!USE_API || process.env.GRAYOUT_API_BASE) {
+      // v2 free taste: no key, no card. Exactly what a new person clicks.
+      const r = await evaluateIn(onboarding.webSocketDebuggerUrl, 'window.grayout.startFree()');
+      log('free taste started:', JSON.stringify(r.result && r.result.value));
+    } else if (PACKAGED && USE_API) {
       // A packaged app never reads a key from the environment. Hand it one for
       // this session only: it lives in memory and is never written to disk or
       // to the Keychain.

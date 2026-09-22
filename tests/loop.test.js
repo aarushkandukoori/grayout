@@ -861,6 +861,291 @@ describe('11. verdict log line', () => {
   });
 });
 
+describe('12. change-gating', () => {
+  // 8x8 average hashes; see tests/framehash.test.js for how they are built.
+  const SAME = ['0f0f0f0f0f0f0f0f'];
+  const NEAR = ['0f0f0f0f0f0f0f0e'];       // 1 bit away: still "unchanged"
+  const DRIFT = ['0f0f0f0f0f0f0f0c'];      // 2 bits away
+  const FAR = ['f0f0f0f0f0f0f0f0'];        // 64 bits away: a different screen
+
+  /** A loop whose capture hashes to whatever the test last set. */
+  function gated(cfgOver = {}) {
+    let hashes = SAME;
+    const h = build({ cfg: cfgOver, deps: { hashFrames: () => hashes } });
+    h.setHashes = v => { hashes = v; };
+    return h;
+  }
+
+  test('an unchanged screen in the same app skips the call, logs nothing and counts nothing', async () => {
+    const h = gated();
+    await h.step(ON());
+    assert.equal(h.calls.analyze.length, 1);
+    assert.equal(h.checksToday(), 1);
+
+    h.setHashes(NEAR);
+    await h.step();                                   // no scripted verdict: a call would throw
+    assert.equal(h.calls.analyze.length, 1, 'the call was skipped');
+    assert.equal(h.calls.capture, 2, 'the frame is still captured — the hash is made from it');
+    assert.equal(h.calls.log.length, 1, 'a skipped tick logs no verdict');
+    assert.equal(h.checksToday(), 1, 'and costs nothing against the daily cap');
+    assert.equal(h.calls.tasks.length, 1, 'no task gathering either');
+    assert.equal(h.live().lastLine, 'no change — code editor and terminal');
+    assert.equal(h.live().lastVerdictTs, T0, 'the previous verdict stands');
+    assert.equal(h.loop._state.skippedChecks, 1);
+  });
+
+  test('a changed screen is checked', async () => {
+    const h = gated();
+    await h.step(ON());
+    h.setHashes(FAR);
+    await h.step(OFF());
+    assert.equal(h.calls.analyze.length, 2);
+    assert.equal(h.live().strikeCount, 1);
+  });
+
+  test('a new frontmost app is checked even when the pixels match', async () => {
+    const h = gated();
+    await h.step(ON());
+    h.setFront('Safari');
+    await h.step(ON());
+    assert.equal(h.calls.analyze.length, 2);
+    assert.equal(h.live().lastApp, 'Safari');
+  });
+
+  test('a real check is forced every forceCheckSec however still the screen is', async () => {
+    const h = gated({ forceCheckSec: 180 });
+    await h.step(ON());
+    const lastCheck = h.loop._state.lastCheckAt;
+    h.now = lastCheck + 180000 - 1;
+    await h.step();
+    assert.equal(h.calls.analyze.length, 1, 'one millisecond early: still skipped');
+    h.now = lastCheck + 180000;
+    await h.step(ON());
+    assert.equal(h.calls.analyze.length, 2, 'forced');
+  });
+
+  test('while alerting nothing is ever skipped: a gray screen must be able to clear itself', async () => {
+    const h = gated();
+    await h.step(OFF());
+    h.setHashes(FAR);                                 // a real change, so the second strike lands
+    await h.step(OFF());
+    assert.equal(h.live().alerting, true, 'precondition: alert on');
+    assert.equal(h.calls.analyze.length, 2);
+
+    // The screen now matches the last real check exactly — and is still checked.
+    await h.step(ON());
+    assert.equal(h.calls.analyze.length, 3, 'checked despite an identical screen');
+    assert.equal(h.live().alerting, false);
+    assert.equal(h.calls.gray.at(-1), false);
+  });
+
+  test('skips compare against the last REAL check, so slow drift still adds up', async () => {
+    const h = gated();
+    await h.step(ON());
+    h.setHashes(DRIFT);
+    await h.step();
+    assert.equal(h.calls.analyze.length, 1, '2 bits: skipped');
+    h.setHashes(['0f0f0f0f0f0f0f00']);                // 4 bits from the last real check
+    await h.step(ON());
+    assert.equal(h.calls.analyze.length, 2, 'the reference never moved on a skip');
+  });
+
+  test('a display appearing or disappearing is a change', async () => {
+    const h = gated();
+    await h.step(ON());
+    h.setHashes([...SAME, ...SAME]);
+    await h.step(ON());
+    assert.equal(h.calls.analyze.length, 2);
+  });
+
+  test('a skipped tick leaves the strike count alone', async () => {
+    const h = gated();
+    await h.step(OFF());
+    assert.equal(h.live().strikeCount, 1);
+    await h.step();
+    assert.equal(h.calls.analyze.length, 1);
+    assert.equal(h.live().strikeCount, 1, 'the previous verdict stands, it is not re-counted');
+    assert.equal(h.live().alerting, false);
+  });
+
+  test('changeGating: false never skips', async () => {
+    const h = gated({ changeGating: false });
+    await h.step(ON());
+    await h.step(ON());
+    assert.equal(h.calls.analyze.length, 2);
+  });
+
+  test('without hashes (the default) nothing is gated', async () => {
+    const h = build();
+    await h.step(ON());
+    await h.step(ON());
+    assert.equal(h.calls.analyze.length, 2);
+  });
+
+  test('a config change forces the next check', async () => {
+    const h = gated();
+    await h.step(ON());
+    h.loop.reload();
+    await h.step(ON());
+    assert.equal(h.calls.analyze.length, 2, 'the reference frame was dropped');
+  });
+});
+
+describe('13. the hosted plan', () => {
+  const LICENSE = 'gry_live_7KQ2R9XW4M0ZT8VN3HJ5CB6D';
+  const DEVICE = 'a'.repeat(32);
+  const serviceErr = (kind, message) => Object.assign(new Error(message || kind), { kind });
+
+  /** A loop on the hosted path, with a recording stand-in for src/account.js. */
+  function hosted({ cfg = {}, snapshot = {}, deps = {} } = {}) {
+    const calls = { noteCheck: [], noteProblem: [] };
+    const snap = {
+      plan: 'monthly', status: 'active',
+      usage: { checksUsed: 12, checksIncluded: 15000, periodEnd: null },
+      hasLicense: true, licenseMasked: 'gry_live_…CB6D', problem: null, needsSubscription: false,
+      ...snapshot
+    };
+    const account = {
+      getLicense: () => LICENSE,
+      deviceId: () => DEVICE,
+      snapshot: () => snap,
+      noteCheck: s => { calls.noteCheck.push(s); snap.needsSubscription = false; },
+      noteProblem: k => { calls.noteProblem.push(k); snap.problem = k; snap.needsSubscription = true; }
+    };
+    const h = build({
+      cfg: { provider: 'grayout', ...cfg },
+      deps: {
+        secrets: { getApiKey: () => null, getCanvasToken: () => '' },
+        requiresKey: () => false,
+        account,
+        ...deps
+      }
+    });
+    h.acct = { calls, snap, account };
+    return h;
+  }
+
+  const hostedOff = () => ({
+    verdict: v(true), engine: 'api', usage: null, model: 'grayout',
+    service: { plan: 'active', usage: { checksUsed: 14, checksIncluded: 15000, periodEnd: null } }
+  });
+
+  const hostedOk = (plan = 'active') => ({
+    verdict: v(false), engine: 'api', usage: null, model: 'grayout',
+    service: { plan, usage: { checksUsed: 13, checksIncluded: 15000, periodEnd: '2026-10-22T00:00:00Z' } }
+  });
+
+  test('the license and the device id ride along instead of a model key', async () => {
+    const h = hosted();
+    await h.step(hostedOk());
+    const { ctx } = h.calls.analyze[0];
+    assert.equal(ctx.apiKey, null);
+    assert.equal(ctx.license, LICENSE);
+    assert.equal(ctx.deviceId, DEVICE);
+    assert.equal(h.live().needsKey, false, 'the hosted path never asks for an API key');
+    assert.equal(h.calls.log[0].model, 'grayout');
+    assert.equal(h.calls.log[0].cost, null, 'no model bill to meter');
+    assert.equal(JSON.stringify(h.calls.log[0]).includes('gry_live'), false);
+  });
+
+  test('a good check hands the plan and the counters to the account', async () => {
+    const h = hosted();
+    await h.step(hostedOk('trialing'));
+    assert.deepEqual(h.acct.calls.noteCheck, [{ plan: 'trialing', usage: { checksUsed: 13, checksIncluded: 15000, periodEnd: '2026-10-22T00:00:00Z' } }]);
+    assert.equal(h.live().needsSubscription, false);
+  });
+
+  test('getLive carries the plan facts the tray and the windows print', async () => {
+    const h = hosted();
+    await h.step(hostedOk());
+    const live = h.live();
+    assert.equal(live.plan, 'monthly');
+    assert.equal(live.status, 'active');
+    assert.equal(live.checksUsed, 12);
+    assert.equal(live.checksIncluded, 15000);
+    assert.equal(live.needsSubscription, false);
+    assert.equal(JSON.stringify(live).includes(LICENSE), false, 'never the key itself');
+  });
+
+  test('a loop with no account reports nulls rather than inventing a plan', async () => {
+    const h = build();
+    await h.step(ON());
+    const live = h.live();
+    assert.deepEqual([live.plan, live.status, live.checksUsed, live.checksIncluded], [null, null, null, null]);
+    assert.equal(live.needsSubscription, false);
+  });
+
+  test('every plan problem says what to do, backs off 15 minutes and tells the account', async t => {
+    t.mock.method(console, 'error', () => {});
+    const cases = {
+      no_license: 'subscription needed — open Settings to subscribe',
+      trial_expired: 'trial ended — subscribe in Settings',
+      subscription_inactive: 'subscription paused — update payment to resume',
+      free_exhausted: 'free checks used up — subscribe in Settings',
+      quota_exceeded: 'monthly checks used up — resumes next period',
+      key_rejected: 'license key was not accepted — open Settings'
+    };
+    for (const [kind, line] of Object.entries(cases)) {
+      const h = hosted();
+      const at = h.now;
+      await h.step({ throw: serviceErr(kind) });
+      assert.equal(h.live().errorKind, kind, kind);
+      assert.equal(h.live().lastLine, line, kind);
+      assert.equal(h.live().needsSubscription, true, kind);
+      assert.equal(h.live().backoffUntil, at + 15 * MIN, kind);
+      assert.deepEqual(h.acct.calls.noteProblem, [kind], kind);
+      assert.equal(h.live().needsKey, false, kind);
+      // Inside the backoff nothing is sent again.
+      await h.step();
+      assert.equal(h.calls.analyze.length, 1, kind);
+    }
+  });
+
+  test('a billing state never leaves the Mac gray', async t => {
+    t.mock.method(console, 'error', () => {});
+    const h = hosted();
+    await h.step(hostedOff());
+    await h.step(hostedOff());
+    assert.equal(h.live().alerting, true, 'precondition: alert on');
+    await h.step({ throw: serviceErr('free_exhausted') });
+    assert.equal(h.live().alerting, false, 'one failure is enough when it is a plan problem');
+    assert.equal(h.calls.gray.at(-1), false);
+    assert.equal(h.live().lastLine, 'free checks used up — subscribe in Settings');
+  });
+
+  test('a good check clears the flag again', async t => {
+    t.mock.method(console, 'error', () => {});
+    const h = hosted();
+    await h.step({ throw: serviceErr('subscription_inactive') });
+    assert.equal(h.live().needsSubscription, true);
+    h.loop.reload();                                  // activating a license reloads the loop
+    assert.equal(h.live().needsSubscription, true, 'the account still says so until a check proves otherwise');
+    h.acct.snap.needsSubscription = false;
+    h.acct.snap.problem = null;
+    await h.step(hostedOk());
+    assert.equal(h.live().needsSubscription, false);
+    assert.equal(h.live().errorKind, null);
+  });
+
+  test('a busy service still uses the ordinary backoff ladder', async t => {
+    t.mock.method(console, 'error', () => {});
+    const h = hosted();
+    const at = h.now;
+    await h.step({ throw: serviceErr('rate_limited', 'Slow down.') });
+    assert.equal(h.live().backoffUntil, at + 30000);
+    assert.equal(h.live().needsSubscription, false, 'busy is not a plan problem');
+    assert.match(h.live().lastLine, /^Grayout busy — retrying at /);
+  });
+
+  test('a self-hosted key still gets the v1 wording', async t => {
+    t.mock.method(console, 'error', () => {});
+    const h = build();                                // default deps: an Anthropic key
+    await h.step({ throw: Object.assign(new Error('nope'), { kind: 'key_rejected' }) });
+    assert.equal(h.live().lastLine, 'Anthropic rejected the API key — fix in Settings');
+    assert.equal(h.live().needsSubscription, false);
+  });
+});
+
 describe('escape hatches', () => {
   test('previewGray shows the consequence, then proves the restore path', async () => {
     const h = build();
