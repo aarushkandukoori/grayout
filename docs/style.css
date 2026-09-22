@@ -1130,3 +1130,17 @@ html.js .reveal.is-in {
 @media (prefers-reduced-motion: reduce) {
   .rm-only { display: block; }
 }
+
+/* Shown only while the subscription service is not deployed. Delete this rule
+   and the two .prelaunch divs the day checkout goes live. */
+.prelaunch {
+  position: relative;
+  z-index: 60;
+  padding: 10px 20px;
+  text-align: center;
+  font-size: 13.5px;
+  line-height: 1.5;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.prelaunch a { color: inherit; }
