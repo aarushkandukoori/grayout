@@ -26,7 +26,7 @@ function createLoop(deps) {
     getFrontmostApp: async () => null,
     getIdleSeconds: async () => null,
     overlays: { paint: () => {} },
-    grayscale: { set: async () => true, forceOffSync: () => true, available: () => true },
+    grayscale: { set: async () => true, forceOffSync: () => true, available: () => true, usable: () => true },
     secrets: { getApiKey: () => null, getCanvasToken: () => '' },
     requiresKey: () => true,
     state: { checksToday: () => 0, bumpChecks: () => 1 },
@@ -375,7 +375,14 @@ function createLoop(deps) {
     await new Promise(r => setTimeout(r, ms));
     s.previewing = false;
     restoreColor();
-    return d.grayscale.available();
+    return grayscaleUsable();
+  }
+
+  // False when the display cannot be grayed: the helper is missing, or the
+  // system Color Filters switch already belongs to the user.
+  function grayscaleUsable() {
+    try { return d.grayscale.usable ? d.grayscale.usable() : d.grayscale.available(); }
+    catch { return false; }
   }
 
   function setLocked(locked) {
@@ -418,7 +425,8 @@ function createLoop(deps) {
       lastVerdictTs: s.lastVerdictTs, lastCheckAt: s.lastCheckAt,
       needsScreenPermission: s.needsScreenPermission || s.screenDenied, needsKey: s.needsKey, capHit: s.capHit,
       graceUntil: s.graceUntil, backoffUntil: s.backoffUntil, errorKind: s.errorKind,
-      analyzing: s.analyzing, running: !!timer
+      analyzing: s.analyzing, running: !!timer,
+      grayscaleUsable: grayscaleUsable()
     };
   }
 

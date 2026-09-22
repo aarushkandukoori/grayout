@@ -105,8 +105,17 @@ function refresh(ctx) {
   const screenLabel = perm.screen === 'granted' ? 'Allowed' : perm.screen === 'stale' ? 'Stale' : perm.screen === 'not-determined' ? 'Not asked yet' : 'Not allowed';
   const cameraLabel = perm.camera === 'granted' ? 'Allowed' : perm.camera === 'not-determined' ? 'Not asked yet' : 'Not allowed';
 
+  // If the display cannot be grayed, say so once rather than letting the user
+  // wonder why nothing happens.
+  const grayNote = (cfg.grayscale && live.grayscaleUsable === false) ? [
+    { label: 'Color Filters is in use — red border only', enabled: false },
+    { label: 'Open Accessibility settings…', click: () => shell.openExternal('x-apple.systempreferences:com.apple.preference.universalaccess?Seeing_Display') },
+    { type: 'separator' }
+  ] : [];
+
   const template = [
     ...permissionItems,
+    ...grayNote,
     ...keyItems,
     ...setupItems,
     { label: statusLabel, enabled: false },

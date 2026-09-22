@@ -4,6 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 clang -O2 -arch arm64 -arch x86_64 -mmacosx-version-min=12.0 \
-  -framework ApplicationServices -o helper/grayscale helper/grayscale.c
+  -framework CoreFoundation -framework MediaAccessibility \
+  -o helper/grayscale helper/grayscale.c
 lipo -info helper/grayscale
 ./helper/grayscale status || echo 'helper status skipped (no display session)'

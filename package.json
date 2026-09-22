@@ -1,6 +1,6 @@
 {
   "name": "grayout",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Your Mac goes gray until you get back to work.",
   "main": "main.js",
   "author": "Aarush Kandukoori",
@@ -40,7 +40,7 @@
   "build": {
     "appId": "com.aarushkandukoori.grayout",
     "productName": "Grayout",
-    "copyright": "Copyright © 2026 Aarush Kandukoori",
+    "copyright": "Copyright \u00a9 2026 Aarush Kandukoori",
     "directories": {
       "output": "dist",
       "buildResources": "build"

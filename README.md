@@ -118,7 +118,7 @@ System-wide grayscale is a CoreGraphics flag that outlives the process, so Grayo
    "/Applications/Grayout.app/Contents/Resources/helper/grayscale" off
    ```
 
-6. Without a terminal: System Settings > Accessibility > Display > Color Filters. Turn it on, then off. This resets the same flag.
+6. Without a terminal: System Settings > Accessibility > Display > **Color Filters**, and turn it off. That is the exact switch Grayout uses, so this always works.
 7. Onboarding's **Preview the gray** proves the restore path on your Mac before the loop is armed.
 
 If none of these work, open an issue with the "My screen is stuck gray" template.

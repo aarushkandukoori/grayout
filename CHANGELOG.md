@@ -4,6 +4,28 @@ All notable changes to Grayout are recorded here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-09-22
+
+### Fixed
+
+- **The screen never actually turned gray.** The helper used the private
+  `CGDisplayForceToGray`, which on macOS 26 still sets and reports its own flag
+  while the display keeps rendering in color, so every alert looked like it
+  worked and did nothing. The helper now drives the same switch as System
+  Settings > Accessibility > Display > Color Filters, which does work.
+  Screenshots do not show color filters, which is why the app's own
+  verification could not catch this.
+
+### Added
+
+- Grayout will not take the Color Filters switch from someone who already uses
+  it: if the filter is on at launch and Grayout did not leave it that way, the
+  red border becomes the only consequence and the menu bar says so.
+- If a crash leaves the screen gray, the next launch recognises its own doing
+  and restores color.
+- Seven tests covering that ownership logic, against a stub helper so the suite
+  can never change the display of the machine running it.
+
 ## [1.0.0] - 2026-09-21
 
 First public release. Grayout is the packaged successor to the author's private "Screen Monitor" tool, which ran every workday for six weeks (12,650 checks) before this build.
