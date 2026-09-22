@@ -10,7 +10,10 @@ const DEFAULT_STATE = {
   lastUpdateCheck: 0,
   dismissedVersion: '',
   dayCounter: { day: '', checks: 0 },
-  lastPrune: 0
+  lastPrune: 0,
+  // True while this app has the system Color Filters switch turned on, so a
+  // crash can be told apart from a switch the user set themselves.
+  grayscaleOwned: false
 };
 
 let state = null;

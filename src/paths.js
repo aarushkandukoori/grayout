@@ -37,7 +37,7 @@ const LOG_PATH = path.join(LOG_DIR, 'grayout.log');
 const FRAMES_DIR = path.join(tempRoot(), `grayout-frames-${process.pid}`);
 const HELPER_BIN = (electronApp && electronApp.isPackaged)
   ? path.join(process.resourcesPath, 'helper', 'grayscale')
-  : path.join(APP_ROOT, 'helper', 'grayscale');
+  : (process.env.GRAYOUT_HELPER_BIN || path.join(APP_ROOT, 'helper', 'grayscale'));
 
 const ui = f => path.join(APP_ROOT, 'ui', f);
 const preload = f => path.join(APP_ROOT, 'ui', 'preload', f);
