@@ -11,6 +11,7 @@ Grayout is now a subscription product. It used to ask every person for their own
 ### Breaking
 
 - **Bring your own key is no longer the product.** A fresh install runs on the Grayout service and a subscription. There is no key screen in onboarding, no key to get, and nothing to paste on first launch. The free, key-shaped version of Grayout that 1.x was does not exist any more.
+- **Upgrading from 1.x does not break anything.** If a key is already in your keychain, Grayout keeps using it and keeps costing you only what your provider charges. The subscription is for people arriving new, and self-hosting stays documented and supported.
 - **An existing 1.x install keeps running on its own saved key.** `provider` defaults to `auto`, which resolves to the subscription unless a model key is already saved on that Mac, in which case that key still runs and you still pay your provider directly. Nobody is moved onto a paid plan by updating, and no saved key is sent anywhere.
 - Set `provider` explicitly to stop that depending on what happens to be in your Keychain: `grayout` for the subscription, `anthropic` or `openai` for self-hosting. The self-hosting path is supported, documented in the README, and not going away.
 
