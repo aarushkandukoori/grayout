@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en" data-page="account">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://*.workers.dev; base-uri 'self'; form-action 'none'; object-src 'none'; frame-src 'none'; manifest-src 'self'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>Manage your subscription | Grayout</title>
+<meta name="description" content="Change your Grayout Pro plan, update your card, or cancel: from the menu bar, at link.com, or with your license key.">
+<link rel="canonical" href="https://aarushkandukoori.github.io/grayout/account.html">
+<meta name="theme-color" content="#DDE2EE">
+<meta name="color-scheme" content="light">
+<link rel="icon" href="img/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="img/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Grayout">
+<meta property="og:title" content="Manage your Grayout subscription">
+<meta property="og:description" content="Change your Grayout Pro plan, update your card, or cancel: from the menu bar, at link.com, or with your license key.">
+<meta property="og:url" content="https://aarushkandukoori.github.io/grayout/account.html">
+<meta property="og:image" content="https://aarushkandukoori.github.io/grayout/img/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Grayout: a Mac desktop half in color and half in gray, with a red border on the gray side.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Manage your Grayout subscription">
+<meta name="twitter:description" content="Change your Grayout Pro plan, update your card, or cancel: from the menu bar, at link.com, or with your license key.">
+<meta name="twitter:image" content="https://aarushkandukoori.github.io/grayout/img/og.png">
+<link rel="preload" href="fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/eb-garamond-500-latin.woff" as="font" type="font/woff" crossorigin>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="pages.css">
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script src="account.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="hdr">
+  <div class="wrap hdr__in">
+    <a class="logo" href="./" aria-label="Grayout home"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="currentColor" opacity=".5"/><path d="M10 10V1a9 9 0 0 1 9 9z" fill="#D03B3B"/></svg><span>Grayout</span></a>
+    <nav class="nav" aria-label="Main">
+        <a href="./#how">How it works</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="download.html">Download</a>
+        <a href="privacy.html">Privacy</a>
+    </nav>
+    <div class="hdr__end">
+      <button class="burger" type="button" aria-expanded="false" aria-controls="sheet" aria-label="Open menu" data-sheet-open><span></span></button>
+      <a class="burger burger--link" href="#site-footer" aria-label="Menu: every page is listed at the bottom"><span></span></a>
+    </div>
+  </div>
+</header>
+<a class="btn btn-primary btn-float" href="download.html" data-float tabindex="-1"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 13h10"/></svg>Download</a>
+<main id="main">
+  <section class="band" aria-labelledby="acct-title">
+    <div class="wrap wrap--doc">
+      <h1 id="acct-title">Manage your subscription</h1>
+      <p class="lede">Switch plans, update your card, see receipts, or cancel. Grayout Pro is sold through Link, Stripe&rsquo;s checkout, so you have more than one way in.</p>
+    </div>
+  </section>
+
+  <div class="wrap wrap--doc acct-wrap">
+    <div class="callout callout--amber" data-when="noservice">
+      <p class="t">Subscriptions aren&rsquo;t open yet</p>
+      <p>There is nothing to manage here yet. Today&rsquo;s release runs on your own OpenAI or Anthropic key, which you manage, and can revoke, in your provider&rsquo;s console. <a class="inline-link" href="api-key.html">More on your own key</a>.</p>
+    </div>
+
+    <div class="callout callout--amber" data-when="soon">
+      <p class="t">Subscriptions open soon</p>
+      <p>Nobody can subscribe to Grayout Pro yet, so there is nothing to manage. The free checks need no account. Once subscriptions open, these are the ways to manage one.</p>
+    </div>
+
+    <div class="routes" data-when="service">
+      <div class="route" data-reveal="snap">
+        <span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><rect x="1.8" y="2.5" width="12.4" height="11" rx="2"/><path d="M1.8 5.5h12.4"/><circle cx="11.6" cy="4" r=".6" fill="currentColor"/></svg></span>
+        <h3>From the menu bar</h3>
+        <p>Click the Grayout icon, then <strong>Manage subscription</strong>. Stripe&rsquo;s billing portal opens, already signed in to your account.</p>
+      </div>
+      <div class="route dl-1" data-reveal="snap">
+        <span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6.6 9.4a3 3 0 0 0 4.2 0l2-2a3 3 0 0 0-4.2-4.2l-.9.9"/><path d="M9.4 6.6a3 3 0 0 0-4.2 0l-2 2a3 3 0 0 0 4.2 4.2l.9-.9"/></svg></span>
+        <h3>At link.com</h3>
+        <p>Sign in with the email you used at checkout. The purchase is listed as sold through Link, and you can cancel, switch plans or update your card there.</p>
+        <a class="arrow-link" href="https://link.com">Open link.com <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h9.5M8.5 4l4 4-4 4"/></svg></a>
+      </div>
+      <div class="route dl-2" data-reveal="snap" data-when="portal">
+        <span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><rect x="1.8" y="3.5" width="12.4" height="9" rx="1.6"/><path d="M1.8 6.5h12.4M4.5 10h2.5" stroke-linecap="round"/></svg></span>
+        <h3>Billing portal by email</h3>
+        <p>Enter the email you paid with and Stripe sends you a one-time sign-in link to the billing portal.</p>
+        <a class="arrow-link" href="pricing.html" data-portal-login>Open the billing portal <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h9.5M8.5 4l4 4-4 4"/></svg></a>
+      </div>
+      <div class="route dl-2" data-reveal="snap" data-when="noportal">
+        <span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5.5" cy="10.5" r="3"/><path d="m7.6 8.4 5.9-5.9M11.5 4.5l1.6 1.6M9.8 6.2l1.4 1.4"/></svg></span>
+        <h3>Lost your license key?</h3>
+        <p data-when="support">Email <a class="inline-link" href="#" data-support-email></a> from the address you paid with and we&rsquo;ll send it again. Never post a key or an email address publicly.</p>
+        <p data-when="nosupport">If Grayout on your Mac already has it, it keeps working. On a new Mac, ask on <a class="inline-link" href="https://github.com/aarushkandukoori/grayout/issues">GitHub</a> without posting your email or key, and we&rsquo;ll find a private way to verify.</p>
+      </div>
+    </div>
+
+    <section class="acct-sec" aria-labelledby="lic-title" data-when="licenseportal">
+      <h2 id="lic-title"><span class="grad">With your license key</span></h2>
+      <div class="panel">
+        <form class="license-form" data-license-form novalidate>
+          <label class="label" for="lic">Paste your Grayout license key</label>
+          <div class="row">
+            <input class="field" id="lic" name="license" type="text" inputmode="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="gry_live_..." aria-describedby="lic-note lic-msg">
+            <button class="btn btn-dark" type="submit"><span data-btn-label>Open billing portal</span></button>
+          </div>
+          <p class="msg" id="lic-msg" data-license-msg role="status" aria-live="polite"></p>
+          <p class="small" id="lic-note">The key goes to the Grayout service in the body of one request, so it can open your Stripe billing portal. It is never put in a link and never saved in this browser.</p>
+        </form>
+      </div>
+    </section>
+
+    <section class="acct-sec prose" aria-labelledby="acct-more">
+      <h2 id="acct-more"><span class="grad">Good to know</span></h2>
+      <ul>
+        <li><strong>Canceling</strong> stops the next charge. Pro keeps working until the end of the period you already paid for, then Grayout stops checking. It never grays your screen over billing.</li>
+        <li><strong>Switching</strong> between monthly and yearly is prorated, so you only pay the difference.</li>
+        <li><strong>Receipts</strong> come from Link. Your card statement shows LINK.COM*.</li>
+        <li><strong>Refunds</strong> within 30 days, no argument. See the <a href="refunds.html">refund policy</a>.</li>
+        <li><strong>Two Macs</strong> can share one license: paste the same key in Settings &gt; Your plan.</li>
+      </ul>
+    </section>
+  </div>
+</main>
+<footer class="ftr" id="site-footer">
+  <div class="wrap">
+    <div class="ftr__grid">
+      <div class="ftr__brand">
+        <div>
+          <a class="logo" href="./" aria-label="Grayout home"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="currentColor" opacity=".5"/><path d="M10 10V1a9 9 0 0 1 9 9z" fill="#D03B3B"/></svg><span>Grayout</span></a>
+          <p>Your Mac goes gray when you drift and comes back in color when you work. Made by Aarush Kandukoori.</p>
+        </div>
+        <div><span class="status" data-status><span class="dot dot--amber"></span><span data-status-text>Subscriptions opening soon</span></span></div>
+      </div>
+      <div class="ftr__cols">
+        <div class="ftr__col">
+          <h2>Product</h2>
+          <ul>
+            <li><a href="download.html">Download</a></li>
+            <li><a href="pricing.html">Pricing</a></li>
+            <li><a href="changelog.html">Changelog</a></li>
+            <li><a href="account.html">Manage subscription</a></li>
+          </ul>
+        </div>
+        <div class="ftr__col">
+          <h2>Resources</h2>
+          <ul>
+            <li><a href="privacy.html">Privacy</a></li>
+            <li><a href="terms.html">Terms</a></li>
+            <li><a href="refunds.html">Refunds</a></li>
+            <li><a href="api-key.html">Use your own key</a></li>
+            <li><a href="https://github.com/aarushkandukoori/grayout">Source code</a></li>
+          </ul>
+        </div>
+        <div class="ftr__col">
+          <h2>Help</h2>
+          <ul>
+            <li><a href="download.html#first-run">First launch</a></li>
+            <li><a href="download.html#stuck">Stuck gray screen</a></li>
+            <li><a href="https://github.com/aarushkandukoori/grayout/issues/new?template=wrong-call.yml">Report a wrong call</a></li>
+            <li><a href="https://github.com/aarushkandukoori/grayout/issues">Contact</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="ftr__bottom">
+      <span>&copy; 2026 Aarush Kandukoori. MIT licensed.</span>
+      <a href="https://github.com/aarushkandukoori/grayout" aria-label="Grayout on GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1.8a10.2 10.2 0 0 0-3.2 19.9c.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.2-3.4-1.2-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.6 1 1.6 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.6-1.4-2.3-.3-4.6-1.1-4.6-5a3.9 3.9 0 0 1 1-2.7 3.6 3.6 0 0 1 .1-2.7s.9-.3 2.8 1a9.6 9.6 0 0 1 5.1 0c1.9-1.3 2.8-1 2.8-1 .5 1.4.2 2.4.1 2.7a3.9 3.9 0 0 1 1 2.7c0 3.9-2.4 4.7-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10.2 10.2 0 0 0 12 1.8Z"/></svg></a>
+    </div>
+  </div>
+</footer>
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet__scrim" data-sheet-close></div>
+  <div class="sheet__panel" role="dialog" aria-modal="true" aria-label="Menu">
+    <div class="sheet__handle" aria-hidden="true"></div>
+    <button class="sheet__close" type="button" aria-label="Close menu" data-sheet-close><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
+    <nav aria-label="Mobile">
+      <a href="./">Home</a>
+      <a href="./#how">How it works</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="download.html">Download</a>
+        <a href="privacy.html">Privacy</a>
+      <a href="account.html">Manage subscription</a>
+    </nav>
+    <a class="btn btn-primary btn-block" href="download.html"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 13h10"/></svg>Download for Mac</a>
+  </div>
+</div>
+<div class="grayveil" aria-hidden="true"></div>
+<p class="sr-only" aria-live="polite" data-live></p>
+<div class="toast" role="status" aria-live="polite" data-toast hidden><span data-toast-text></span><button class="toast__x" type="button" aria-label="Dismiss" data-toast-close><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
+</body>
+</html>

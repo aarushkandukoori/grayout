@@ -4,7 +4,9 @@ Your Mac goes gray until you get back to work.
 
 Grayout is a menu-bar app. Every 45 seconds it looks at your screen and asks one question: is this person clearly not working? Two yeses in a row and every display loses its color and gets a red border. Color comes back the moment you get back to work. It never blocks, closes, or locks anything.
 
-**$9.99 a month, or $79 a year. 100 checks free first, no card.** The app is the whole product; there is nothing to configure and no API key to get.
+**$9.99 a month or $79 a year, plus tax where it applies. 100 checks free first, no card.** The app is the whole product; there is nothing to configure and no API key to get.
+
+> **Status (2026-10-08): subscriptions are not open yet.** This README describes Grayout 2.0, which is built in this repository but not released. The latest release, 1.0.1, runs on your own OpenAI or Anthropic key (see Self-hosting). The Grayout service is not deployed yet either: until the deploy step fills in its address (`DEFAULT_API_BASE` in [`src/config.js`](src/config.js)), a 2.0 build says "not connected to the Grayout service yet" and sends nothing to it.
 
 ![The Grayout dashboard: a focus percentage, the day as one block per check with the off-task ones in red, the checks used this period, and a table of everything it flagged](docs/img/dashboard.png)
 
@@ -54,19 +56,21 @@ Why: removing this warning requires Apple's $99/year Developer Program and notar
 
 | Plan | Price | What you get |
 |---|---|---|
-| Free taste | $0, no card, no account | 100 checks, about one working day |
-| Pro monthly | $9.99 a month, 7-day free trial | 15,000 checks a month |
-| Pro yearly | $79 a year (34% off) | 15,000 checks a month |
+| Free taste | $0, no card, no account | 100 checks, about 2 hours of watched work |
+| Pro monthly | $9.99 a month plus tax where it applies, 7-day free trial | 10,000 checks a month |
+| Pro yearly | $79 a year plus tax where it applies (34% off) | 10,000 checks a month |
 
-**Free taste.** The first 100 checks need nothing from you: no card, no email, no sign-in. They are tied to this install, so they are a taste of the product, not a free tier. A check is spent only when you are at the Mac and something on screen actually changed, so 100 of them usually stretch across most of a working day: long enough to see it gray you out, and long enough to see it leave you alone while you work.
+**Free taste.** The first 100 checks need nothing from you: no card, no email, no sign-in. They are tied to this install, so they are a taste of the product, not a free tier. A check is spent only when you are at the Mac and something on screen actually changed, so 100 of them cover roughly 2 hours of watched work: long enough to see it gray you out, and long enough to see it leave you alone while you work. The service also caps free checks per network (300 a month, however many installs it has) and for everyone each day, so on a very busy day free checks can pause until midnight UTC.
 
-**Trial.** Monthly carries a 7-day free trial. You enter a card, you are not charged until day 8, and cancelling inside the week costs nothing.
+**Trial.** Monthly carries a 7-day free trial. You enter a card, you are not charged until day 8, and cancelling inside the week costs nothing. There is one trial per Mac, per email address and per card: a second trial with the same email or card is charged straight away. Stripe sends no reminder before a 7-day trial ends, so Grayout shows one notification about two days before, if it is running then.
 
 **Subscribing.** Click Subscribe in the menu bar. Grayout opens Stripe's checkout page in your browser; when you finish paying, the app unlocks itself within a few seconds. There is nothing to copy and no password to invent. If you already have a license key (a second Mac, a reinstall), paste it in Settings instead.
 
-**The allowance.** 15,000 checks a month is well above ordinary use. A full month of watched work at the default interval is around 8,000 checks, and change-gating (below) removes roughly half of those. If you somehow pass 15,000, the service stretches the interval rather than cutting you off: Grayout keeps working, more slowly, until the period rolls over.
+**Who you pay.** Grayout Pro is sold through Link: Stripe is the merchant of record. It works out and collects any sales tax or VAT, sends the receipts, and answers payment questions. Your card statement shows LINK.COM*.
 
-**Managing or cancelling.** Settings > Manage subscription opens Stripe's billing portal, where you can change the card, switch plans, or cancel. Cancelling leaves the app installed and watching until the period you paid for ends.
+**The allowance.** 10,000 checks a month is above ordinary use. A full month of watched work at the default interval is around 8,000 checks, and change-gating (below) removes roughly half of those, so a typical month uses about 4,000. If you somehow pass 10,000, the service slows down rather than cutting you off: one check every 10 minutes until the count resets at 00:00 UTC on the 1st. During the free trial the allowance is 1,000 checks, more than a week of real use.
+
+**Managing or cancelling.** Settings > Manage subscription opens Stripe's billing portal, where you can change the card, switch plans, or cancel. You can also manage it at link.com, where this purchase is listed as Sold through Link. Cancelling leaves the app installed and watching until the period you paid for ends. A full refund or a card dispute ends the subscription and its key at once.
 
 **Change-gating** is why $9.99 works. Before spending a check, Grayout compares a small hash of each display against the previous one. If nothing on any display changed and the frontmost app is the same and no alert is running, it skips the call and keeps the last verdict. A real check runs at least every `forceCheckSec` (180 seconds by default) regardless, so a screen that is deliberately held still is still caught. Set `changeGating` to `false` if you would rather pay for every interval.
 
@@ -89,7 +93,7 @@ tccutil reset ScreenCapture com.aarushkandukoori.grayout
 
 1. Every 45 seconds (configurable) the loop checks its guards: paused, screen locked, idle for 10 minutes, daily cap reached, or inside the 10-minute grace after you clicked I'm working. Any of those, and nothing is captured.
 2. It reads the frontmost app's name with `lsappinfo` (no permission needed). A password manager in front means no capture at all. A video-call app in front clears any alert and skips the check.
-3. It captures every display (up to three) with `/usr/sbin/screencapture`, resizes each to 1366 px wide, encodes it as a JPEG, and deletes the file. Mirrored displays are deduplicated.
+3. It captures every display (up to three) with `/usr/sbin/screencapture`, shrinks each to at most 1366 px wide (and 2732 px tall, for a portrait display), encodes it as a JPEG, and deletes the file. Mirrored displays are deduplicated.
 4. Change-gating compares each display against the previous check. Nothing changed, same frontmost app, no alert running: the call is skipped and the previous verdict stands, until `forceCheckSec` forces a real one.
 5. It sends the images, and optionally your one-line work description and task titles, to the Grayout service, which asks a vision model and returns a three-field verdict: `off_task`, `activity`, `confidence`. The prompt lives on the service, so judgement improves without you installing anything.
 6. A strike is counted only when `off_task` is exactly `true` with `high` confidence. Anything else, including an error, a refusal, an expired subscription, or a malformed answer, resets the strike count to zero. Grayout fails toward leaving you alone.
@@ -99,17 +103,17 @@ The prompt tells the model that a video call or screen share is work, that anyth
 
 ## What leaves your Mac
 
-Sent to `api.grayout.app`, under your license key, at each check that is not skipped:
+Sent to the Grayout service (the address in [`src/config.js`](src/config.js)) at each check that is not skipped:
 
 - A resized screenshot of each display.
 - A webcam frame, only if you turned the camera on.
 - Your one-line work description, if you wrote one.
 - Titles of your Canvas to-do items or your task file's unchecked lines, if you configured either. They are fenced and labeled as untrusted data in the prompt.
-- Your device id and license key, so the service knows the request is paid for.
+- Your device id and device token, plus your license key once you subscribe, so the service can count free checks or confirm the plan.
 
-The service forwards the images to OpenAI, gets the verdict, and returns it. It does not store the images and does not log them. What it keeps is your license record, your device id, and a count of checks this month.
+The service forwards the images to OpenAI, gets the verdict, and returns it. It does not store the images and does not log them. What it keeps: a random device id and its free-check count, a license record with the subscription state copied from Stripe (a hash of the key, never the key, and no name, email or card), monthly check counts, and, only to stop abuse, keyed hashes of your network address (48 hours for registering devices, a month for free checks) and of the email and card that started a trial (a year). [PRIVACY.md](PRIVACY.md) lists every field.
 
-The only other connections are an anonymous version check against `api.github.com` once a day, which you can turn off in Settings, and your Canvas host if you configured one. Stripe handles payment on its own pages in your browser; Grayout never sees your card.
+The only other connections are an anonymous version check against `api.github.com` once a day, which you can turn off in Settings, and your Canvas host if you configured one. Stripe handles payment on its own pages in your browser; Grayout never sees your card number.
 
 Stored on your Mac in `~/Library/Application Support/Grayout/`: your settings, the encrypted license key, a 30-day log of short category phrases like "code editor and terminal" (one line per check, deletable from Settings), and a rotating app log that never contains prompt text, images, or your key.
 
@@ -140,7 +144,7 @@ If none of these work, open an issue with the "My screen is stuck gray" template
 
 **Grayout is MIT-licensed and the whole app is in this repository.** If you would rather not pay a subscription, or would rather no screenshot ever passed through a machine of ours, you can run it against your own Anthropic or OpenAI key. This is a build-from-source path, it is not what the packaged app is set up for, and it gets no support beyond the repository. It is not going away.
 
-Set `provider` in `~/Library/Application Support/Grayout/config.json` to the provider whose key you hold. That disables the Grayout service entirely: no license check, no call to `api.grayout.app`, no subscription, and the app calls the provider directly under your key.
+Set `provider` in `~/Library/Application Support/Grayout/config.json` to the provider whose key you hold. That disables the Grayout service entirely: no license check, no call to the Grayout service, no subscription, and the app calls the provider directly under your key.
 
 ```jsonc
 {
@@ -204,7 +208,7 @@ Advanced keys with no UI, edited in `config.json` directly:
 | Key | Default | Range or type | What it does |
 |---|---|---|---|
 | `provider` | `"auto"` | `auto`, `grayout`, `anthropic`, or `openai` | Where checks go. `auto` means the subscription, unless a model key is saved on this Mac, in which case it self-hosts on that key's provider. `grayout` forces the subscription and ignores any saved key. `anthropic` and `openai` force self-hosting on that provider. |
-| `apiBase` | `""` | https URL, or empty | The Grayout service to talk to. Empty means `https://api.grayout.app`. Only https is accepted, except `http://localhost`, and anything else is ignored rather than used. Change it only to point at a deployment of `server/` that you run. |
+| `apiBase` | `""` | https URL, or empty | The Grayout service to talk to. Empty means the address built into the app (`DEFAULT_API_BASE` in `src/config.js`, filled in at deploy time; a build where it was never filled in is "not connected" and sends nothing). Only https is accepted, except `http://localhost`, and anything else is ignored rather than used. Change it only to point at a deployment of `server/` that you run. |
 | `model` | `"claude-haiku-4-5"` | any `claude-*` or `gpt-*` model your key can use | Self-hosting only. If it does not belong to the active provider's family, the provider default applies: `claude-haiku-4-5` for Anthropic, `gpt-5-mini` for OpenAI. On the subscription the service picks the model. |
 | `canvas.baseUrl` | `"https://canvas.cmu.edu"` | https URL | Your Canvas LMS host. |
 | `canvas.token` | `""` | string | A Canvas API token. Paste it here once; on the next load Grayout moves it into the Keychain and blanks this field. Titles of your to-do and planner items (up to 20) are then sent with each check as fenced, untrusted context, refreshed every 10 minutes. |
@@ -242,7 +246,7 @@ Download the new DMG, drag it over the old app, relaunch. Your license and your 
 
 ## Uninstall
 
-Cancel the subscription first, in Settings > Manage subscription, or later at any time through the link in your Stripe receipt. Then turn off Start at login, quit Grayout, drag it to the Trash, and delete `~/Library/Application Support/Grayout`. Deleting the app does not cancel anything on its own.
+Cancel the subscription first, in Settings > Manage subscription, or later at any time at link.com, where it is listed as Sold through Link. Then turn off Start at login, quit Grayout, drag it to the Trash, and delete `~/Library/Application Support/Grayout`. Deleting the app does not cancel anything on its own.
 
 ## Contributing
 

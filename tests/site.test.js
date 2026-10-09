@@ -99,8 +99,14 @@ test.describe('every internal link resolves', () => {
     test(`docs/${f}`, () => {
       const html = read(f);
       const broken = [];
-      for (const [, href] of html.matchAll(/href="([^"]+)"/g)) {
-        if (/^(?:https?:|data:|mailto:)/.test(href)) continue;
+      for (const [, raw] of html.matchAll(/href="([^"]+)"/g)) {
+        if (/^(?:https?:|data:|mailto:)/.test(raw)) continue;
+        // The site is served from aarushkandukoori.github.io/grayout/, so a
+        // root-relative "/grayout/…" link is a file in docs/ ("/grayout/" is
+        // index.html). 404.html needs those: GitHub Pages serves it at any
+        // missing path, where a relative link would point somewhere else.
+        const rest = raw.startsWith('/grayout/') ? raw.slice('/grayout/'.length) : null;
+        const href = rest === null ? raw : rest === '' || rest.startsWith('#') ? `index.html${rest}` : rest;
         const [page, frag] = href.split('#');
         const target = page || f;
         if (!PAGES.includes(target)) {
@@ -111,7 +117,10 @@ test.describe('every internal link resolves', () => {
       }
       for (const [, src] of html.matchAll(/src="([^"]+)"/g)) {
         if (/^(?:https?:|data:)/.test(src)) continue;
-        if (!fs.existsSync(path.join(DOCS, src))) broken.push(`${src} (no such asset)`);
+        // Same rule as links above: "/grayout/app.js" is docs/app.js (404.html
+        // loads its scripts that way, because it is served at any missing path).
+        const file = src.startsWith('/grayout/') ? src.slice('/grayout/'.length) : src;
+        if (!fs.existsSync(path.join(DOCS, file))) broken.push(`${src} (no such asset)`);
       }
       assert.deepEqual(broken, []);
     });

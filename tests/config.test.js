@@ -275,19 +275,37 @@ describe('v2 keys', () => {
     assert.equal(coerce({ forceCheckSec: null }).forceCheckSec, 180);
   });
 
-  test('apiBase is empty by default and must be https, or http on localhost', () => {
+  test('apiBase is empty by default and must be https, or http on localhost', t => {
+    t.mock.method(console, 'warn', () => {});
     assert.equal(DEFAULT_CONFIG.apiBase, '');
-    assert.equal(coerce({ apiBase: 'https://grayout-api.workers.dev' }).apiBase, 'https://grayout-api.workers.dev');
-    assert.equal(coerce({ apiBase: 'https://api.grayout.app/' }).apiBase, 'https://api.grayout.app', 'trailing slash dropped');
+    assert.equal(coerce({ apiBase: 'https://grayout-api.sub.workers.dev' }).apiBase, 'https://grayout-api.sub.workers.dev');
+    assert.equal(coerce({ apiBase: 'https://grayout-api.sub.workers.dev/' }).apiBase, 'https://grayout-api.sub.workers.dev', 'trailing slash dropped');
     assert.equal(coerce({ apiBase: 'http://localhost:8787' }).apiBase, 'http://localhost:8787');
     // Frames must never be posted to a plain-http host on the open internet.
-    for (const bad of ['http://example.com', 'ftp://x', 'not a url', 'javascript:alert(1)', 42, null]) {
+    for (const bad of ['http://example.com', 'ftp://x', 'not a url', 'javascript:alert(1)', 42, null, '__GRAYOUT_API_BASE__']) {
       assert.equal(coerce({ apiBase: bad }).apiBase, '', String(bad));
     }
   });
 
+  test('the built-in service address is a deploy-time placeholder, never the unowned grayout.app', () => {
+    // docs/API-CONTRACT.md section 3. The deploy step fills it in; until then
+    // the placeholder fails URL parsing, so the build is "not connected".
+    assert.ok(config.DEFAULT_API_BASE === '__GRAYOUT_API_BASE__' || /^https:\/\//.test(config.DEFAULT_API_BASE));
+    assert.equal(/grayout\.app/.test(config.DEFAULT_API_BASE), false);
+    if (config.DEFAULT_API_BASE === '__GRAYOUT_API_BASE__') assert.equal(config.normalizeBase(config.DEFAULT_API_BASE), null);
+  });
+
+  test('a typo in apiBase is reported, and the warning never names grayout.app', t => {
+    const warn = t.mock.method(console, 'warn', () => {});
+    coerce({ apiBase: 'http://my-worker.example.com' });
+    assert.equal(warn.mock.calls.length, 1);
+    const text = String(warn.mock.calls[0].arguments[0]);
+    assert.match(text, /not a usable endpoint/);
+    assert.equal(/grayout\.app/.test(text), false);
+  });
+
   test('a hand-edited file keeps the new keys through a load/save round trip', () => {
-    writeRaw(JSON.stringify({ changeGating: false, forceCheckSec: 240, apiBase: 'https://api.grayout.app', provider: 'grayout' }));
+    writeRaw(JSON.stringify({ changeGating: false, forceCheckSec: 240, apiBase: 'https://grayout-api.sub.workers.dev', provider: 'grayout' }));
     const c = loadConfig();
     assert.equal(c.changeGating, false);
     assert.equal(c.forceCheckSec, 240);

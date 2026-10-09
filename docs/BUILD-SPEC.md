@@ -60,7 +60,7 @@ Numbers to print (all derived from the packaging research and the author's log):
 
 **Day-one monetization surface (no backend):** GitHub Sponsors link in README/About/footer once Aarush enrolls (placeholder text "Sponsor" hidden until `FUNDING.yml` exists); a pinned GitHub Discussions thread "Hosted plan (no API key needed) — reply to be notified" linked from the site and README. **Do not print a hosted price on the site.** The waitlist reply count is the demand signal.
 
-**V2 hosted tier (planned, not built):** documented in `docs/hosted-plan.md` in the repo only. Rung 1 BYOK free forever. Rung 2 "Grayout Hosted" $15/mo or $120/yr, student $8/mo (.edu), 14-day trial, 8,000 vision-equivalent checks/month, soft cap degrading to text-only checks then BYOK fallback, overage $2/1,000 checks. Margin gate: change gating + text-first cascade shipped in the free app and 30 days of opt-in, counts-only usage exports showing COGS ≤ $5/user/month. Optional rung 3 (year two): one-time $39 Lifetime BYOK license for commitment mode / multi-Mac sync.
+**V2 hosted tier (planned, not built):** documented in `notes/hosted-plan.md` in the repo only. Rung 1 BYOK free forever. Rung 2 "Grayout Hosted" $15/mo or $120/yr, student $8/mo (.edu), 14-day trial, 8,000 vision-equivalent checks/month, soft cap degrading to text-only checks then BYOK fallback, overage $2/1,000 checks. Margin gate: change gating + text-first cascade shipped in the free app and 30 days of opt-in, counts-only usage exports showing COGS ≤ $5/user/month. Optional rung 3 (year two): one-time $39 Lifetime BYOK license for commitment mode / multi-Mac sync.
 
 ---
 
@@ -179,12 +179,13 @@ grayout/
 │   ├── updates.test.js
 │   ├── secrets.test.js
 │   └── fixtures/verdicts.sample.jsonl
+├── notes/
+│   └── hosted-plan.md                  # internal plan; outside docs/, so Pages never publishes it
 └── docs/                               # GitHub Pages site (main:/docs)
     ├── index.html
     ├── install.html
     ├── privacy.html
     ├── api-key.html
-    ├── hosted-plan.md                  # internal plan, linked nowhere on the site
     ├── style.css
     ├── img/
     │   ├── hero-gray.png               # real screenshot: gray desktop + red border + tray menu open (Aarush records; placeholder SVG until then)
@@ -776,7 +777,7 @@ Launch (owner, after gates): day 0 personal post + 15-20 CMU friends with the "w
 
 ## 25. Explicitly out of v1
 
-Hosted tier, accounts, Stripe, any backend; notarization / Developer ID / Mac App Store; electron-updater; Windows/Linux; local VLM; text-first cascade and adaptive cadence (documented in `docs/hosted-plan.md` as the margin gate); accuracy claims; locked/unbypassable mode; team/parent/employer features (permanent never); telemetry (permanent never); the CLI engine as a user-facing option; custom domain; Notification Center as a status surface; URL schemes; universal DMG; Canvas UI; a five-tab settings redesign.
+Hosted tier, accounts, Stripe, any backend; notarization / Developer ID / Mac App Store; electron-updater; Windows/Linux; local VLM; text-first cascade and adaptive cadence (documented in `notes/hosted-plan.md` as the margin gate); accuracy claims; locked/unbypassable mode; team/parent/employer features (permanent never); telemetry (permanent never); the CLI engine as a user-facing option; custom domain; Notification Center as a status surface; URL schemes; universal DMG; Canvas UI; a five-tab settings redesign.
 
 Should-haves if time remains in the session, in order: change gating (`skipUnchanged`: 8×8 average hash + frontmost app, forced vision every 3-5 min, "saved $X" on the dashboard); opt-in "Copy my anonymised stats" (checks/day, cost, interval, displays — counts only) for the hosted COGS measurement; Homebrew tap cask; `docs/threat-model.md`; dashboard "What Grayout sent today" counter.
 
@@ -784,4 +785,4 @@ Should-haves if time remains in the session, in order: change gating (`skipUncha
 
 ## 26. Owner follow-ups (only Aarush can do these)
 
-See `owner_todo` in the structured output; the same list lives in `docs/hosted-plan.md` under "Before hosted".
+See `owner_todo` in the structured output; the same list lives in `notes/hosted-plan.md` under "Before hosted".

@@ -2,7 +2,38 @@
 const fs = require('fs');
 const path = require('path');
 const paths = require('./paths');
-const { normalizeBase } = require('./account');
+
+/* ---------------- the Grayout service address ----------------
+   DEPLOY-TIME CONSTANT (docs/API-CONTRACT.md section 3). This is the one line
+   in the app that names the service. The deploy step replaces the placeholder
+   with the Worker's https URL, for example
+       const DEFAULT_API_BASE = 'https://grayout-api.<subdomain>.workers.dev';
+
+   The placeholder is deliberately NOT a URL. A real-looking stand-in could be
+   registered by a stranger, who would then receive screenshots. This string
+   fails URL parsing, so a build that was never filled in makes no network
+   calls at all and says "not connected to the Grayout service yet" instead.
+   Never put api.grayout.app here until that domain is actually owned. */
+const DEFAULT_API_BASE = '__GRAYOUT_API_BASE__';
+
+// Hosts that may be reached over plain http, for a service run on this Mac.
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]', '0.0.0.0']);
+
+/**
+ * A usable service address, or null. https anywhere, http only for a local
+ * service; trailing slashes dropped. The placeholder above, an empty string,
+ * or anything else that is not a URL all come back as null, which the rest of
+ * the app reads as "this build is not connected to a service".
+ */
+function normalizeBase(value) {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  let u;
+  try { u = new URL(value.trim()); } catch { return null; }
+  if (u.protocol !== 'https:' && !(u.protocol === 'http:' && LOCAL_HOSTS.has(u.hostname))) return null;
+  // Credentials in the address would travel in every request. Refuse them.
+  if (u.username || u.password) return null;
+  return (u.origin + u.pathname).replace(/\/+$/, '');
+}
 
 const DEFAULT_CONFIG = {
   schemaVersion: 1,
@@ -13,8 +44,10 @@ const DEFAULT_CONFIG = {
   // case it self-hosts on that provider. Force with 'grayout' | 'anthropic' |
   // 'openai'. See providers.js.
   provider: 'auto',
-  // Hosted service base URL. Empty means https://api.grayout.app. Accepts https
-  // anywhere, http only for localhost. GRAYOUT_API_BASE overrides it unpackaged.
+  // Hosted service base URL. Empty means the address built into this app
+  // (DEFAULT_API_BASE above; none at all until the deploy step fills it in).
+  // Accepts https anywhere, http only for localhost. GRAYOUT_API_BASE overrides
+  // it when running unpackaged.
   apiBase: '',
   // Self-hosting only: used if it belongs to the active provider's family;
   // otherwise the provider default applies (claude-haiku-4-5 / gpt-5-mini).
@@ -113,15 +146,16 @@ function coerce(cfg) {
   if (!/^(claude-|gpt-|o\d)[a-z0-9.\-]+$/i.test(out.model)) out.model = DEFAULT_CONFIG.model;
   // A bad base URL is dropped rather than kept: frames must never be posted to
   // something that is not a plain https endpoint. Dropping it silently would be
-  // a privacy surprise, though — an empty apiBase means the production service,
-  // so a self-hoster who typos their Worker URL would start sending screenshots
-  // to api.grayout.app instead of the endpoint they asked for. Say so.
+  // a privacy surprise, though — an empty apiBase means the address built into
+  // the app, so a self-hoster who typos their Worker URL would start sending
+  // screenshots there instead of to the endpoint they asked for. Say so.
   const rawApiBase = typeof out.apiBase === 'string' ? out.apiBase.trim() : '';
   out.apiBase = normalizeBase(out.apiBase) || '';
   if (rawApiBase && !out.apiBase) {
+    const builtIn = normalizeBase(DEFAULT_API_BASE);
     console.warn(`[config] apiBase ${JSON.stringify(rawApiBase.slice(0, 200))} is not a usable endpoint ` +
-                 '(https, or http only for localhost). Ignoring it and using the Grayout service at ' +
-                 'https://api.grayout.app.');
+                 '(https, or http only for localhost). Ignoring it and using ' +
+                 (builtIn ? `the Grayout service at ${builtIn}.` : 'nothing: this build has no service address, so no screenshot is sent.'));
   }
   out.workDescription = out.workDescription.slice(0, MAX_WORK_DESCRIPTION);
 
@@ -203,4 +237,7 @@ function saveConfig(partial) {
   return merged;
 }
 
-module.exports = { DEFAULT_CONFIG, NUMERIC_BOUNDS, MAX_WORK_DESCRIPTION, coerce, loadConfig, saveConfig, writeConfig };
+module.exports = {
+  DEFAULT_CONFIG, NUMERIC_BOUNDS, MAX_WORK_DESCRIPTION, coerce, loadConfig, saveConfig, writeConfig,
+  DEFAULT_API_BASE, LOCAL_HOSTS, normalizeBase
+};

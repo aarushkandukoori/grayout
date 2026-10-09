@@ -7,7 +7,7 @@ Grayout is a paid product built in the open. The app is MIT, the service in `ser
 ## The two halves
 
 - **`src/`, `ui/`, `main.js`** — the Electron app that runs on someone's Mac. It holds a Grayout license key and talks to the service. It never holds a model key unless someone is self-hosting.
-- **`server/`** — the Cloudflare Worker behind `api.grayout.app`. It holds the model key, owns the prompt, checks licenses, counts checks, and talks to Stripe.
+- **`server/`** — the Cloudflare Worker that is the Grayout service (its address is the one line in `src/config.js`). It holds the model key, owns the prompt, checks licenses, counts checks, and talks to Stripe.
 
 [`docs/API-CONTRACT.md`](docs/API-CONTRACT.md) is binding for both, and for the site. Endpoints, payloads, error codes, storage keys, pricing, and the security rules are settled there. A pull request that changes any of them changes that file first, in the same PR, or it does not land.
 

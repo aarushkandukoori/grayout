@@ -4,9 +4,9 @@ All notable changes to Grayout are recorded here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
-## [2.0.0] - 2026-09-22
+Planned for 2.0.0. Not released yet: the latest release is still 1.0.1, which runs on your own API key.
 
-Grayout is now a subscription product. It used to ask every person for their own Anthropic or OpenAI API key; it now sells a plan and makes the model calls itself.
+Grayout becomes a subscription product. It used to ask every person for their own Anthropic or OpenAI API key; it now sells a plan and makes the model calls itself.
 
 ### Breaking
 
@@ -18,25 +18,25 @@ Grayout is now a subscription product. It used to ask every person for their own
 ### Added
 
 - **Subscription: $9.99 a month or $79 a year**, with a 7-day free trial on monthly, and **100 free checks first** with no card and no account. The free taste is bound to the install, not to an identity.
-- **The Grayout service** (`server/`, a Cloudflare Worker at `api.grayout.app`): it holds the model key, owns the prompt, checks the license, counts the checks, and returns the verdict. The app never sees a model key. Endpoints and payloads are fixed in `docs/API-CONTRACT.md`.
+- **The Grayout service** (`server/`, a Cloudflare Worker on `workers.dev` until a domain is bought): it holds the model key, owns the prompt, checks the license, counts the checks, and returns the verdict. The app never sees a model key. Endpoints and payloads are fixed in `docs/API-CONTRACT.md`.
 - **Sign-in with no sign-in.** Click Subscribe, pay on Stripe's page, and the app unlocks itself by polling for the license attached to a short-lived device code. Nothing to copy, no password to invent. Pasting a license key still works for a second Mac or a reinstall.
-- A purchase that starts on the website is claimable too: `GET /v1/claim?sessionId=…` reads the Stripe Checkout Session back and hands over the license it bought, so `success.html` can show the key to somebody who bought before they installed the app.
+- A purchase that starts on the website is claimable too: `POST /v1/claim` with the Checkout Session id in the JSON body reads the session back and hands over the license it bought, so `success.html` can show the key to somebody who bought before they installed the app.
 - Stripe billing portal from Settings > Manage subscription, for changing the card, switching plans, or cancelling.
 - A license key format (`gry_live_` plus 24 Crockford base32 characters), stored with `safeStorage` beside the Canvas token, masked everywhere it is shown and never logged.
-- A device id: a random 128-bit number made once per install, kept in `state.json`. It scopes the free taste. Nothing about the machine is hashed into it.
+- A device identity that the service makes (`POST /v1/device`): a random id kept in `state.json` and a token kept encrypted in `secrets.bin`. It scopes the free taste; an id the service did not make counts for nothing. Nothing about the machine is hashed into it.
 - **Change-gating.** Before spending a check, the app compares an 8×8 average hash of each display against the previous one; if no display changed, the frontmost app is the same, and no alert is running, the call is skipped and the previous verdict stands. A real check is forced at least every `forceCheckSec` (180 by default) so a deliberately still screen is still caught. This roughly halves both the bill and the latency of an idle desk, and it is what makes $9.99 work. Turn it off with `"changeGating": false`.
 - New config keys: `changeGating`, `forceCheckSec`, `apiBase`, and a `grayout` value for `provider`. `provider` now defaults to `auto`: the service, unless a model key is saved on this Mac.
 - A billing issue template, and a license question path in the install template. Neither asks for anything secret.
 
 ### Changed
 
-- **What leaves your Mac and to whom.** Screenshots now go to `api.grayout.app`, which forwards them to OpenAI under Grayout's key and returns a verdict. The service does not store the images and does not log them; it stores a license record, a device record, a monthly check count, and a Stripe customer id. `PRIVACY.md` and `docs/privacy.html` are rewritten around this and are the authority on it.
+- **What leaves your Mac and to whom.** Screenshots now go to the Grayout service, which forwards them to OpenAI under Grayout's key and returns a verdict. The service does not store the images and does not log them; it stores a license record, a device record, a monthly check count, and a Stripe customer id. `PRIVACY.md` and `docs/privacy.html` are rewritten around this and are the authority on it.
 - The prompt lives on the service, so judgement improves without an app update. The client sends pixels and context, never prompt text.
 - Failing closed now covers billing: an expired trial, a lapsed subscription, an exhausted free taste, a revoked license, a rate limit, or an unreachable service all stop checks and reset the strike counter. No billing state can gray a screen.
 - Past the monthly allowance the service stretches the interval rather than cutting anyone off.
 - `SECURITY.md` gains the service in its threat model: the shared model key in Worker secrets, license keys as bearer credentials, images in transit, webhook signature verification, and the rate limits.
 - The per-check cost meter is a self-hosting feature now. On the subscription the app shows checks used against the allowance, because the per-check price is ours to worry about, not yours.
-- `docs/hosted-plan.md` is no longer a plan. It is the operator runbook for the thing that shipped.
+- `notes/hosted-plan.md` became the operator notes. It moved out of `docs/`, so GitHub Pages no longer publishes it. Parts of it still describe the v2 design (KV, `api.grayout.app`); `docs/API-CONTRACT.md` v3 is the authority.
 
 ### Removed
 
@@ -102,7 +102,6 @@ First public release. Grayout is the packaged successor to the author's private 
 
 - The LaunchAgent-based install and the `claude` CLI engine as a user-facing option. Start at login is a checkbox; the product speaks to Anthropic's or OpenAI's API only, under your key.
 
-[Unreleased]: https://github.com/aarushkandukoori/grayout/compare/v2.0.0...HEAD
-[2.0.0]: https://github.com/aarushkandukoori/grayout/compare/v1.0.1...v2.0.0
+[Unreleased]: https://github.com/aarushkandukoori/grayout/compare/v1.0.1...HEAD
 [1.0.1]: https://github.com/aarushkandukoori/grayout/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/aarushkandukoori/grayout/releases/tag/v1.0.0

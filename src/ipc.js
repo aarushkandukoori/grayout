@@ -14,8 +14,14 @@ const loginitem = require('./loginitem');
 const { testApiKey } = require('./analyzer');
 const providers = require('./providers');
 const log = require('./log');
+const { MESSAGES: ACCOUNT_MESSAGES, LINK_URL } = require('./account');
 
-const ALLOWED_HOSTS = new Set(['github.com', 'www.github.com', 'console.anthropic.com', 'aarushkandukoori.github.io', 'docs.anthropic.com', 'platform.claude.com', 'www.anthropic.com', 'platform.openai.com', 'openai.com', 'developers.openai.com', 'grayout.app', 'www.grayout.app']);
+const MANAGE_NOTE = ACCOUNT_MESSAGES.manageElsewhere;
+
+// Pages a window may open in the browser. link.com is where Managed Payments
+// buyers manage a purchase "Sold through Link". grayout.app is deliberately
+// absent: nobody here owns it yet.
+const ALLOWED_HOSTS = new Set(['github.com', 'www.github.com', 'console.anthropic.com', 'aarushkandukoori.github.io', 'docs.anthropic.com', 'platform.claude.com', 'www.anthropic.com', 'platform.openai.com', 'openai.com', 'developers.openai.com', 'link.com', 'support.link.com']);
 const INTERVAL_CHOICES = new Set([30, 45, 60, 90, 120]);
 // Checkout and billing links come back from the network, so they are untrusted
 // input: only Stripe's own hosted pages, or the service's own host, are opened.
@@ -26,20 +32,33 @@ const NO_ACCOUNT = { ok: false, kind: 'unknown', message: 'The Grayout service i
 
 function str(v, max = 500) { return typeof v === 'string' ? v.slice(0, max) : ''; }
 
-/** The { plan, status, usage, hasLicense, licenseMasked } every window prints. */
+/**
+ * What every window prints about the plan. Only the masked key travels; the
+ * key itself and the device token never leave the main process.
+ */
 function accountPayload(account) {
   const empty = {
-    plan: 'free', status: 'free',
-    usage: { checksUsed: 0, checksIncluded: pricing.FREE_CHECKS, periodEnd: null },
-    hasLicense: false, licenseMasked: '', needsSubscription: false
+    configured: false,
+    plan: 'free', status: 'free', interval: null, service: null,
+    cancelAtPeriodEnd: false, periodEnd: null, trialEnd: null,
+    usage: { checksUsed: 0, checksIncluded: pricing.FREE_CHECKS, periodEnd: null, resetsAt: null },
+    hasLicense: false, licenseMasked: '', problem: null, problemReason: null, needsSubscription: false,
+    secretsLocked: false,
+    manageNote: MANAGE_NOTE, linkUrl: LINK_URL
   };
   if (!account || !account.snapshot) return empty;
   try {
     const s = account.snapshot();
     return {
-      plan: s.plan, status: s.status, usage: s.usage,
+      configured: s.configured !== false,
+      plan: s.plan, status: s.status, interval: s.interval || null, service: typeof s.service === 'boolean' ? s.service : null,
+      cancelAtPeriodEnd: !!s.cancelAtPeriodEnd, periodEnd: s.periodEnd || null, trialEnd: s.trialEnd || null,
+      usage: s.usage,
       hasLicense: s.hasLicense, licenseMasked: s.licenseMasked,
-      needsSubscription: s.needsSubscription
+      problem: s.problem || null, problemReason: s.problemReason || null,
+      needsSubscription: s.needsSubscription,
+      secretsLocked: !!s.secretsLocked,
+      manageNote: MANAGE_NOTE, linkUrl: LINK_URL
     };
   } catch { return empty; }
 }
@@ -54,6 +73,21 @@ function openPaymentUrl(account, url) {
   shell.openExternal(u.toString());
   return true;
 }
+/**
+ * What the watch loop does after the plan was read again from the service
+ * (at launch, when Settings opens, from the trial reminder):
+ *   - a key came back (restored): it is a new plan, so reload the loop;
+ *   - a FRESH answer (not the 10-minute cache) says the plan is served: a
+ *     refusal the loop is still waiting out (a card fixed at link.com, for
+ *     example) is over, so lift it and check again now.
+ */
+function afterAccountRefresh(loop, r) {
+  if (!loop || !r) return;
+  if (r.restored) { loop.reload(); return; }
+  const freshlyServed = r.ok === true && r.cached === false && r.hasLicense === true && r.service === true;
+  if (freshlyServed && typeof loop.clearPlanHold === 'function') loop.clearPlanHold();
+}
+
 function num(v, min, max, dflt) { const n = Number(v); return Number.isFinite(n) ? Math.min(max, Math.max(min, Math.round(n))) : dflt; }
 
 /**
@@ -144,6 +178,11 @@ function registerIpc(ctx) {
 
   ipcMain.handle('settings:get', async () => {
     const cfg = getConfig();
+    // Settings opening is one of the two moments the contract says to look
+    // again (6.6): re-read the plan, or collect a key a purchase left behind.
+    // In the background, so the window never waits on the network; the
+    // dashboard re-reads dash:get every few seconds and picks up the result.
+    refreshAccountInBackground();
     return {
       config: cfg,
       account: accountPayload(account),
@@ -271,20 +310,39 @@ function registerIpc(ctx) {
      what happened, and a failure here never changes what the screen looks
      like. Nothing about a plan can gray a Mac. */
 
+  let refreshing = false;
+  function refreshAccountInBackground() {
+    if (!account || !account.refresh || selfHosted() || refreshing) return;
+    refreshing = true;
+    Promise.resolve()
+      .then(() => account.refresh())
+      .then(r => afterAccountRefresh(loop, r))
+      .catch(() => {})
+      .finally(() => { refreshing = false; });
+  }
+
   ipcMain.handle('account:status', async (_e, opts) => {
     if (!account) return { ...NO_ACCOUNT, ...accountPayload(null) };
-    return account.status({ force: !!(opts && opts.force) });
+    const r = await account.status({ force: !!(opts && opts.force) });
+    afterAccountRefresh(loop, r);
+    return r;
   });
 
   ipcMain.handle('account:startCheckout', async (_e, plan) => {
     if (!account) return NO_ACCOUNT;
     const r = await account.startCheckout(plan === 'yearly' ? 'yearly' : 'monthly');
+    if (r.kind === 'already_subscribed') {
+      // This Mac already has working service: nothing was charged. Open the
+      // billing page so the person can see or change what they have.
+      if (r.restored) loop.reload();
+      return { ...r, opened: r.portalUrl ? openPaymentUrl(account, r.portalUrl) : false };
+    }
     if (!r.ok) { log.info('account', `checkout failed: ${r.kind}`); return r; }
     return { ...r, opened: openPaymentUrl(account, r.url) };
   });
 
   // Long-running by design: it resolves when the browser checkout finishes,
-  // when account:cancelClaim is called, or after 15 minutes.
+  // when account:cancelClaim is called, or when the device code expires (an hour).
   ipcMain.handle('account:pollClaim', async (_e, deviceCode) => {
     if (!account) return NO_ACCOUNT;
     const r = await account.pollClaim(str(deviceCode, 128).trim());
@@ -298,6 +356,14 @@ function registerIpc(ctx) {
     if (!account) return NO_ACCOUNT;
     const r = await account.activate(str(license, 120).trim());
     if (r.ok) loop.reload();
+    return r;
+  });
+
+  // "Restore my key": ask the service for the license it has on file for this Mac.
+  ipcMain.handle('account:restore', async () => {
+    if (!account) return NO_ACCOUNT;
+    const r = await account.restore({ force: true });
+    if (r.ok && r.restored) loop.reload();
     return r;
   });
 
@@ -361,4 +427,4 @@ function registerIpc(ctx) {
   ipcMain.on('camera-status', (_e, status) => { if (ctx.onCameraStatus) ctx.onCameraStatus(String(status)); });
 }
 
-module.exports = { registerIpc, sanitizeSettings, accountPayload, openPaymentUrl, estimates, ALLOWED_HOSTS, PAYMENT_HOSTS, INTERVAL_CHOICES };
+module.exports = { registerIpc, sanitizeSettings, accountPayload, openPaymentUrl, afterAccountRefresh, estimates, ALLOWED_HOSTS, PAYMENT_HOSTS, INTERVAL_CHOICES, MANAGE_NOTE };

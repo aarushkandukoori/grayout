@@ -6,7 +6,7 @@ Use GitHub's private vulnerability reporting for this repository: https://github
 
 Please include the Grayout version (About Grayout in the menu bar), your macOS version, and steps to reproduce. If the report is about the service, include the `X-Grayout-Request-Id` header from the response and the time, not a packet capture full of your own screen.
 
-Do not include screenshots of your own screen, your license key, your API key, or the contents of `secrets.bin`. A license key in a report is treated as compromised and revoked.
+Do not include screenshots of your own screen, your license key, your API key, or the contents of `secrets.bin`. A license key in a report is treated as compromised. (There is no way to replace a single key yet; the maintainer will contact you about what to do.)
 
 You can expect an acknowledgement within a few days. App fixes ship as a patch release with a note in `CHANGELOG.md`; service fixes are deployed and noted in the changelog under the date they went out. Credit is given if you want it.
 
@@ -16,14 +16,14 @@ Only the latest release is supported. Update by downloading the current DMG. The
 
 ## Threat model
 
-Grayout runs as your user, captures your screen, and sends the captures to the Grayout service at `api.grayout.app`, which forwards them to OpenAI under Grayout's own key and returns a verdict. A self-hosted install replaces that hop with a direct call to Anthropic or OpenAI under your key. The model below is what the design defends against and what it does not.
+Grayout runs as your user, captures your screen, and sends the captures to the Grayout service (the address in `src/config.js`), which forwards them to OpenAI under Grayout's own key and returns a verdict. A self-hosted install replaces that hop with a direct call to Anthropic or OpenAI under your key. The model below is what the design defends against and what it does not.
 
 ### Assets
 
 - The contents of your screen, at each check, on your Mac and in transit.
 - Your Grayout license key (and Canvas token, or an Anthropic or OpenAI key when self-hosting).
 - The shared model key the service uses on everyone's behalf. It is the single highest-value secret in the system.
-- The Stripe secret key and the webhook signing secret.
+- The Stripe API key (the documented setup is a restricted `rk_` key with only the permissions the service uses; a full `sk_` key works but logs a warning), the webhook signing secret, and the two server secrets that make device tokens and license keys (`DEVICE_SECRET`, `LICENSE_SECRET`).
 - Webcam frames, if the camera is on.
 - Control of the display: the ability to put your Mac in grayscale.
 - The integrity of the billing state: nobody should get checks they did not pay for, and nobody who paid should be locked out.
@@ -40,8 +40,9 @@ Grayout runs as your user, captures your screen, and sends the captures to the G
 
 ### Mitigations on your Mac
 
+- A build whose service address was never filled in (`DEFAULT_API_BASE` in `src/config.js` is still the placeholder `__GRAYOUT_API_BASE__`, which is deliberately not a URL) never contacts any service. It never falls back on a guessed address such as a domain nobody owns.
 - Every file in `~/Library/Application Support/Grayout/` is created with mode 0600 inside a 0700 directory.
-- The license key is encrypted with Electron `safeStorage`, backed by a macOS Keychain item, with no plaintext fallback. It is never written to `config.json`, the verdict log, or the app log; the logger redacts anything matching a license or API key shape, and the UI shows the license only as `gry_live_…` plus its last four characters.
+- The license key and the device token are encrypted with Electron `safeStorage`, backed by a macOS Keychain item, with no plaintext fallback. It is never written to `config.json`, the verdict log, or the app log; the logger redacts anything matching a license or API key shape, and the UI shows the license only as `gry_live_…` plus its last four characters.
 - Screenshot files live in a per-process temp directory and are deleted right after encoding. Webcam frames are never written to disk.
 - Canvas titles and task-file lines are fenced and labeled as untrusted data; both the app and the service tell the model never to follow instructions found there or on the screen.
 - The verdict is coerced: anything not exactly `off_task: true` is on task, and confidence outside the allowed set becomes `low`.
@@ -56,13 +57,17 @@ Grayout runs as your user, captures your screen, and sends the captures to the G
 
 - **The shared model key lives only in the Worker secret store.** It is never sent to a client, never returned in a response, never written to a log, and is not in this repository. A client cannot make the service call anything but the model, with the service's own prompt, on the pixels it sent.
 - **The app never holds a model key.** The worst a stolen license key gets an attacker is somebody else's check allowance, which is capped and revocable.
-- License keys are compared in constant time and are never logged. Revoking one is a single write, and the next check fails closed.
-- **Images are never stored, never logged, and never written to disk by the service.** They exist for the length of one request. Neither are the work description, task titles, or the returned activity phrase. What persists is the license record, the device record, a monthly counter, and a Stripe customer mapping.
+- **No credential ever travels in a URL.** Every endpoint except the health check is a `POST` with a JSON body; license keys, device tokens, device codes and Checkout Session ids go in the body. Query strings are ignored. Logs never carry a license key, a device token or a request body; a session id that has to be logged is cut to its last four characters.
+- **License keys are never stored.** The database keeps only a SHA-256 hash of each key and looks keys up by that hash, so a copy of the database holds no working key. A key is derived again from the customer when it has to be shown (a claim, a restore).
+- **The service mints device identities.** A device id only counts if it comes with a token the service made (an HMAC with `DEVICE_SECRET`), checked in constant time. Tokens are never stored.
+- Revoking a license is a single write, and the next check fails closed. A full refund, a card dispute and a card-fraud warning from the bank each revoke the license and cancel the subscription automatically.
+- **Images are never stored, never logged, and never written to disk by the service.** They exist for the length of one request. Neither are the work description, task titles, or the returned activity phrase. What persists is listed field by field in `PRIVACY.md`: the device record, the license record (Stripe customer id and subscription state, never the key), monthly counters, checkout bookkeeping, and keyed hashes used only for abuse limits (network addresses, and the email and card that started a trial).
 - All traffic is HTTPS, so the images are in transit under TLS between your Mac and the service, and between the service and OpenAI. There is no plaintext fallback and no configurable way to turn it off. Pointing `apiBase` at a non-HTTPS host is a self-hosting decision and is yours to make safely.
-- **Stripe webhooks are verified before anything is believed**: signature checked with Stripe's own `constructEventAsync` against the signing secret held in the Worker secrets, on the raw body. An unverified or replayed event changes nothing. Unknown event types return 200 and are ignored rather than guessed at.
-- Billing state comes only from verified webhooks, never from the client. The app reports nothing about its own plan that the service trusts.
-- Rate limits: 40 checks per minute per device and 1,200 per hour per license, with a request body cap of 8 MB. These bound both a leaked key and a client bug.
-- The free taste is bound to a device record with a counter the client cannot decrement. It is a taste, not a security boundary: someone determined to reinstall repeatedly can get more free checks, and that is an accepted cost rather than a reason to fingerprint machines.
+- **Stripe webhooks are verified before anything is believed**: signature checked with Stripe's own `constructEventAsync` against the signing secret held in the Worker secrets, on the raw body. The endpoint fails closed (503) while the signing secret is missing or still a placeholder. Events are de-duplicated by id, and unknown event types return 200 and are ignored rather than guessed at.
+- **Billing state is read from Stripe, never taken from the client or from an event's contents.** Every verified subscription, invoice, refund or dispute event makes the service read the customer's subscriptions from Stripe and write what it finds, so events arriving late or out of order cannot revive a canceled plan. Access ends 3 days after the paid period, whatever the stored status says, and the service re-reads Stripe before it turns anyone away. The app reports nothing about its own plan that the service trusts.
+- **Sandbox and live never mix.** A key bought with a Stripe test card (`gry_test_`) never gets service from the live Worker, which has its own database.
+- Rate limits: per network address on every route except the health check and the Stripe webhook, 40 requests a minute per device and 20 checks a minute per license (about 1,200 an hour), with bodies cut off as they stream in at 8 MiB for a check and 1 MiB for everything else. These bound both a leaked key and a client bug.
+- **The free taste is bounded several ways:** 100 checks per device, device registration limited per network, 300 free checks per network a month however many devices it registers, and a global daily budget for everyone. The device counter is server-side and reserved atomically before the model is called. It is a taste, not a security boundary: someone with many networks can still get more free checks, and the daily budget caps what that can cost.
 - Every response carries `X-Grayout-Request-Id`, which is what a bug report needs instead of a screenshot.
 
 ### Residual risks, disclosed
@@ -73,8 +78,9 @@ Grayout runs as your user, captures your screen, and sends the captures to the G
 - Your screenshots pass through the Grayout service and reach OpenAI. We do not store or log them; OpenAI's handling is governed by its own policy, linked from `PRIVACY.md`. If that arrangement is not acceptable, self-host: `provider` set to `anthropic` or `openai` removes the service from the path completely.
 - Cloudflare operates the service and sees connection metadata, as any host does.
 - A license key is a bearer credential. Anyone who has it can spend your allowance from any machine until you ask for it to be rotated. It is not a password and it protects no data of yours.
-- Two short-lived values are bearer credentials of the same kind, and both are handed to the browser on purpose: the device code the app makes before it opens checkout (15 minutes), and the Stripe Checkout Session id in the `success.html` URL. Either one can be exchanged once for the license that purchase bought, and for nothing else. Both are rate limited; neither identifies you and neither can read a license it did not pay for.
-- The service is a single Worker and a single KV namespace with one maintainer. An outage stops checks; it never grays a screen.
+- A license key is derived from the Stripe customer, so the same customer always gets the same key. Replacing one leaked key is not built yet: until it is, a leaked key can only be revoked by hand, which also ends that subscription's service.
+- Two other values are bearer credentials of a narrower kind. The device code the app makes before it opens checkout lives one hour and only works together with the device token of the Mac that made it. The Stripe Checkout Session id in the `success.html` link can be exchanged for the license that one purchase bought, and for nothing else, for 30 days; `success.html` removes it from the address bar at once. The service only answers for session ids it created itself, and both are rate limited.
+- The service is a single Cloudflare Worker and a single D1 database with one maintainer. An outage stops checks; it never grays a screen.
 - The app is ad-hoc signed and not notarized. Verify downloads against `SHA256SUMS.txt` on the release page, or build from source.
 - The grayscale flag is global system state. If the helper cannot run, the escape hatches in the README restore color by hand.
 

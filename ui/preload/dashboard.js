@@ -23,12 +23,13 @@ contextBridge.exposeInMainWorld('grayout', {
   requestCamera: () => invoke('perm:requestCamera'),
   recheck: () => invoke('perm:recheck'),
   // subscription — the same names the welcome window exposes
-  accountStatus: opts => invoke('account:status', opts || null),      // { ok, plan, status, usage, hasLicense, licenseMasked, needsSubscription }
-  startCheckout: plan => invoke('account:startCheckout', plan),        // { ok, url, deviceCode, plan, expiresIn, opened }
-  pollClaim: deviceCode => invoke('account:pollClaim', deviceCode),    // resolves when checkout finishes, is cancelled, or times out
+  accountStatus: opts => invoke('account:status', opts || null),      // { ok, configured, status, interval, service, usage, hasLicense, licenseMasked, needsSubscription }
+  startCheckout: plan => invoke('account:startCheckout', plan),        // { ok, url, deviceCode, plan, trial, expiresIn, reused, opened } or { ok:false, kind:'already_subscribed', portalUrl, restored, opened }
+  pollClaim: deviceCode => invoke('account:pollClaim', deviceCode),    // resolves when checkout finishes, is cancelled, or the code expires
   cancelClaim: () => invoke('account:cancelClaim'),
   activateLicense: license => invoke('account:activate', license),
-  openBillingPortal: () => invoke('account:portal'),
+  restoreLicense: () => invoke('account:restore'),                     // { ok, restored } — the key the service has on file for this Mac
+  openBillingPortal: () => invoke('account:portal'),                   // { ok, url, opened, manageNote }
   // self-hosted model key: shown only while settings.selfHosted is true
   setApiKey: key => invoke('key:set', key),
   testApiKey: (key, frameB64) => invoke('key:test', key, frameB64),

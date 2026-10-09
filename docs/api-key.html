@@ -1,106 +1,225 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en" data-page="apikey">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light dark">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src https://api.grayout.app; base-uri 'none'; form-action 'none'">
-  <title>Self-hosting — Grayout for Mac</title>
-  <meta name="description" content="Grayout is a subscription. It is also MIT-licensed, so you can run it on your own Anthropic or OpenAI key instead and never touch the Grayout service. Here is how, and what it costs.">
-  <link rel="canonical" href="https://aarushkandukoori.github.io/grayout/api-key.html">
-  <meta property="og:type" content="article">
-  <meta property="og:site_name" content="Grayout for Mac">
-  <meta property="og:title" content="Self-hosting Grayout">
-  <meta property="og:description" content="The escape hatch: run Grayout on your own model key, with no license check and no call to the Grayout service.">
-  <meta property="og:url" content="https://aarushkandukoori.github.io/grayout/api-key.html">
-  <meta property="og:image" content="https://aarushkandukoori.github.io/grayout/img/dashboard.png">
-  <meta name="twitter:card" content="summary_large_image">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%238a8a8a'/%3E%3Cpath d='M16 16 L16 2 A14 14 0 0 1 30 16 Z' fill='%23d03b3b'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="style.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://*.workers.dev; base-uri 'self'; form-action 'none'; object-src 'none'; frame-src 'none'; manifest-src 'self'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>Use your own API key | Grayout for Mac</title>
+<meta name="description" content="Grayout is open source. Run it on your own OpenAI or Anthropic key and pay your provider directly, a fraction of a cent per check.">
+<link rel="canonical" href="https://aarushkandukoori.github.io/grayout/api-key.html">
+<meta name="theme-color" content="#DDE2EE">
+<meta name="color-scheme" content="light">
+<link rel="icon" href="img/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="img/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Grayout">
+<meta property="og:title" content="Run Grayout on your own API key">
+<meta property="og:description" content="Grayout is open source. Run it on your own OpenAI or Anthropic key and pay your provider directly, a fraction of a cent per check.">
+<meta property="og:url" content="https://aarushkandukoori.github.io/grayout/api-key.html">
+<meta property="og:image" content="https://aarushkandukoori.github.io/grayout/img/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Grayout: a Mac desktop half in color and half in gray, with a red border on the gray side.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Run Grayout on your own API key">
+<meta name="twitter:description" content="Grayout is open source. Run it on your own OpenAI or Anthropic key and pay your provider directly, a fraction of a cent per check.">
+<meta name="twitter:image" content="https://aarushkandukoori.github.io/grayout/img/og.png">
+<link rel="preload" href="fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/eb-garamond-500-latin.woff" as="font" type="font/woff" crossorigin>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="pages.css">
+<script src="config.js"></script>
+<script src="app.js"></script>
 </head>
 <body>
-
-<nav>
-  <a class="brand" href="index.html">Grayout for Mac</a> &middot;
-  <a href="pricing.html">Pricing</a> &middot;
-  <a href="install.html">Install</a> &middot;
-  <a href="privacy.html">Privacy</a> &middot;
-  <a href="https://github.com/aarushkandukoori/grayout">GitHub</a>
-</nav>
-
-<main>
-
-  <h1>Self-hosting</h1>
-
-  <p class="lead">Grayout is a subscription: the app sends a screenshot to the Grayout service, and the service asks the model with its own key. You never get one, never paste one, and never see a per-check bill. <a href="pricing.html">The plans are here.</a></p>
-
-  <p>This page is the other path. The whole app is in the repository under an MIT license, so you can point it at your own Anthropic or OpenAI account instead. That disables the Grayout service completely: no license, no subscription, and no request to <code>api.grayout.app</code>. It is a build-from-source path rather than something the packaged app is set up for, it gets no support beyond the repository, and it is not going away.</p>
-
-  <h2 id="turn-it-on">Turning it on</h2>
-
-  <p>Set <code>provider</code> in <code>~/Library/Application Support/Grayout/config.json</code> to the provider whose key you hold.</p>
-
-  <pre><code>{
-  "provider": "openai",          // or "anthropic"; "grayout" forces the subscription
-  "model": "gpt-5-mini",         // or "claude-haiku-4-5" with an Anthropic key
-  "changeGating": true,          // keeps your own bill down too
-  "forceCheckSec": 180
-}</code></pre>
-
-  <p>The default, <code>"auto"</code>, already does this: a Mac with a model key saved runs on that key's provider, and a Mac without one uses the subscription. Setting <code>provider</code> explicitly is how you stop that from depending on whatever happens to be in your Keychain.</p>
-
-  <p>Then run it from source with the key in the environment:</p>
-
-  <pre><code>git clone https://github.com/aarushkandukoori/grayout &amp;&amp; cd grayout &amp;&amp; npm ci &amp;&amp; npm run helper
-OPENAI_API_KEY=sk-... npm start       # or ANTHROPIC_API_KEY=sk-ant-...</code></pre>
-
-  <p>Keys live in the macOS Keychain when the app saves one. They are never logged and never written to a plain file. Revoke one at any time at <a href="https://console.anthropic.com/">console.anthropic.com</a> or <a href="https://platform.openai.com/">platform.openai.com</a>.</p>
-
-  <h2 id="cost">What it costs on your own key</h2>
-
-  <p>Your provider bills you directly for every check. List prices as of 2026-09-22, for one display with change-gating on:</p>
-
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr><th>Provider and model</th><th class="num">Per check</th><th class="num">A month of watched work (about 4,000 checks)</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>OpenAI, <code>gpt-5-mini</code></td><td class="num">about $0.0007</td><td class="num">about $3</td></tr>
-        <tr><td>Anthropic, <code>claude-haiku-4-5</code></td><td class="num">about $0.0025</td><td class="num">about $10</td></tr>
-      </tbody>
-    </table>
+<a class="skip" href="#main">Skip to content</a>
+<header class="hdr">
+  <div class="wrap hdr__in">
+    <a class="logo" href="./" aria-label="Grayout home"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="currentColor" opacity=".5"/><path d="M10 10V1a9 9 0 0 1 9 9z" fill="#D03B3B"/></svg><span>Grayout</span></a>
+    <nav class="nav" aria-label="Main">
+        <a href="./#how">How it works</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="download.html">Download</a>
+        <a href="privacy.html">Privacy</a>
+    </nav>
+    <div class="hdr__end">
+      <button class="burger" type="button" aria-expanded="false" aria-controls="sheet" aria-label="Open menu" data-sheet-open><span></span></button>
+      <a class="burger burger--link" href="#site-footer" aria-label="Menu: every page is listed at the bottom"><span></span></a>
+    </div>
   </div>
+</header>
+<a class="btn btn-primary btn-float" href="download.html" data-float tabindex="-1"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 13h10"/></svg>Download</a>
+<main id="main">
+  <section class="band" aria-labelledby="key-title">
+    <div class="wrap"><div class="doc doc--band"><div>
+      <h1 id="key-title">Use your own API key</h1>
+      <p class="lede">Grayout is open source under the MIT license. You can run it on your own OpenAI or Anthropic account, pay your provider directly, and keep the Grayout service out of the path entirely.</p>
+    </div><div class="toc-spacer" aria-hidden="true"></div></div>
+    </div>
+  </section>
 
-  <p class="fine">The webcam adds about 15%. Each additional display roughly doubles the per-check cost. <code>dailyCheckCap</code> (1,200 checks) is the hard stop inside the app. A workspace spend limit at console.anthropic.com, or a project budget at platform.openai.com, is the simplest real cap.</p>
+  <div class="wrap">
+    <div class="doc">
+      <article class="prose">
+        <div class="callout callout--blue" data-when="noservice">
+          <p class="t">Today&rsquo;s release works this way out of the box</p>
+          <p>Grayout 1.0.1 asks for a key during setup. Get one below, paste it, and you are done.</p>
+        </div>
+        <p class="small">Looking for a Grayout Pro license key (it starts with <code>gry_</code>) instead? That lives on the <a class="inline-link" href="account.html">account page</a>.</p>
 
-  <h2 id="server">Running the service yourself</h2>
+        <h2 id="get"><span class="grad">Get a key in two minutes</span></h2>
+        <h3 id="openai">OpenAI</h3>
+        <ol>
+          <li>Sign in at <a href="https://platform.openai.com/api-keys">platform.openai.com</a> and open API keys.</li>
+          <li>Click Create new secret key and copy it. It starts with <code>sk-</code>.</li>
+          <li>Add prepaid credit under Billing. New accounts need at least $5, which lasts a long time at a fraction of a cent per check.</li>
+        </ol>
+        <h3 id="anthropic">Anthropic</h3>
+        <ol>
+          <li>Sign in at <a href="https://platform.claude.com/settings/keys">platform.claude.com</a> and open API keys.</li>
+          <li>Click Create key and copy it. It starts with <code>sk-ant-</code>.</li>
+          <li>Add at least $5 of prepaid credit under Billing. It can take a minute to show up.</li>
+        </ol>
 
-  <p>There is a third option in between. <code>server/</code> in the repository is the Cloudflare Worker that answers <code>api.grayout.app</code>, and <code>apiBase</code> in config.json points the app at your own deployment of it. Every endpoint and payload is written down in <a href="https://github.com/aarushkandukoori/grayout/blob/main/docs/API-CONTRACT.md">docs/API-CONTRACT.md</a>. An <code>apiBase</code> that is not https, or not localhost over http, is refused and logged rather than used, so a typo cannot quietly send your screenshots somewhere you did not choose.</p>
+        <h2 id="turn-it-on"><span class="grad">Paste it into Grayout</span></h2>
+        <p><strong>In 1.x:</strong> the welcome window asks for it on the Your API key screen. Paste it, click <strong>Test key</strong>, then <strong>Save and continue</strong>. Grayout works out the provider from the key. To change it later, open Settings from the menu bar. macOS asks once whether Grayout may use its own Keychain item; click Always Allow.</p>
+        <p><strong>In 2.0 and later</strong>, new installs use the Grayout service by default (100 free checks, then Grayout Pro). A Mac that already has a key saved keeps using it. To choose your own key explicitly, set <code>provider</code> in <code class="wrapcode">~/Library/Application Support/Grayout/config.json</code>:</p>
+        <div class="code"><pre id="cfg-json">{
+  "provider": "openai",
+  "model": "gpt-5-mini",
+  "changeGating": true
+}</pre><button class="copy" type="button" data-copy="#cfg-json"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.6"/><path d="M10.5 5.5V3.6a1.1 1.1 0 0 0-1.1-1.1H3.6a1.1 1.1 0 0 0-1.1 1.1v5.8a1.1 1.1 0 0 0 1.1 1.1h1.9"/></svg><span data-copy-label>Copy</span></button></div>
+        <p class="muted">Use <code>"anthropic"</code> with <code>"claude-haiku-4-5"</code> for an Anthropic key, or <code>"grayout"</code> to use the Grayout service. Then run it from source with the key in the environment:</p>
+        <div class="code"><pre id="cmd-run">git clone https://github.com/<wbr>aarushkandukoori/grayout
+cd grayout
+npm ci
+npm run helper
+OPENAI_API_KEY=sk-... npm start</pre><button class="copy" type="button" data-copy="#cmd-run"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.6"/><path d="M10.5 5.5V3.6a1.1 1.1 0 0 0-1.1-1.1H3.6a1.1 1.1 0 0 0-1.1 1.1v5.8a1.1 1.1 0 0 0 1.1 1.1h1.9"/></svg><span data-copy-label>Copy</span></button></div>
+        <p>Keys are stored encrypted with your Keychain, never logged, and never written to a plain file. Revoke a key any time in your provider&rsquo;s console.</p>
 
-  <h2 id="trouble">If a key is refused</h2>
-  <ul>
-    <li><strong>The provider rejected this key</strong> &mdash; a character is missing, or the key was revoked. Paste it again or make a new one.</li>
-    <li><strong>This account has no credit</strong> &mdash; both providers need a prepaid balance before the first call. It can take a minute to appear after payment.</li>
-    <li><strong>This account cannot use the model</strong> &mdash; the key belongs to an account without access to the default model. Try another key, or set <code>model</code> in config.json to one the account can use.</li>
-    <li><strong>The provider could not be reached</strong> &mdash; check your connection, a VPN, or a firewall that blocks api.anthropic.com or api.openai.com.</li>
-  </ul>
+        <h2 id="cost"><span class="grad">What it costs</span></h2>
+        <p>Your provider bills you for every check. List prices as of September 2026, one display:</p>
+        <table class="stack-table">
+          <thead><tr><th>Provider and model</th><th>Per check</th><th>A working day at the 45-second default</th></tr></thead>
+          <tbody>
+            <tr><td data-label="Provider and model">OpenAI, gpt-5-mini</td><td data-label="Per check">About $0.0007</td><td data-label="A working day">About $0.25</td></tr>
+            <tr><td data-label="Provider and model">Anthropic, claude-haiku-4-5</td><td data-label="Per check">About $0.0025</td><td data-label="A working day">About $0.90</td></tr>
+          </tbody>
+        </table>
+        <p class="muted">The webcam adds about 15%. Each extra display adds about one more screenshot&rsquo;s worth to the cost of a check. Grayout stops for the day at 1,200 checks, and a spending limit in your provider&rsquo;s console is the simplest hard cap.</p>
 
-  <p>The full self-hosting notes, including every config key and its range, are in the <a href="https://github.com/aarushkandukoori/grayout#self-hosting">repository README</a>.</p>
+        <h2 id="trouble"><span class="grad">If a key is refused</span></h2>
+        <ul>
+          <li><strong>The provider rejected this key:</strong> a character is missing or the key was revoked. Paste it again or make a new one.</li>
+          <li><strong>This account has no credit:</strong> both providers need prepaid credit before the first call. It can take a minute to appear after you pay.</li>
+          <li><strong>This account cannot use the model:</strong> try another key, or set <code>model</code> in config.json to one the account can use.</li>
+          <li><strong>The provider could not be reached:</strong> check your connection, a VPN, or a firewall blocking api.openai.com or api.anthropic.com.</li>
+        </ul>
 
+        <h2 id="server"><span class="grad">Run the service yourself</span></h2>
+        <p>The Grayout service is in the repository too, under <code>server/</code>: a Cloudflare Worker. Every endpoint is written down in <a href="https://github.com/aarushkandukoori/grayout/blob/main/docs/API-CONTRACT.md">API-CONTRACT.md</a>. Point the app at your own deployment with <code>apiBase</code> in config.json. Only https addresses, or http on localhost, are accepted, so a typo can&rsquo;t quietly send screenshots somewhere you didn&rsquo;t choose.</p>
+        <p>Every setting and its range is in the <a href="https://github.com/aarushkandukoori/grayout#readme">README</a>. This path gets community support on GitHub.</p>
+      </article>
+      <nav class="toc" aria-label="On this page" data-toc>
+        <p class="eyebrow">On this page</p>
+        <ol>
+          <li><a href="#get">Get a key</a></li>
+          <li><a href="#turn-it-on">Paste it into Grayout</a></li>
+          <li><a href="#cost">What it costs</a></li>
+          <li><a href="#trouble">If a key is refused</a></li>
+          <li><a href="#server">Run the service yourself</a></li>
+        </ol>
+      </nav>
+    </div>
+  </div>
 </main>
-
-<footer>
-  <a href="https://github.com/aarushkandukoori/grayout">GitHub</a> &middot;
-  <a href="https://github.com/aarushkandukoori/grayout/releases">Releases</a> &middot;
-  <a href="https://github.com/aarushkandukoori/grayout/issues">Issues</a> &middot;
-  <a href="pricing.html">Pricing</a> &middot;
-  <a href="privacy.html">Privacy</a> &middot;
-  <a href="https://github.com/aarushkandukoori/grayout/blob/main/SECURITY.md">Security policy</a> &middot;
-  <a href="https://github.com/aarushkandukoori/grayout/blob/main/LICENSE">MIT</a>
-  <br>
-  Aarush Kandukoori, 2026
+<section class="cta-band" aria-labelledby="cta-title">
+  <div class="wrap cta-band__in">
+    <div>
+      <h2 id="cta-title" data-reveal>Keep your Mac in color.<br><span class="grad2">Try Grayout on your next work session.</span></h2>
+      <div class="actions" data-reveal>
+        <a class="btn btn-primary" href="download.html"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 13h10"/></svg>Download for Mac</a>
+        <a class="arrow-link" href="pricing.html">See pricing <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h9.5M8.5 4l4 4-4 4"/></svg></a>
+      </div>
+      <p class="note dl-2" data-reveal>
+        <span data-when="noservice">Free download for macOS 13 or later. Today&rsquo;s release runs on your own OpenAI or Anthropic key.</span>
+        <span data-when="service">100 checks free. No card, no account.</span>
+      </p>
+    </div>
+    <div class="keys" aria-hidden="true" data-keys>
+      <div class="keycap keycap--a"><div class="keycap__in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor" stroke="none"/></svg></div></div>
+      <div class="keycap keycap--b"><div class="keycap__in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 5v7a3 3 0 0 1-3 3H6"/><path d="m10 11-4 4 4 4"/></svg></div></div>
+    </div>
+  </div>
+</section>
+<footer class="ftr" id="site-footer">
+  <div class="wrap">
+    <div class="ftr__grid">
+      <div class="ftr__brand">
+        <div>
+          <a class="logo" href="./" aria-label="Grayout home"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="currentColor" opacity=".5"/><path d="M10 10V1a9 9 0 0 1 9 9z" fill="#D03B3B"/></svg><span>Grayout</span></a>
+          <p>Your Mac goes gray when you drift and comes back in color when you work. Made by Aarush Kandukoori.</p>
+        </div>
+        <div><span class="status" data-status><span class="dot dot--amber"></span><span data-status-text>Subscriptions opening soon</span></span></div>
+      </div>
+      <div class="ftr__cols">
+        <div class="ftr__col">
+          <h2>Product</h2>
+          <ul>
+            <li><a href="download.html">Download</a></li>
+            <li><a href="pricing.html">Pricing</a></li>
+            <li><a href="changelog.html">Changelog</a></li>
+            <li><a href="account.html">Manage subscription</a></li>
+          </ul>
+        </div>
+        <div class="ftr__col">
+          <h2>Resources</h2>
+          <ul>
+            <li><a href="privacy.html">Privacy</a></li>
+            <li><a href="terms.html">Terms</a></li>
+            <li><a href="refunds.html">Refunds</a></li>
+            <li><a href="api-key.html">Use your own key</a></li>
+            <li><a href="https://github.com/aarushkandukoori/grayout">Source code</a></li>
+          </ul>
+        </div>
+        <div class="ftr__col">
+          <h2>Help</h2>
+          <ul>
+            <li><a href="download.html#first-run">First launch</a></li>
+            <li><a href="download.html#stuck">Stuck gray screen</a></li>
+            <li><a href="https://github.com/aarushkandukoori/grayout/issues/new?template=wrong-call.yml">Report a wrong call</a></li>
+            <li><a href="https://github.com/aarushkandukoori/grayout/issues">Contact</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="ftr__bottom">
+      <span>&copy; 2026 Aarush Kandukoori. MIT licensed.</span>
+      <button class="motion-toggle" type="button" data-motion-toggle aria-pressed="false"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><rect x="3.5" y="3" width="3" height="10" rx="1"/><rect x="9.5" y="3" width="3" height="10" rx="1"/></svg><span>Pause animations</span></button>
+      <a href="https://github.com/aarushkandukoori/grayout" aria-label="Grayout on GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1.8a10.2 10.2 0 0 0-3.2 19.9c.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.2-3.4-1.2-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.6 1 1.6 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.6-1.4-2.3-.3-4.6-1.1-4.6-5a3.9 3.9 0 0 1 1-2.7 3.6 3.6 0 0 1 .1-2.7s.9-.3 2.8 1a9.6 9.6 0 0 1 5.1 0c1.9-1.3 2.8-1 2.8-1 .5 1.4.2 2.4.1 2.7a3.9 3.9 0 0 1 1 2.7c0 3.9-2.4 4.7-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10.2 10.2 0 0 0 12 1.8Z"/></svg></a>
+    </div>
+  </div>
 </footer>
-
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet__scrim" data-sheet-close></div>
+  <div class="sheet__panel" role="dialog" aria-modal="true" aria-label="Menu">
+    <div class="sheet__handle" aria-hidden="true"></div>
+    <button class="sheet__close" type="button" aria-label="Close menu" data-sheet-close><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
+    <nav aria-label="Mobile">
+      <a href="./">Home</a>
+      <a href="./#how">How it works</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="download.html">Download</a>
+        <a href="privacy.html">Privacy</a>
+      <a href="account.html">Manage subscription</a>
+    </nav>
+    <a class="btn btn-primary btn-block" href="download.html"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 13h10"/></svg>Download for Mac</a>
+  </div>
+</div>
+<div class="grayveil" aria-hidden="true"></div>
+<p class="sr-only" aria-live="polite" data-live></p>
+<div class="toast" role="status" aria-live="polite" data-toast hidden><span data-toast-text></span><button class="toast__x" type="button" aria-label="Dismiss" data-toast-close><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
 </body>
 </html>

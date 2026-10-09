@@ -1,20 +1,30 @@
-# Copy to server/.dev.vars for `npx wrangler dev`. .dev.vars is gitignored:
-# real keys must never be committed.
+# Copy to server/.dev.vars for `npx wrangler dev`:
 #
 #   cp .dev.vars.example .dev.vars
+#
+# .dev.vars is gitignored. Real keys never go in git.
+#
+# Every value below is deliberately invalid. The service checks each secret and
+# answers 503 not_configured until a real one is in place, so a forgotten
+# placeholder can never open anything.
 
-# Stripe. Use the test-mode key and a webhook secret from `stripe listen`.
-STRIPE_SECRET_KEY=sk_test_replace_me
+# A RESTRICTED key from a Stripe SANDBOX (not the shared test mode):
+# Dashboard → sandbox → Developers → API keys → Create restricted key.
+# Permissions: README.md, "The restricted key".
+STRIPE_SECRET_KEY=rk_test_replace_me
+
+# From `stripe listen --forward-to http://localhost:8787/v1/stripe/webhook`,
+# which prints a whsec_… for this machine.
 STRIPE_WEBHOOK_SECRET=whsec_replace_me
 
-# The two test-mode prices: $9.99 / month and $79 / year, both recurring.
-STRIPE_PRICE_MONTHLY=price_replace_me
-STRIPE_PRICE_YEARLY=price_replace_me
+# The service's own model key.
+OPENAI_API_KEY=replace-me
 
-# The service's own model key. This is the key the whole product runs on.
-OPENAI_API_KEY=sk-replace-me
+# Two long random strings, each from: openssl rand -base64 48
+DEVICE_SECRET=replace-me-with-openssl-rand-base64-48
+LICENSE_SECRET=replace-me-with-openssl-rand-base64-48
 
-# Optional overrides of the vars in wrangler.jsonc.
-# SITE_BASE=http://localhost:4000
+# Optional overrides of the vars in wrangler.jsonc:
+# SITE_URL=http://localhost:4000
 # SITE_ORIGINS=http://localhost:4000
-# MODEL=gpt-5-mini
+# FREE_DAILY_BUDGET=50

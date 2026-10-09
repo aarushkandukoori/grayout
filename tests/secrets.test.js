@@ -45,14 +45,14 @@ describe('with a fake safeStorage (identity encryption)', () => {
     assert.ok(fs.existsSync(paths.SECRETS_PATH));
     assert.equal(helpers.fileMode(paths.SECRETS_PATH), 0o600);
     assert.equal(fs.existsSync(paths.SECRETS_PATH + '.tmp'), false);
-    assert.deepEqual(readStore(), { anthropicApiKey: KEY, canvasToken: '', grayoutLicense: '' });
+    assert.deepEqual(readStore(), { anthropicApiKey: KEY, canvasToken: '', grayoutLicense: '', grayoutDeviceToken: '' });
   });
 
   test('canvas token round trip keeps the api key', () => {
     secrets.setCanvasToken('  ctok  ');
     assert.equal(secrets.getCanvasToken(), 'ctok');
     assert.equal(secrets.getApiKey(), KEY);
-    assert.deepEqual(readStore(), { anthropicApiKey: KEY, canvasToken: 'ctok', grayoutLicense: '' });
+    assert.deepEqual(readStore(), { anthropicApiKey: KEY, canvasToken: 'ctok', grayoutLicense: '', grayoutDeviceToken: '' });
     secrets.setCanvasToken(null);
     assert.equal(secrets.getCanvasToken(), '');
   });
@@ -130,13 +130,14 @@ describe('the Grayout license', () => {
     assert.equal(secrets.getApiKey(), KEY, 'the self-hosted key is untouched');
   });
 
-  test('only gry_live_ + 24 Crockford base32 characters is accepted', () => {
+  test('only gry_live_ or gry_test_ + 24 Crockford base32 characters is accepted', () => {
     const before = fs.readFileSync(paths.SECRETS_PATH, 'utf8');
     for (const bad of [
       'gry_live_7KQ2R9XW4M0ZT8VN3HJ5CB6',      // 23 characters
       'gry_live_7KQ2R9XW4M0ZT8VN3HJ5CB6DD',    // 25
       'gry_live_7KQ2R9XW4M0ZT8VN3HJ5CB6U',     // U is not in the alphabet
-      'gry_test_7KQ2R9XW4M0ZT8VN3HJ5CB6D',
+      'gry_prod_7KQ2R9XW4M0ZT8VN3HJ5CB6D',     // not a prefix the service issues
+      'gry_test_7KQ2R9XW4M0ZT8VN3HJ5CB6',      // a test key is held to the same shape
       'sk-ant-api03-nope'
     ]) {
       assert.throws(() => secrets.setLicense(bad), /Grayout license key/, bad);
@@ -144,6 +145,15 @@ describe('the Grayout license', () => {
     }
     assert.equal(fs.readFileSync(paths.SECRETS_PATH, 'utf8'), before, 'nothing was written');
     assert.equal(secrets.isLicense(LICENSE), true);
+  });
+
+  test('a sandbox key (gry_test_) keeps its prefix; it is never turned into a live key', () => {
+    // docs/API-CONTRACT.md 4.2: Stripe sandbox purchases get gry_test_ keys.
+    const TEST = 'gry_test_7KQ2R9XW4M0ZT8VN3HJ5CB6D';
+    assert.equal(secrets.normalizeLicense(TEST), TEST);
+    assert.equal(secrets.normalizeLicense('GRY_TEST_7kq2-r9xw-4m0z-t8vn-3hj5-cb6d'), TEST);
+    assert.equal(secrets.maskLicense(TEST), 'gry_test_…CB6D');
+    assert.equal(secrets.isLicense(TEST), true);
   });
 
   test('a paste is normalized exactly the way the service normalizes it', () => {
@@ -257,5 +267,120 @@ describe('decrypt failure', () => {
     assert.equal(secrets.getApiKey(), KEY);
     secrets._setSafeStorage(identity());
     assert.equal(secrets.getApiKey(), KEY);
+  });
+});
+
+describe('the device token (docs/API-CONTRACT.md 4.1)', () => {
+  const TOKEN = 'abcdefghijABCDEFGHIJ0123456789-_abcdefghijk';
+
+  test('round trips in secrets.bin next to the license, never in plaintext elsewhere', () => {
+    secrets._setSafeStorage(identity());
+    secrets.setDeviceToken(TOKEN);
+    assert.equal(secrets.getDeviceToken(), TOKEN);
+    assert.equal(readStore().grayoutDeviceToken, TOKEN);
+    assert.equal(secrets.getApiKey(), KEY, 'the self-hosted key is untouched');
+  });
+
+  test('only a 43-character base64url token is accepted', () => {
+    for (const bad of ['', 'short', TOKEN + 'x', TOKEN.slice(0, 42) + '=', TOKEN.slice(0, 42) + '/']) {
+      assert.throws(() => secrets.setDeviceToken(bad), /device token/, bad);
+    }
+    assert.equal(secrets.getDeviceToken(), TOKEN, 'a bad token never replaces a good one');
+  });
+
+  test('clearing blanks it; without a keychain it can only be held for the session', () => {
+    secrets.clearDeviceToken();
+    assert.equal(secrets.getDeviceToken(), null);
+    assert.equal(readStore().grayoutDeviceToken, '');
+    secrets._setSafeStorage({ ...identity(), isEncryptionAvailable: () => false });
+    assert.throws(() => secrets.setDeviceToken(TOKEN), e => e.name === 'SecretsUnavailable');
+    secrets.useSessionDeviceToken(TOKEN);
+    assert.equal(secrets.getDeviceToken(), TOKEN);
+    secrets.useSessionDeviceToken(null);
+    assert.equal(secrets.getDeviceToken(), null);
+    secrets._setSafeStorage(identity());
+  });
+});
+
+describe('the log hides every Grayout credential (safety net)', () => {
+  // Regression: the redaction pattern only knew sk-… and gry_live_ keys, so a
+  // sandbox key or the device token in an error message or a stack trace
+  // would have been written to grayout.log as is.
+  const log = require('../src/log');
+  const TOKEN = 'abcdefghijABCDEFGHIJ0123456789-_abcdefghijk';
+
+  test('a sandbox license key (gry_test_), in any case', () => {
+    assert.equal(log.redact('x gry_test_7KQ2R9XW4M0ZT8VN3HJ5CB6D y'), 'x [redacted] y');
+    assert.equal(log.redact('x gry_live_7KQ2R9XW4M0ZT8VN3HJ5CB6D y'), 'x [redacted] y');
+    assert.equal(log.redact('x GRY_TEST_7kq2r9xw4m0zt8vn3hj5cb6d y'), 'x [redacted] y');
+  });
+
+  test('a device token, standalone or in its JSON field', () => {
+    assert.equal(log.redact(`x ${TOKEN} y`), 'x [redacted] y');
+    assert.equal(log.redact(`token=${TOKEN}.`), 'token=[redacted].');
+    const body = JSON.stringify({ deviceId: 'dev_0F3K7Q9X2M4T8V1N5B6C7D8E9G', deviceToken: TOKEN });
+    const out = log.redact(body);
+    assert.equal(out.includes(TOKEN), false);
+    assert.match(out, /"deviceToken":"\[redacted\]"/);
+    assert.match(out, /dev_0F3K7Q9X2M4T8V1N5B6C7D8E9G/, 'the device id is not secret and stays readable');
+    // A field holding something of another shape is still hidden.
+    assert.equal(log.redact('{"deviceToken":"short"}'), '{"deviceToken":"[redacted]"}');
+  });
+
+  test('ordinary log lines are untouched', () => {
+    const line = 'activated: status=active service=true /Users/a/Library/Application Support/Grayout/secrets.bin';
+    assert.equal(log.redact(line), line);
+  });
+
+  test('written to disk redacted', () => {
+    log.warn('test', `oops ${TOKEN} gry_test_7KQ2R9XW4M0ZT8VN3HJ5CB6D`);
+    const text = fs.readFileSync(paths.LOG_PATH, 'utf8');
+    assert.equal(text.includes(TOKEN), false);
+    assert.equal(text.includes('gry_test_7KQ2'), false);
+  });
+});
+
+describe('an unreadable secrets.bin is never overwritten in place', () => {
+  // If the Keychain refuses (the person pressed Deny after an update), the
+  // file still holds the license and the device token. Writing an "empty"
+  // store over it would lose a paid key.
+  const LICENSE = 'gry_live_7KQ2R9XW4M0ZT8VN3HJ5CB6D';
+  const TOKEN = 'abcdefghijABCDEFGHIJ0123456789-_abcdefghijk';
+  const denied = () => ({ ...identity(), decryptString: () => { throw new Error('denied'); } });
+
+  test('unreadable() says so; clears leave the file alone; a write keeps it as secrets.bin.unreadable', () => {
+    secrets._setSafeStorage(identity());
+    secrets.setLicense(LICENSE);
+    secrets.setDeviceToken(TOKEN);
+    const original = fs.readFileSync(paths.SECRETS_PATH);
+    try { fs.unlinkSync(paths.SECRETS_PATH + '.unreadable'); } catch {}
+
+    secrets._setSafeStorage(denied());
+    assert.equal(secrets.unreadable(), true);
+    assert.equal(secrets.getLicense(), null);
+    secrets.clearLicense();
+    secrets.clearDeviceToken();
+    secrets.clearApiKey();
+    assert.deepEqual(fs.readFileSync(paths.SECRETS_PATH), original, 'clearing an unreadable store does nothing');
+
+    secrets.setDeviceToken(TOKEN.replace('a', 'b'));
+    assert.equal(secrets.unreadable(), false);
+    assert.deepEqual(fs.readFileSync(paths.SECRETS_PATH + '.unreadable'), original, 'the old store is kept aside');
+
+    // Put the old file back with a working Keychain: the license is all there.
+    fs.renameSync(paths.SECRETS_PATH + '.unreadable', paths.SECRETS_PATH);
+    secrets._setSafeStorage(identity());
+    assert.equal(secrets.getLicense(), LICENSE);
+    assert.equal(secrets.getDeviceToken(), TOKEN);
+  });
+
+  test('a missing secrets.bin is not "unreadable"', () => {
+    secrets._setSafeStorage(identity());
+    const saved = fs.readFileSync(paths.SECRETS_PATH);
+    fs.unlinkSync(paths.SECRETS_PATH);
+    secrets._setSafeStorage(denied());
+    assert.equal(secrets.unreadable(), false);
+    fs.writeFileSync(paths.SECRETS_PATH, saved, { mode: 0o600 });
+    secrets._setSafeStorage(identity());
   });
 });

@@ -8,7 +8,7 @@ const dir = helpers.freshUserData('updates');
 const paths = require('../src/paths');
 const state = require('../src/state');
 const updates = require('../src/updates');
-const { isNewer, parseVersion, fetchLatest, createUpdater, RELEASES_URL, DOWNLOAD_PAGE } = updates;
+const { isNewer, parseVersion, fetchLatest, safeReleaseUrl, createUpdater, RELEASES_URL, DOWNLOAD_PAGE } = updates;
 
 after(() => helpers.cleanup(dir));
 
@@ -63,6 +63,33 @@ describe('fetchLatest (fetch mocked)', () => {
     assert.ok(f.calls[0].opts.signal instanceof AbortSignal);
     assert.equal(f.calls[0].opts.method, undefined, 'a plain GET');
     assert.equal(f.calls[0].opts.body, undefined);
+  });
+
+  test('an html_url that is not an https page of this repo\'s releases is replaced by the download page', async () => {
+    // Regression: the tray opened html_url with shell.openExternal unchecked,
+    // and openExternal opens any scheme (file:, custom app links).
+    const bad = [
+      'file:///Applications/Calculator.app',
+      'javascript:alert(1)',
+      'http://github.com/aarushkandukoori/grayout/releases/tag/v9.9.9',
+      'https://evil.example/aarushkandukoori/grayout/releases/tag/v9.9.9',
+      'https://github.com.evil.example/aarushkandukoori/grayout/releases/',
+      'https://github.com/someone-else/grayout/releases/tag/v9.9.9',
+      'https://user:pw@github.com/aarushkandukoori/grayout/releases/tag/v9.9.9',
+      'x-apple.systempreferences:com.apple.preference.security',
+      42
+    ];
+    for (const html_url of bad) {
+      const r = await fetchLatest({ fetchImpl: fakeFetch(okJson({ tag_name: 'v9.9.9', html_url })) });
+      assert.equal(r.url, DOWNLOAD_PAGE, String(html_url));
+    }
+    assert.equal(safeReleaseUrl('https://github.com/aarushkandukoori/grayout/releases/tag/v9.9.9'), 'https://github.com/aarushkandukoori/grayout/releases/tag/v9.9.9');
+  });
+
+  test('the tray opens update links only through safeReleaseUrl', () => {
+    const tray = require('fs').readFileSync(require('path').join(__dirname, '..', 'src', 'tray.js'), 'utf8');
+    assert.match(tray, /shell\.openExternal\(safeReleaseUrl\(update\.url\)\)/);
+    assert.equal(/shell\.openExternal\(update\.url\)/.test(tray), false);
   });
 
   test('missing html_url falls back to the releases page', async () => {

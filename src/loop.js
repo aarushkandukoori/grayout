@@ -8,17 +8,40 @@ const framehash = require('./framehash');
 
 const BILLING_URL = { anthropic: 'console.anthropic.com', openai: 'platform.openai.com' };
 
-// Plan problems on the hosted path. Each needs the person to do something, so
-// none of them is retried every tick, and none of them ever leaves the Mac gray.
+// Plan problems on the hosted path (docs/API-CONTRACT.md section 8). Each
+// needs the person to do something, so none of them is retried every tick, and
+// none of them ever leaves the Mac gray.
 const SUBSCRIPTION_LINES = {
-  no_license: 'subscription needed — open Settings to subscribe',
-  key_rejected: 'license key was not accepted — open Settings',
+  // The service has a license on file for this Mac and the app could not get
+  // it back by itself. Never say "subscribe" to somebody who already paid.
+  no_license: "this Mac's license key is missing — paste it in Settings",
+  license_invalid: 'license key was not accepted — open Settings',
+  license_revoked: 'subscription was refunded or disputed — see Settings',
   trial_expired: 'trial ended — subscribe in Settings',
-  subscription_inactive: 'subscription paused — update payment to resume',
-  free_exhausted: 'free checks used up — subscribe in Settings',
-  quota_exceeded: 'monthly checks used up — resumes next period'
+  subscription_inactive: 'subscription not active — update payment in Settings or at link.com',
+  free_exhausted: 'free checks used up — subscribe in Settings'
 };
+// free_exhausted with reason "daily_budget": everybody's free checks for today
+// are used up, not this Mac's. They come back at midnight UTC.
+const DAILY_BUDGET_LINE = 'free checks paused for today (high demand) — back after midnight UTC, or subscribe in Settings';
 const SUBSCRIPTION_BACKOFF_MS = 15 * 60000;
+// Refusals that cannot change on their own. The free taste never comes back
+// (free_exhausted for this device), a refunded or disputed key stays revoked,
+// and a key Grayout never issued stays invalid. Retrying them every 15 minutes
+// would capture the screen and upload it ~96 times a day just to be refused.
+// So the loop HOLDS instead: no capture, no request, until reload() (a new key,
+// a purchase, a restore) or clearPlanHold() (the service says the plan is
+// served again). trial_expired and subscription_inactive are not here: a card
+// fixed at link.com or in the billing portal can bring them back at any time.
+function isStickyPlanProblem(kind, reason) {
+  if (kind === 'license_revoked' || kind === 'license_invalid') return true;
+  return kind === 'free_exhausted' && reason !== 'daily_budget';
+}
+// Past the monthly allowance the service serves one check every 10 minutes.
+const QUOTA_RETRY_MS = 10 * 60000;
+const NOT_CONNECTED_LINE = 'not connected to the Grayout service yet';
+const UNREGISTERED_LINE = 'could not register this Mac with the Grayout service — will try again later';
+const SECRETS_LOCKED_LINE = "can't unlock Grayout's saved keys — reopen Grayout and choose Always Allow";
 
 // Longer than any single check (API timeout is 60s, CLI 90s). If `analyzing`
 // is still set past this, something wedged and we take the lock back rather
@@ -66,6 +89,14 @@ function createLoop(deps) {
     // still adds up to a change instead of hiding forever.
     lastHashes: null, lastHashApp: null, skippedChecks: 0,
     needsSubscription: false,
+    // The plan problem the service last refused a check for (a SUBSCRIPTION_LINES
+    // kind), and whether it is one that waits for the person (planHold) rather
+    // than a timer. See isStickyPlanProblem.
+    planProblem: null, planHold: false,
+    // True while lastLine explains a wait the person should read (a plan
+    // problem, a monthly allowance, a registration failure). The generic
+    // "waiting — retrying at …" line must not replace it.
+    holdLine: false,
     // needsScreenPermission is a UI hint set by a capture failure that smelled
     // like permission; screenDenied is the authoritative answer from macOS
     // (fed in by main.js) and is the only thing that stops us capturing.
@@ -122,6 +153,23 @@ function createLoop(deps) {
     try { return new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); } catch { return ''; }
   }
 
+  // The next 00:00 UTC, plus a minute so the service's day has really turned.
+  function nextUtcMidnight(ts) {
+    const t = new Date(ts);
+    return Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), t.getUTCDate() + 1) + 60000;
+  }
+
+  // " until Nov 1", from the reset date the last good check reported.
+  function quotaResetText() {
+    let iso = null;
+    try { const snap = d.account && d.account.snapshot ? d.account.snapshot() : null; iso = snap && snap.usage ? snap.usage.resetsAt : null; } catch { iso = null; }
+    const t = Date.parse(iso || '');
+    if (!Number.isFinite(t)) return ' until the month resets';
+    // The meter resets at 00:00 UTC on the 1st: print that date in UTC, or a
+    // US evening would read it as the last day of the month.
+    try { return ` until ${new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric', timeZone: 'UTC' })}`; } catch { return ' until the month resets'; }
+  }
+
   async function tick() {
     if (destroyed) return;
     const now = d.now();
@@ -171,7 +219,10 @@ function createLoop(deps) {
 
       if (s.locked) { s.lastLine = 'screen locked — checks paused'; status(); return; }
       if (s.wokeAt && now - s.wokeAt < c.wakeGraceSec * 1000) { s.lastLine = 'just woke — waiting'; status(); return; }
-      if (now < s.backoffUntil) { if (!/retrying|credit|rejected|model/.test(s.lastLine)) s.lastLine = `waiting — retrying at ${fmtTime(s.backoffUntil)}`; status(); return; }
+      // A plan refusal that only the person can fix: nothing is captured or
+      // sent until reload() or clearPlanHold() lifts it.
+      if (s.planHold) { status(); return; }
+      if (now < s.backoffUntil) { if (!s.holdLine && !/retrying|credit|rejected|model/.test(s.lastLine)) s.lastLine = `waiting — retrying at ${fmtTime(s.backoffUntil)}`; status(); return; }
 
       const apiKey = d.secrets.getApiKey();
       if (!apiKey && d.requiresKey()) {
@@ -180,6 +231,18 @@ function createLoop(deps) {
         status(); return;
       }
       s.needsKey = false;
+
+      // The hosted service, but this build was never given its address (the
+      // deploy step did not fill in DEFAULT_API_BASE). Nobody can judge a
+      // screenshot, so do not even take one.
+      const hostedPath = providers.resolve(c, apiKey).provider === providers.HOSTED;
+      if (hostedPath && d.account && typeof d.account.configured === 'function' && !d.account.configured()) {
+        s.strikeCount = 0;
+        s.errorKind = 'not_connected';
+        if (s.alerting) await clearAlert(NOT_CONNECTED_LINE);
+        else { s.lastLine = NOT_CONNECTED_LINE; status(); }
+        return;
+      }
 
       // Daily cap: a hard ceiling on spend, resets at local midnight.
       if (d.state.checksToday() >= c.dailyCheckCap) {
@@ -277,9 +340,9 @@ function createLoop(deps) {
         fileTasks: taskInfo.file || [],
         frontApp,
         apiKey,
-        // The hosted path sends these instead of a model key.
-        license: d.account ? d.account.getLicense() : null,
-        deviceId: d.account ? d.account.deviceId() : null
+        // The hosted path's client (src/account.js): it adds this Mac's device
+        // identity and license key itself, so neither passes through here.
+        account: d.account || null
       }, c);
       if (stale()) return;
 
@@ -287,6 +350,9 @@ function createLoop(deps) {
       s.backoffStep = 0;
       s.errorKind = null;
       s.needsSubscription = false;
+      s.planProblem = null;
+      s.planHold = false;
+      s.holdLine = false;
       s.lastCheckAt = d.now();
       // This is now the reference frame for change-gating.
       s.lastHashes = hashes;
@@ -334,16 +400,41 @@ function createLoop(deps) {
       } else {
         const { kind } = classifyApiError(e);
         s.errorKind = kind;
+        s.holdLine = false;   // the branches below that need it set it again
         const { provider } = providers.resolve(c, d.secrets.getApiKey());
         const who = providers.label(provider);
         const hosted = provider === providers.HOSTED;
+        // Seconds the service asked us to wait (rate_limited, quota_exceeded).
+        const retryAfterMs = e && Number.isFinite(e.retryAfter) && e.retryAfter > 0 ? Math.min(e.retryAfter, 86400) * 1000 : 0;
         if (hosted && SUBSCRIPTION_LINES[kind]) {
           // A billing state is never a verdict: say what is wrong, stop calling
           // for a while, and give the color back.
+          const budget = kind === 'free_exhausted' && e && e.reason === 'daily_budget';
           s.needsSubscription = true;
-          s.lastLine = SUBSCRIPTION_LINES[kind];
-          s.backoffUntil = d.now() + SUBSCRIPTION_BACKOFF_MS;
+          s.holdLine = true;
+          s.planProblem = kind;
+          s.planHold = isStickyPlanProblem(kind, e && e.reason);
+          s.lastLine = budget ? DAILY_BUDGET_LINE : SUBSCRIPTION_LINES[kind];
+          // A held problem waits for the person, not a timer (planHold above).
+          s.backoffUntil = budget ? nextUtcMidnight(d.now()) : s.planHold ? 0 : d.now() + SUBSCRIPTION_BACKOFF_MS;
+          if (d.account && d.account.noteProblem) { try { d.account.noteProblem(kind, { reason: e && e.reason }); } catch {} }
+          if (s.alerting) await clearAlert(s.lastLine);
+        } else if (hosted && kind === 'quota_exceeded') {
+          // Not a problem to fix: past 10,000 checks the service slows to one
+          // check every 10 minutes until the month resets. Wait as told.
+          s.holdLine = true;
+          s.backoffUntil = d.now() + (retryAfterMs || QUOTA_RETRY_MS);
+          s.lastLine = `monthly checks used up: checking every 10 minutes${quotaResetText()}`;
           if (d.account && d.account.noteProblem) { try { d.account.noteProblem(kind); } catch {} }
+          if (s.alerting) await clearAlert(s.lastLine);
+        } else if (hosted && (kind === 'device_unverified' || kind === 'not_connected' || kind === 'secrets_locked')) {
+          // device_unverified: the account client already registered this Mac
+          // again once and retried once (contract 4.1). secrets_locked: the
+          // Keychain would not unlock this Mac's saved keys, and registering a
+          // new identity would bury them. Either way: stop, say so, try later.
+          s.holdLine = true;
+          s.lastLine = kind === 'not_connected' ? NOT_CONNECTED_LINE : kind === 'secrets_locked' ? SECRETS_LOCKED_LINE : UNREGISTERED_LINE;
+          s.backoffUntil = d.now() + SUBSCRIPTION_BACKOFF_MS;
           if (s.alerting) await clearAlert(s.lastLine);
         } else if (kind === 'key_rejected' || kind === 'no_key') {
           s.needsKey = true;
@@ -356,8 +447,11 @@ function createLoop(deps) {
         } else if (kind === 'bad_model') {
           s.lastLine = `model not available on this ${who} account — check config.json`;
           s.backoffUntil = d.now() + 15 * 60000;
-        } else if (kind === 'rate_limited' || kind === 'overloaded' || kind === 'network') {
-          const wait = BACKOFF_STEPS_MS[Math.min(s.backoffStep, BACKOFF_STEPS_MS.length - 1)];
+        } else if (kind === 'rate_limited' || kind === 'overloaded' || kind === 'network' || kind === 'not_configured') {
+          // not_configured here is the SERVICE missing a setting (503): like
+          // a busy service, it counts as on-task and is tried again later.
+          const step = BACKOFF_STEPS_MS[Math.min(s.backoffStep, BACKOFF_STEPS_MS.length - 1)];
+          const wait = Math.max(step, retryAfterMs);
           s.backoffStep++;
           s.backoffUntil = d.now() + wait;
           s.lastLine = `${kind === 'network' ? 'no connection' : `${who} busy`} — retrying at ${fmtTime(s.backoffUntil)}`;
@@ -477,11 +571,34 @@ function createLoop(deps) {
     // A new license, or a changed provider, deserves a real check rather than
     // a skip against a frame judged under the old settings.
     s.needsSubscription = false;
+    s.planProblem = null;
+    s.planHold = false;
+    s.holdLine = false;
     s.lastHashes = null;
     s.lastHashApp = null;
     if (timer) start();
     applyAlertState();
     status();
+  }
+
+  /**
+   * The service has just said this plan is served (a fresh /v1/status after
+   * the card was fixed at link.com or in the billing portal). Lift whatever
+   * plan refusal the loop is waiting out, so checks start again now rather
+   * than when the 15-minute wait runs out. Does nothing when the loop is not
+   * waiting on the plan: a network backoff, for example, is left alone.
+   */
+  function clearPlanHold() {
+    if (!s.planProblem && !s.planHold && !s.needsSubscription) return false;
+    s.planProblem = null;
+    s.planHold = false;
+    s.needsSubscription = false;
+    s.backoffUntil = 0;
+    s.backoffStep = 0;
+    s.errorKind = null;
+    if (s.holdLine) { s.holdLine = false; s.lastLine = 'watching…'; }
+    status();
+    return true;
   }
 
   /** Plan facts for the tray and the windows; nulls when there is no account. */
@@ -509,7 +626,7 @@ function createLoop(deps) {
       lastLine: s.lastLine, lastActivity: s.lastActivity, lastApp: s.lastApp,
       lastVerdictTs: s.lastVerdictTs, lastCheckAt: s.lastCheckAt,
       needsScreenPermission: s.needsScreenPermission || s.screenDenied, needsKey: s.needsKey, capHit: s.capHit,
-      graceUntil: s.graceUntil, backoffUntil: s.backoffUntil, errorKind: s.errorKind,
+      graceUntil: s.graceUntil, backoffUntil: s.backoffUntil, errorKind: s.errorKind, planHold: s.planHold,
       analyzing: s.analyzing, running: !!timer,
       grayscaleUsable: grayscaleUsable()
     };
@@ -529,9 +646,12 @@ function createLoop(deps) {
 
   return {
     tick, pause, pauseFor, resume, dispute, checkNow, restoreColor, previewGray,
-    setLocked, onWake, recheckPermission, start, stop, reload, getLive, destroy,
+    setLocked, onWake, recheckPermission, start, stop, reload, clearPlanHold, getLive, destroy,
     applyAlertState, setNeedsScreenPermission, _state: s
   };
 }
 
-module.exports = { createLoop, TICK_HARD_LIMIT_MS, BACKOFF_STEPS_MS, SUBSCRIPTION_LINES, SUBSCRIPTION_BACKOFF_MS };
+module.exports = {
+  createLoop, TICK_HARD_LIMIT_MS, BACKOFF_STEPS_MS, SUBSCRIPTION_LINES, SUBSCRIPTION_BACKOFF_MS,
+  DAILY_BUDGET_LINE, QUOTA_RETRY_MS, NOT_CONNECTED_LINE, UNREGISTERED_LINE, SECRETS_LOCKED_LINE, isStickyPlanProblem
+};

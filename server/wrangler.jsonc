@@ -1,48 +1,119 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
+  // Two Workers from one codebase, each with its OWN database:
+  //   - the top level is the LIVE Worker "grayout-api" (real money, the
+  //     address the app and the site use);
+  //   - env.sandbox is the SANDBOX Worker "grayout-api-sandbox" (Stripe
+  //     sandbox keys and test cards), for trying everything before launch.
+  // A sandbox purchase can therefore never give anyone service on the live
+  // Worker: the live Worker has never seen its rows, and it refuses gry_test_
+  // keys anyway (src/config.js, "live or sandbox").
+  //   bash scripts/deploy.sh sandbox     deploys the sandbox Worker
+  //   bash scripts/deploy.sh live        deploys the live Worker
   "name": "grayout-api",
   "main": "src/index.js",
   "compatibility_date": "2026-09-01",
-  // Checked against the built bundle: nothing here imports a Node built-in
-  // today. The flag is insurance for a future Stripe SDK release, and it costs
-  // nothing while it is unused.
+  // Insurance for the Stripe SDK; nothing imports a Node built-in today.
   "compatibility_flags": ["nodejs_compat"],
+  // Logs stay on: no URL carries a secret, and request bodies are never logged.
   "observability": { "enabled": true },
 
-  // Create the namespace once, then paste its id here:
-  //   npx wrangler kv namespace create GRAYOUT_KV
-  "kv_namespaces": [
+  // The live database. scripts/deploy.sh creates it and writes its id here in
+  // place of the placeholder. Tables: migrations/0001_init.sql.
+  "d1_databases": [
     {
-      "binding": "GRAYOUT_KV",
-      "id": "REPLACE_WITH_KV_NAMESPACE_ID"
+      "binding": "DB",
+      "database_name": "grayout",
+      "database_id": "__GRAYOUT_D1_DATABASE_ID__",
+      "migrations_dir": "migrations"
     }
   ],
 
-  // Public settings. Nothing secret goes in this file — it is committed.
-  "vars": {
-    // Where the marketing site lives. Checkout returns the person here.
-    "SITE_BASE": "https://aarushkandukoori.github.io/grayout",
-    // Browser origins allowed to call this API. The app sends no Origin at all
-    // and is unaffected by this list.
-    "SITE_ORIGINS": "https://aarushkandukoori.github.io,https://grayout.app,https://www.grayout.app",
-    "CHECKOUT_SUCCESS_PATH": "/success.html",
-    "CHECKOUT_CANCEL_PATH": "/pricing.html",
-    "PORTAL_RETURN_PATH": "/",
-    // The vision model. Anything on OpenAI's Responses API with image input.
-    "MODEL": "gpt-5-mini"
-  }
+  // Rate limits (contract section 11). They count in memory and write nothing
+  // to storage. `period` can only be 10 or 60 seconds.
+  "ratelimits": [
+    { "name": "RL_MINT", "namespace_id": "1001", "simple": { "limit": 3, "period": 60 } },
+    { "name": "RL_IP", "namespace_id": "1002", "simple": { "limit": 120, "period": 60 } },
+    { "name": "RL_STRIPE_IP", "namespace_id": "1003", "simple": { "limit": 10, "period": 60 } },
+    { "name": "RL_FREE_IP", "namespace_id": "1004", "simple": { "limit": 4, "period": 60 } },
+    { "name": "RL_DEVICE", "namespace_id": "1005", "simple": { "limit": 40, "period": 60 } },
+    { "name": "RL_LICENSE", "namespace_id": "1006", "simple": { "limit": 20, "period": 60 } },
+    // /v1/check per IP, counted before its (up to 8 MB) body is read.
+    { "name": "RL_CHECK_IP", "namespace_id": "1007", "simple": { "limit": 60, "period": 60 } }
+  ],
 
-  // Secrets — set each one once per environment, before the first deploy:
-  //
-  //   npx wrangler secret put STRIPE_SECRET_KEY       # sk_live_… (sk_test_… while testing)
-  //   npx wrangler secret put STRIPE_WEBHOOK_SECRET   # whsec_… from the webhook endpoint
-  //   npx wrangler secret put OPENAI_API_KEY          # the service's own model key
-  //   npx wrangler secret put STRIPE_PRICE_MONTHLY    # price_… for $9.99 / month
-  //   npx wrangler secret put STRIPE_PRICE_YEARLY     # price_… for $79 / year
-  //
-  // The price ids are not strictly secret; they live here so that switching a
-  // price never needs a code change or a redeploy of this file.
-  //
-  // For `wrangler dev`, put the same five names in server/.dev.vars — see
-  // .dev.vars.example. That file is gitignored.
+  // Once a day: delete expired codes, old sessions, old event ids (section 12.4).
+  // Both Workers inherit this.
+  "triggers": { "crons": ["17 4 * * *"] },
+
+  // Public settings for the LIVE Worker. Nothing secret goes in this file: it is committed.
+  "vars": {
+    // Where the website lives. Checkout sends buyers back here.
+    "SITE_URL": "https://aarushkandukoori.github.io/grayout",
+    // Browser origins allowed to read the CORS routes. The app sends no Origin.
+    "SITE_ORIGINS": "https://aarushkandukoori.github.io",
+    // LIVE Grayout Pro product and prices. Empty until go-live (README step
+    // 10); until then the live Worker sells nothing (503 not_configured).
+    "STRIPE_PRODUCT": "",
+    "STRIPE_PRICE_MONTHLY": "",
+    "STRIPE_PRICE_YEARLY": "",
+    // Free checks served to everyone per UTC day (about $2.10 of model spend).
+    "FREE_DAILY_BUDGET": "3000",
+    // The support address in Stripe → Settings → Business details. Shown to
+    // refunded or disputed customers. Fill it in before going live.
+    "SUPPORT_EMAIL": "",
+    "MODEL": "gpt-5-mini"
+  },
+
+  // Secrets. The owner sets each one; they never go in this file.
+  //   npx wrangler secret put STRIPE_SECRET_KEY       # live: rk_live_…   sandbox (--env sandbox): rk_test_…
+  //   npx wrangler secret put STRIPE_WEBHOOK_SECRET   # whsec_… from that Worker's Stripe webhook endpoint
+  //   npx wrangler secret put OPENAI_API_KEY          # the service's own model key (sandbox: a capped one)
+  //   npx wrangler secret put DEVICE_SECRET           # openssl rand -base64 48
+  //   npx wrangler secret put LICENSE_SECRET          # openssl rand -base64 48 (NEVER rotate)
+  // Add `--env sandbox` to each to set the sandbox Worker's copy.
+  // For `wrangler dev`, put them in server/.dev.vars (see .dev.vars.example).
+
+  "env": {
+    "sandbox": {
+      // The sandbox Worker. Bindings and vars are not inherited from the top
+      // level, so each is repeated here with sandbox values.
+      "name": "grayout-api-sandbox",
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "grayout-sandbox",
+          "database_id": "3496326c-6f69-4b96-b19a-6f833d73b593",
+          "migrations_dir": "migrations"
+        }
+      ],
+      // Own namespaces, so sandbox testing never uses up the live limits.
+      "ratelimits": [
+        { "name": "RL_MINT", "namespace_id": "2001", "simple": { "limit": 3, "period": 60 } },
+        { "name": "RL_IP", "namespace_id": "2002", "simple": { "limit": 120, "period": 60 } },
+        { "name": "RL_STRIPE_IP", "namespace_id": "2003", "simple": { "limit": 10, "period": 60 } },
+        { "name": "RL_FREE_IP", "namespace_id": "2004", "simple": { "limit": 4, "period": 60 } },
+        { "name": "RL_DEVICE", "namespace_id": "2005", "simple": { "limit": 40, "period": 60 } },
+        { "name": "RL_LICENSE", "namespace_id": "2006", "simple": { "limit": 20, "period": 60 } },
+        { "name": "RL_CHECK_IP", "namespace_id": "2007", "simple": { "limit": 60, "period": 60 } }
+      ],
+      "vars": {
+        "SITE_URL": "https://aarushkandukoori.github.io/grayout",
+        "SITE_ORIGINS": "https://aarushkandukoori.github.io",
+        // Sandbox product and prices ("Kandukoori's Kreations sandbox"):
+        // Grayout Pro, $9.99 / month and $79 / year, tax exclusive.
+        "STRIPE_PRODUCT": "prod_VOwDoJ9qK3jgr2",
+        "STRIPE_PRICE_MONTHLY": "price_1UO8KkPV4dR0vRRs2iGyzRYY",
+        "STRIPE_PRICE_YEARLY": "price_1UO8KmPV4dR0vRRs5AshLGsJ",
+        // Only this Worker serves gry_test_ licenses (bought with test cards).
+        "ALLOW_TEST_LICENSES": "1",
+        // A small daily budget: the sandbox spends a real model key too.
+        // EVERY sandbox check counts against it, free or with a test key,
+        // because anyone can "buy" a test key with a test card.
+        "FREE_DAILY_BUDGET": "200",
+        "SUPPORT_EMAIL": "",
+        "MODEL": "gpt-5-mini"
+      }
+    }
+  }
 }

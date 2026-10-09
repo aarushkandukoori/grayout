@@ -1,18 +1,20 @@
 # Operator runbook (the hosted plan, shipped)
 
+> **Out of date (noted 2026-10-08).** Parts of this file describe the v2 design that was never deployed: Workers KV, a custom domain `api.grayout.app` as the app's default address, and webhook-driven status. v3 replaced all three: the service uses Cloudflare D1, lives on `workers.dev` until a domain is bought, has no default address until the deploy step fills one in, and reads status live from Stripe. Nothing has shipped yet. For anything technical, [API-CONTRACT.md](../docs/API-CONTRACT.md) (v3) is the authority; the server's own runbook is `server/README.md`.
+
 This used to be a plan. As of 2026-09-22 it is the product: Grayout 2.0 sells a subscription and the Grayout service makes the model calls. This document is what survives launch — why the price is what it is, what to watch, and the list of things only the owner can do.
 
 Internal. Linked nowhere on the site. Numbers here are cost of goods and margin; the public pages say what it costs to buy, not what it costs to run.
 
-The binding technical document is [API-CONTRACT.md](API-CONTRACT.md). Prices, endpoints, storage keys, and error codes are settled there. If this file and that file disagree, that file is right and this one needs fixing.
+The binding technical document is [API-CONTRACT.md](../docs/API-CONTRACT.md). Prices, endpoints, storage keys, and error codes are settled there. If this file and that file disagree, that file is right and this one needs fixing.
 
 ## What shipped
 
 | Plan | Price | What they get |
 |---|---|---|
 | Free taste | $0, no card, no account | 100 checks, device-bound, about one working day |
-| Pro monthly | $9.99 / month, 7-day free trial | 15,000 checks a month |
-| Pro yearly | $79 / year (34% off monthly) | 15,000 checks a month |
+| Pro monthly | $9.99 / month, 7-day free trial | 10,000 checks a month |
+| Pro yearly | $79 / year (34% off monthly) | 10,000 checks a month |
 
 The app holds a Grayout license key and talks only to `api.grayout.app`. Self-hosting on your own Anthropic or OpenAI key stays supported and documented in the README, because the repository is MIT and pretending otherwise would be dishonest.
 
@@ -30,8 +32,8 @@ $9.99 was chosen because it is the price of a thing people buy without a meeting
 
 ### The numbers that decide when the price is wrong
 
-- **Break-even is about 14,300 checks a month** at $9.99 ($9.99 ÷ $0.00070), a little under 13,500 once processing is taken out. The 15,000 allowance therefore sits *just past* break-even by design: a subscriber who somehow used every included check would cost about $10.50 and be slightly unprofitable, and that is acceptable because nobody reaching that number is a typical user. What caps the downside is that past the allowance the service **stretches the interval instead of cutting anyone off** — the bill flattens, the product keeps working, nobody gets an angry email.
-- **A yearly subscriber at the full allowance is the worst case**: $10.50 of goods against $6.58 of revenue. One of those is fine. A pattern of them means the allowance is too generous or a license is being shared.
+- **Break-even is about 14,300 checks a month** at $9.99 ($9.99 ÷ $0.00070), nearer 12,900 once processing and the Managed Payments fee are taken out (about $9 net). The allowance is **10,000** (lowered from 15,000 on 2026-10-08) so that even a subscriber who used every included check costs about $7 and stays profitable. What caps the downside is that past the allowance the service **stretches the interval instead of cutting anyone off** — the bill flattens, the product keeps working, nobody gets an angry email.
+- **A yearly subscriber at the full allowance is the worst case**: about $7 of goods against $6.58 of revenue a month. One of those is fine. A pattern of them means the allowance is too generous or a license is being shared.
 - **The free taste costs about $0.07 per install** (100 × $0.00070). A hundred people trying it costs $7. That is cheap enough to never gate and cheap enough to ignore until the install count is in the thousands.
 
 ## What to watch
@@ -41,7 +43,7 @@ Check these monthly. Write the number and the date in this file when you do; a r
 | Signal | Where it comes from | Healthy | Act when |
 |---|---|---|---|
 | **COGS per subscriber** | OpenAI spend for the month ÷ active subscribers | at or under $3 | Over $5 for two months running. Either change-gating is not doing its job, or people are running many displays, or the model price moved. Look at the gating skip rate before touching the price. |
-| **Median and 90th-percentile checks per subscriber** | `use:<license>:<YYYY-MM>` counters in KV | median near 4,000 | The 90th percentile approaching 15,000. The allowance is the shock absorber; if ordinary use is touching it, it is not sized right. |
+| **Median and 90th-percentile checks per subscriber** | `use:<license>:<YYYY-MM>` counters in KV | median near 4,000 | The 90th percentile approaching 10,000. The allowance is the shock absorber; if ordinary use is touching it, it is not sized right. |
 | **Free-taste conversion** | device records with `freeUsed` at 100, against new subscriptions | unknown until there is data — establish the baseline in the first month, then watch the trend | It falls by half. Either the first 100 checks are not enough to show the product working, or the subscribe flow is broken. Test the flow yourself before concluding anything about the funnel. |
 | **Free tastes started but never finished** | device records with `freeUsed` well under 100 and a stale `lastSeen` | — | Most people stop partway. That is an onboarding or permissions problem, not a pricing one. Re-run the stranger test. |
 | **Trial-to-paid** | Stripe | — | Below a third. Seven days is long enough that people who keep it installed usually keep it. |

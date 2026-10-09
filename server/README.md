@@ -1,219 +1,214 @@
 # The Grayout API
 
-A single Cloudflare Worker. It sells the subscription, issues license keys, and
-makes the vision call on the app's behalf so that no one has to bring their own
-model key.
+One Cloudflare Worker with a D1 database. It sells the subscription (through
+Stripe, which is the merchant of record), issues license keys, and makes the
+vision call for the app so nobody has to bring their own model key.
 
-The app sends pixels and context. This service owns the prompt, the model key
-and the meter. `docs/API-CONTRACT.md` at the repo root is the specification;
-this directory is the implementation, and the contract wins any argument
-between them.
+`docs/API-CONTRACT.md` (v3) is the specification. This folder implements it,
+and the contract wins any disagreement.
 
 ## What is in here
 
 | File | What it does |
 |---|---|
-| `src/index.js` | The router. CORS, the request id, body limits, and the error envelope. |
-| `src/license.js` | License key generation, shape, constant-time comparison, masking. |
-| `src/store.js` | The JSON store over Workers KV, and the Map-backed one the tests use. |
-| `src/quota.js` | The free taste, the monthly allowance, and the rate limits. |
-| `src/stripe.js` | Checkout, the billing portal, and the webhook that turns a payment into a key. |
-| `src/check.js` | The prompt and the call to the model provider. |
-| `test/` | `node --test`, no network, no real Stripe, no real model call. |
+| `src/index.js` | The front door: routes, JSON-only POSTs, body limits, CORS, per-IP limit, error envelope. |
+| `src/http.js` | Error codes, responses, reading a body while counting bytes, the caller's IP key, safe logging. |
+| `src/config.js` | Every constant, and the checks that refuse missing or placeholder secrets. |
+| `src/ids.js` | Device ids and tokens, license keys (derived, never stored), device codes, hashes. |
+| `src/db.js` | Every SQL statement, as small named functions. The atomic ones are commented. |
+| `src/limits.js` | Workers Rate Limiting bindings. |
+| `src/devices.js` | `/v1/device`, `/v1/device-code`, `/v1/restore`, and device verification. |
+| `src/purchase.js` | `/v1/checkout` and `/v1/claim`. |
+| `src/account.js` | `/v1/activate`, `/v1/status`, `/v1/portal`. |
+| `src/check.js` | `/v1/check`, the watch loop's one call. |
+| `src/model.js` | The prompt and the call to the model provider. |
+| `src/stripe.js` | Checkout parameters, reading a customer from Stripe, issuing a license, refunds and disputes. |
+| `src/webhook.js` | `/v1/stripe/webhook`. |
+| `src/access.js` | Who gets checks served, and the account object. |
+| `src/cleanup.js` | The daily cron that deletes expired rows. |
+| `migrations/0001_init.sql` | The database tables. |
+| `scripts/deploy.sh` | Every deploy step that needs no secret (`sandbox` or `live`), then a list of what is left. |
+| `scripts/check-csp.js` | Checks every site page's CSP lets the browser reach the API (deploy.sh runs it). |
+| `scripts/license-key.js` | Re-derive a customer's key, to email it to a buyer who lost it. |
+| `scripts/delete-customer.js` | Print the one command that deletes a customer's record, for a data deletion request. |
+| `test/` | `node --test` against an in-memory SQLite, fake rate limiters and a fake Stripe. No network. |
 
 ## Endpoints
 
-| Method | Path | Body or query | Answers |
-|---|---|---|---|
-| POST | `/v1/check` | `deviceId`, `license?`, `displays[1-3]`, `webcam?`, `context` | `{ verdict, usage, plan }` |
-| POST | `/v1/checkout` | `deviceId`, `plan` (`monthly`/`yearly`), `deviceCode?` | `{ url }` |
-| POST | `/v1/device-code` | `deviceId` | `{ deviceCode, expiresIn }` |
-| GET | `/v1/claim` | `?deviceCode=` or `?sessionId=` | `{ status: "pending" }` or `{ status: "ready", license }` |
-| POST | `/v1/activate` | `deviceId`, `license` | `{ plan, status, interval, usage }` |
-| GET | `/v1/status` | `?license=&deviceId=&portal=1` | `{ plan, status, interval, usage, portalUrl }` |
-| POST | `/v1/portal` | `license` | `{ url }` |
-| POST | `/v1/stripe/webhook` | the raw Stripe event | `{ received: true, action }` |
-| GET | `/v1/health` | — | `{ ok: true }` |
+Everything except `GET /v1/health` is a `POST` with a JSON body. Nothing secret
+ever goes in a URL. Full shapes are in the contract, section 6.
 
-Three notes on shapes the contract leaves open.
+| Path | Needs | Answers |
+|---|---|---|
+| `GET /v1/health` | nothing | `{ ok, contract: 3, configured: {…} }` |
+| `/v1/device` | nothing (IP-limited) | `{ deviceId, deviceToken }` |
+| `/v1/device-code` | device | `{ deviceCode, expiresIn }` |
+| `/v1/checkout` | device, `plan`, `deviceCode?` | `{ url, sessionId, trial }` or `409 already_subscribed` |
+| `/v1/claim` | device + `deviceCode`, or `sessionId` | `{ status: pending \| ready \| failed }` |
+| `/v1/restore` | device | `{ status: ready, license }` or `{ status: none }` |
+| `/v1/activate` | device + license | the account object |
+| `/v1/status` | device + license, `portal?` | the account object + `portalUrl` |
+| `/v1/portal` | device + license | `{ url }` |
+| `/v1/check` | device (+ license) | `{ verdict, usage, plan, service }` |
+| `/v1/stripe/webhook` | Stripe signature | `{ received: true, action }` |
 
-- `plan` and `status` carry the same lifecycle value, one of `free`,
-  `trialing`, `active`, `past_due`, `canceled`. `interval` is the separate
-  question of which price is being paid, `monthly` or `yearly`, or `null`.
-- `usage.periodEnd` is what the person is billed on. `usage.resetsAt` is when
-  the check meter itself rolls over, which is the first of the next month,
-  because the counter key is `use:<license>:<YYYY-MM>`. On the free taste both
-  are `null`: 100 checks is a one-off and never comes back.
-- `portalUrl` is `null` unless the request asks for it with `portal=1`. A Stripe
-  portal link is a live API call and a short-lived link, and the app polls
-  `/v1/status` every ten minutes, so it is minted only when someone is about to
-  click it.
-
-Beyond the contract's two limits, 40 checks a minute per device and 1,200 an
-hour per license, the endpoints that are not the watch loop carry a ceiling of
-their own: 30 a minute per device for `/v1/device-code`, `/v1/checkout`,
-`/v1/activate` and `/v1/status`, 45 a minute per code for `/v1/claim`, which is
-comfortably above the app's two-second poll, and 20 a minute per session id for
-the `?sessionId=` form, which `success.html` asks a handful of times. They sit in a separate
-window so they can never eat a subscriber's check budget.
-
-Errors are always `{ "error": { "code", "message" } }`. The codes the app
-handles by name are in the contract. Three more exist for the cases the contract
-does not cover, and they arrive in the same envelope: `bad_request`,
-`code_expired` (the 15-minute claim code is gone, so stop polling), and
-`invalid_signature`.
+"device" means the body has a `deviceId` and `deviceToken` that this server
+minted. "license" means `license` in the body or `Authorization: Bearer gry_…`.
 
 ## Deploying it, from nothing
 
-You need Node 22 (`.nvmrc` at the repo root), a Cloudflare account, and a Stripe
-account. Roughly twenty minutes.
+About an hour the first time. Do it all in a Stripe **sandbox** first; going
+live is step 9. You never paste a secret into a file or a chat: each one goes
+straight into Cloudflare with `npx wrangler secret put`, which asks for it.
 
-### 1. Install
+There are **two Workers, each with its own database** (`wrangler.jsonc`):
+`grayout-api-sandbox` (Stripe sandbox, test cards, `gry_test_` keys) and
+`grayout-api` (live). A key bought with a test card can never get real
+service: the live Worker never sees the sandbox's rows, and it refuses
+`gry_test_` keys anyway. Every `wrangler` command for the sandbox Worker
+takes `--env sandbox`.
 
+1. **Accounts.** Make a Cloudflare account at <https://dash.cloudflare.com/sign-up>
+   and switch it to the **Workers Paid** plan ($5/month; the free plan's D1
+   write limit runs out at a few hundred subscribers). You already have the
+   Stripe sandbox "Kandukoori's Kreations sandbox" with Grayout Pro and both
+   prices; their ids are already in `wrangler.jsonc`.
+
+2. **Log in from your Mac.** You need Node 22.13 or newer (`node --version`;
+   the tests need its built-in SQLite).
+   ```bash
+   cd server
+   npm install
+   npx wrangler login      # opens a browser; approve it
+   ```
+
+3. **Run the deploy script for the sandbox.**
+   ```bash
+   bash scripts/deploy.sh sandbox
+   ```
+   It runs the tests, then does these, skipping any that are already done:
+   `npx wrangler d1 create grayout-sandbox` (and writes the database id into
+   `wrangler.jsonc`), `npx wrangler d1 migrations apply grayout-sandbox
+   --remote --env sandbox`, and `npx wrangler deploy --env sandbox`. It prints
+   the sandbox address but **does not** write it into `src/config.js` or
+   `docs/config.js`: the repo is public, and those must only ever point at the
+   live Worker. Test the sandbox with the app (`apiBase` in its
+   `config.json`) or a local copy of the site. It ends with a numbered list of
+   what is left. Until the secrets are set, every endpoint answers
+   `503 not_configured`, so nothing can be bought or forged in the meantime.
+
+4. **Turn on Managed Payments** (Stripe is then the merchant of record: it
+   charges, files and pays US sales tax and EU/UK VAT for you). In the Stripe
+   Dashboard:
+   - Settings → **Managed Payments** → activate.
+   - Settings → **Business details**: a real support email you read. Put the
+     same address in `SUPPORT_EMAIL` in `wrangler.jsonc`.
+   - Settings → **Checkout**: add your terms and privacy page URLs. Turn on
+     **Limit customers to one subscription**. (The service also refuses a
+     second checkout itself; this is a second guard.)
+   - **Radar**: turn on free-trial abuse protection
+     (<https://docs.stripe.com/radar/free-trial-abuse>), if Managed Payments
+     offers it. The service already gives one trial per email and card.
+   - Billing → **Subscriptions and emails**: "If all retries for a payment
+     fail" → **Cancel the subscription**. "Manage disputed payments" →
+     **Cancel the subscription immediately**.
+   - Settings → Billing → **Customer portal**: cancellations **at the end of
+     the billing period** with a reason; payment method updates on; **switch
+     plans** on, with Grayout Pro's monthly and yearly prices, prorated,
+     downgrades immediately; **login link** on. Then in the sandbox, switch a
+     test subscription monthly ↔ yearly. If switching fails, turn it off (the
+     site then says "cancel and subscribe again").
+
+5. **Make the restricted key** (never use the full `sk_` secret key). Developers
+   → API keys → **Create restricted key**, with only these permissions:
+
+   | Resource | Access |
+   |---|---|
+   | Checkout Sessions | Write |
+   | Customer portal | Write |
+   | Subscriptions | Write |
+   | Invoices (and Invoice Payments, if listed separately) | Read |
+   | Charges | Read |
+   | Refunds | Write (to refund a second subscription bought by mistake) |
+   | Payment Methods | Read (to recognise a card that already had a trial) |
+   | Radar early fraud warnings | Read, if listed |
+   | Everything else | None |
+
+   ```bash
+   npx wrangler secret put STRIPE_SECRET_KEY --env sandbox   # paste the rk_test_… key
+   ```
+
+6. **Register the webhook.** Developers → Webhooks → **Add destination**:
+   - Endpoint URL: `https://grayout-api-sandbox.<your-subdomain>.workers.dev/v1/stripe/webhook`
+     (live, in step 9: `https://grayout-api.<your-subdomain>.workers.dev/v1/stripe/webhook`)
+   - **API version: `2026-08-26.dahlia`** (pick it explicitly; Stripe sends
+     each endpoint events in that endpoint's version, and this code reads
+     dahlia shapes).
+   - Exactly these 13 events:
+     `checkout.session.completed`, `checkout.session.async_payment_succeeded`,
+     `checkout.session.async_payment_failed`, `customer.subscription.created`,
+     `customer.subscription.updated`, `customer.subscription.deleted`,
+     `customer.subscription.paused`, `customer.subscription.resumed`,
+     `invoice.paid`, `invoice.payment_failed`, `charge.refunded`,
+     `charge.dispute.created`, `radar.early_fraud_warning.created`.
+
+   Copy its signing secret (`whsec_…`) into Cloudflare:
+   ```bash
+   npx wrangler secret put STRIPE_WEBHOOK_SECRET --env sandbox
+   ```
+   The webhook refuses everything (503) until a real `whsec_…` is set, and it
+   refuses anything that looks like a placeholder.
+
+7. **The other three secrets.**
+   ```bash
+   npx wrangler secret put OPENAI_API_KEY --env sandbox   # the service's own model key
+   openssl rand -base64 48 | npx wrangler secret put DEVICE_SECRET --env sandbox
+   openssl rand -base64 48 | tee /dev/tty | npx wrangler secret put LICENSE_SECRET --env sandbox
+   ```
+   Save the `LICENSE_SECRET` it shows in your password manager. **Never change
+   it**: every customer's key is derived from it, and
+   `scripts/license-key.js` needs it to re-send a lost key. Changing
+   `DEVICE_SECRET` signs every Mac out of the service (they re-register).
+
+8. **Check and test.** Run `bash scripts/deploy.sh sandbox` again; its list should now
+   be short. Open `https://grayout-api-sandbox.<subdomain>.workers.dev/v1/health`:
+   every `configured` flag must be `true`. Then, in the sandbox, with
+   `stripe logs tail` open (add any permission that shows a 403 to the key in
+   step 5): a trial purchase from the app, a paid yearly purchase from the
+   website, a portal plan switch and a cancel, a full refund (the key stops
+   working), a partial refund (it keeps working), a dispute, and a second
+   checkout from a subscribed Mac (expect "already subscribed").
+
+9. **Go live.** In live mode, repeat step 4, make the live product and prices
+   (tax code `txcd_10105003`, tax behavior **exclusive**), put the live
+   `prod_…` and both live `price_…` ids in the **top-level** `vars` of
+   `wrangler.jsonc`, and run `bash scripts/deploy.sh live`. That makes the
+   live Worker's **own, empty** database (never copy sandbox rows into it),
+   deploys it, fills its address into `src/config.js` and `docs/config.js`,
+   and stops if any site page's CSP would block that address. Then repeat
+   steps 5 to 7 **without** `--env sandbox`, with live keys (`rk_live_…`, a
+   live endpoint and its `whsec_…`, new random `DEVICE_SECRET` and
+   `LICENSE_SECRET`). Run `bash scripts/deploy.sh live` once more, then
+   commit and publish.
+
+Things that need you by hand later are in contract section 14.6: clearing a
+revocation, deleting a customer's record, and re-sending a lost key:
 ```bash
-cd server
-npm install
-npx wrangler login
+LICENSE_SECRET=… node scripts/license-key.js cus_…            # add --test for a sandbox customer
+node scripts/delete-customer.js cus_…                         # prints the command to run; add --sandbox for the sandbox
 ```
-
-`wrangler login` opens a browser and asks you to authorize the CLI against your
-Cloudflare account. If you do not have one, make it at
-<https://dash.cloudflare.com/sign-up> first; the Workers free tier covers this
-service until it has real traffic.
-
-### 2. Make the KV namespace
-
-```bash
-npx wrangler kv namespace create GRAYOUT_KV
-```
-
-It prints something like:
-
-```
-{ "binding": "GRAYOUT_KV", "id": "0f1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e" }
-```
-
-Open `wrangler.jsonc` and replace `REPLACE_WITH_KV_NAMESPACE_ID` with that id.
-That is the only edit the file needs.
-
-### 3. Make the two Stripe prices
-
-In the Stripe dashboard, under Product catalogue, add a product called
-**Grayout Pro** with two recurring prices, **$9.99 per month** and **$79 per
-year**. Or from the CLI:
-
-```bash
-stripe products create --name "Grayout Pro"
-# note the prod_… id it prints, then:
-stripe prices create -d "product=prod_REPLACE" -d "unit_amount=999"  -d "currency=usd" -d "recurring[interval]=month"
-stripe prices create -d "product=prod_REPLACE" -d "unit_amount=7900" -d "currency=usd" -d "recurring[interval]=year"
-```
-
-Keep the two `price_…` ids. The 7-day trial is not part of the price; this
-service asks for it on the monthly checkout session.
-
-While you are in the dashboard, turn on the customer portal under Settings →
-Billing → Customer portal and save a configuration. Without one,
-`/v1/portal` fails with "No configuration provided" the first time someone
-tries to cancel.
-
-### 4. Set the five secrets
-
-Each command prompts for the value and stores it encrypted. Nothing is written
-to disk and nothing goes in `wrangler.jsonc`.
-
-```bash
-npx wrangler secret put STRIPE_SECRET_KEY      # sk_live_… (use sk_test_… first)
-npx wrangler secret put STRIPE_PRICE_MONTHLY   # the price_… for $9.99 / month
-npx wrangler secret put STRIPE_PRICE_YEARLY    # the price_… for $79 / year
-npx wrangler secret put OPENAI_API_KEY         # the service's own model key
-npx wrangler secret put STRIPE_WEBHOOK_SECRET  # a placeholder for now: whsec_placeholder
-```
-
-The webhook secret does not exist until the endpoint does, which needs the
-Worker's URL, which needs a deploy. Put anything in it now and set the real
-value in step 6.
-
-### 5. Deploy
-
-```bash
-npx wrangler deploy
-```
-
-It prints the URL, something like
-`https://grayout-api.<your-subdomain>.workers.dev`. Check it:
-
-```bash
-curl https://grayout-api.<your-subdomain>.workers.dev/v1/health
-# {"ok":true}
-```
-
-That URL is a working base URL for the app. `apiBase` in the app's
-`config.json` overrides the default, and `GRAYOUT_API_BASE` does the same when
-running from source. Point `api.grayout.app` at the Worker later, under Workers
-& Pages → your Worker → Settings → Domains & Routes.
-
-### 6. Register the webhook
-
-In the Stripe dashboard, under Developers → Webhooks, add an endpoint at
-`https://<your worker URL>/v1/stripe/webhook` and select exactly these events:
-
-- `checkout.session.completed`
-- `customer.subscription.created`
-- `customer.subscription.updated`
-- `customer.subscription.deleted`
-- `invoice.payment_failed`
-
-Copy the signing secret it shows, `whsec_…`, and set it for real:
-
-```bash
-npx wrangler secret put STRIPE_WEBHOOK_SECRET
-```
-
-Secrets take effect immediately; there is no need to deploy again. Send a test
-event from the dashboard and confirm it comes back 200.
-
-### 7. Buy something in test mode
-
-With `sk_test_…` and test prices, run the whole flow once: the app asks for a
-device code, opens checkout, you pay with `4242 4242 4242 4242`, the webhook
-issues a key, and the app claims it from `/v1/claim` and starts checking. If
-`/v1/claim` stays `pending`, the webhook is not arriving — look at
-Developers → Webhooks → your endpoint for the delivery attempts and the
-response body, which carries the request id.
-
-## Two ways to claim a license
-
-`?deviceCode=` is the app's path: it makes a code, opens checkout with the code
-as `client_reference_id`, and the webhook attaches the issued license to it.
-
-`?sessionId=` is the website's path, and it exists because a purchase started in
-a browser has no device code to attach anything to. The service reads the
-Checkout Session back from Stripe and maps its customer id through
-`cus:<customerId>` to the license. It answers `pending` until the session is
-complete **and** the webhook has issued the key, so the success page retries for
-about twenty seconds. A trial checkout completes with
-`payment_status: "no_payment_required"`, and that counts as complete.
-
-Both values are bearer credentials: whoever holds one can read the license that
-purchase bought, and nothing else.
+Always delete a customer with the script, never with hand-written SQL: the
+database refuses to delete a license that other rows still point at, and the
+script clears every one of them first (a test checks it still does).
 
 ## Running it locally
 
 ```bash
-cp .dev.vars.example .dev.vars   # then fill it in; .dev.vars is gitignored
-npx wrangler dev
+cp .dev.vars.example .dev.vars        # then fill in real sandbox values
+npx wrangler d1 migrations apply grayout-sandbox --local --env sandbox
+npx wrangler dev --env sandbox        # the sandbox Worker's vars: test prices, gry_test_ keys allowed
+stripe listen --forward-to http://localhost:8787/v1/stripe/webhook   # prints the whsec_ for .dev.vars
 ```
-
-`wrangler dev` uses a local KV that starts empty and lives under `.wrangler/`.
-To exercise webhooks locally, forward them:
-
-```bash
-stripe listen --forward-to http://localhost:8787/v1/stripe/webhook
-```
-
-That prints its own `whsec_…`, which is the one to put in `.dev.vars` while you
-are forwarding.
 
 ## Tests
 
@@ -221,47 +216,36 @@ are forwarding.
 npm test
 ```
 
-`node --test` over `test/**/*.test.js`. They cover the license key shape and the
-constant-time comparison, the free taste running out, usage accounting and month
-rollover, both rate limits, the device-code claim lifecycle end to end, webhook
-routing for every handled event, the error envelope for every code in the
-contract, the prompt's fencing of untrusted task text, and verdict coercion.
-
-Nothing in the suite reaches the network. The store is a `Map`, Stripe is a
-hand-written object with the three methods this service calls, and the model
-provider is a stub `fetch` that records what it was asked for. If a test ever
-needs a real key, the test is wrong.
-
-A dry build, which needs no Cloudflare account:
-
-```bash
-npx wrangler deploy --dry-run
-```
+`test/` runs against the real schema in an in-memory SQLite (`test/d1.js`, a
+small D1 stand-in), fake rate-limit bindings and a fake Stripe that keeps
+subscriptions in memory (`test/fakes.js`), so a test can change "what Stripe
+says" and deliver signed webhook events in any order. `test/findings.test.js`
+has one regression test for each of the 29 problems found in v2, and
+`test/review-findings.test.js` one for each problem the 2026-10-08 review of
+v3 found, `test/server-fixes.test.js` covers the second pass over that
+review, and `test/third-pass.test.js` the third (each file's header maps every
+finding to its test).
 
 ## Things worth knowing before you change it
 
-- **The prompt is the product.** `src/check.js` carries the same rules as
-  `src/analyzer.js` in the app, word for word. Read the "Never loosen the prompt
-  for engagement" section of `CONTRIBUTING.md` before touching either.
-- **Anything that is not a clean verdict is on task.** A malformed model
-  response, a refusal, a timeout, a 500 from the provider: all of them end as an
-  error the app treats as on task. The screen never goes gray because something
-  broke.
-- **A check is billed only when it produced a verdict.** The meter is
-  incremented after the model answers, never before.
-- **KV has no transactions.** `incr` is read-modify-write and can lose a racing
-  increment, which is why only the usage meter and the rate limiters use it.
-  Licenses and claims are plain writes.
-- **Storage keys.** The contract's table is in `store.js` as `keys`. Two
-  families are not in that table and are operational only: `rl:…`, the rate-limit
-  windows, which expire within two windows, and `cus:pending:…`, where a
-  subscription event that arrives before its checkout session parks its status
-  for 24 hours.
-- **Checkout returns people to the site.** `SITE_BASE` plus
-  `CHECKOUT_SUCCESS_PATH` and `CHECKOUT_CANCEL_PATH` in `wrangler.jsonc` point
-  at `docs/success.html` and `docs/pricing.html`. If those pages are renamed,
-  change the vars in the same change, or a paying customer lands on a 404.
-- **Self-hosting still works.** The repo is MIT, and setting `provider` to
-  `anthropic` or `openai` in the app's `config.json` with a key in the keychain
-  bypasses this service entirely. That stays documented in the app's README and
-  nowhere in the product UI.
+- **Status only comes from Stripe.** `syncCustomer` in `src/stripe.js` is the
+  only code that writes a subscription status, and it always reads Stripe
+  live. Never set a status from an event payload: events arrive out of order.
+- **Every limit that matters is one SQL statement** (`src/db.js`). Two
+  requests at the same moment cannot both use the last free check.
+- **A check is reserved before the model call.** It is given back only when
+  the model provider certainly did not charge (no connection, an error
+  status). A refusal, an incomplete or unreadable answer or a timeout was
+  billed, so it stays counted; otherwise failing on purpose would spend the
+  model key for free.
+- **One device, one subscription.** `/v1/checkout` answers 409 when the
+  device already has an open subscription and expires its older sessions
+  first. If a second session is paid anyway, `fulfilSession` cancels and
+  refunds it and leaves the device on its first license (contract 7.1 step 3).
+- **The prompt is the product.** `src/model.js` carries the same rules as
+  `src/analyzer.js` in the app. Read the "Never loosen the prompt for
+  engagement" section of `CONTRIBUTING.md` before touching either.
+- **Nothing secret is logged.** Log lines carry ids and codes only, and
+  `scrub()` in `src/http.js` masks anything key-shaped as a second guard.
+- **Self-hosting still works.** Setting `provider` to `anthropic` or `openai`
+  in the app's `config.json` bypasses this service entirely.

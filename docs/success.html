@@ -1,100 +1,189 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en" data-page="success">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark light">
-  <meta name="robots" content="noindex">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src https://api.grayout.app; base-uri 'none'; form-action 'none'">
-  <title>You are set — Grayout for Mac</title>
-  <meta name="description" content="Your Grayout subscription is active. Open the app and it claims the license on its own.">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%238a8a8a'/%3E%3Cpath d='M16 16 L16 2 A14 14 0 0 1 30 16 Z' fill='%23d03b3b'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="style.css">
-  <script src="app.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://*.workers.dev; base-uri 'self'; form-action 'none'; object-src 'none'; frame-src 'none'; manifest-src 'self'">
+<meta name="referrer" content="no-referrer">
+<title>Unlocking Grayout Pro | Grayout</title>
+<meta name="description" content="Your Grayout Pro license key, right after checkout.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#DDE2EE">
+<meta name="color-scheme" content="light">
+<link rel="icon" href="img/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="img/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<link rel="preload" href="fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/eb-garamond-500-latin.woff" as="font" type="font/woff" crossorigin>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="pages.css">
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script src="claim.js" defer></script>
 </head>
-<body class="v2">
-
-<a class="sr-only" href="#main">Skip to content</a>
-
-<header class="nav" data-nav>
-  <div class="nav-in">
-    <a class="nav-brand" href="index.html"><span class="mark" aria-hidden="true"></span>Grayout</a>
-    <nav class="nav-links" aria-label="Main">
-      <a href="index.html#how">How it works</a>
-      <a href="pricing.html">Pricing</a>
-      <a href="install.html">Install</a>
-      <a href="privacy.html">Privacy</a>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="hdr">
+  <div class="wrap hdr__in">
+    <a class="logo" href="./" aria-label="Grayout home"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="currentColor" opacity=".5"/><path d="M10 10V1a9 9 0 0 1 9 9z" fill="#D03B3B"/></svg><span>Grayout</span></a>
+    <nav class="nav" aria-label="Main">
+        <a href="./#how">How it works</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="download.html">Download</a>
+        <a href="privacy.html">Privacy</a>
     </nav>
-    <a class="btn btn-ghost btn-sm" href="install.html">Install</a>
+    <div class="hdr__end">
+      <button class="burger" type="button" aria-expanded="false" aria-controls="sheet" aria-label="Open menu" data-sheet-open><span></span></button>
+      <a class="burger burger--link" href="#site-footer" aria-label="Menu: every page is listed at the bottom"><span></span></a>
+    </div>
   </div>
 </header>
-
-<main id="main">
-
-  <section class="hero wrap">
-    <h1>You are set.</h1>
-    <p class="hero-sub">Go back to Grayout. It claims the subscription on its own, usually within a few seconds.</p>
-
-    <div class="claim" data-claim>
-      <h2>Your license key</h2>
-      <code class="key" hidden></code>
-      <div class="claim-row" hidden>
-        <button type="button" class="btn btn-ghost btn-sm" data-copy><span class="copy-label">Copy key</span></button>
-      </div>
-      <p class="claim-status">Checking with the service&hellip;</p>
-    </div>
-
-    <p class="fine" id="claim-help">
-      There is nothing to paste in the normal case: the app asked for this license before it sent you here, and it picks the key up itself.
-      If it has not unlocked after a minute, quit and reopen Grayout. If a key does appear above, you can paste it into Grayout’s settings by hand.
-    </p>
-
-    <div class="cta">
-      <a class="btn btn-primary" href="install.html">Finish installing</a>
-      <a class="btn btn-ghost" href="index.html">Back to the site</a>
+<a class="btn btn-primary btn-float" href="download.html" data-float tabindex="-1"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 13h10"/></svg>Download</a>
+<main id="main" class="success-main">
+  <section class="band center band--tall" aria-labelledby="claim-title">
+    <div class="wrap wrap--doc">
+      <h1 id="claim-title" data-claim-title>Unlocking Grayout Pro</h1>
+      <p class="lede" data-claim-sub>Checking your purchase with the Grayout service. This usually takes a few seconds.</p>
     </div>
   </section>
 
-  <section class="sec wrap" id="next">
-    <div class="sec-head">
-      <p class="eyebrow">Next</p>
-      <h2>Three things worth knowing.</h2>
+  <section class="wrap claim-wrap">
+    <div class="panel" data-claim aria-live="polite" aria-busy="true">
+      <div data-claim-state="checking">
+        <p class="checking"><span class="spinner" aria-hidden="true"></span>Asking Stripe whether the payment went through&hellip;</p>
+        <noscript><p>This page needs JavaScript to fetch your license key. Turn it on and reload, or open Grayout on your Mac: a purchase you started in the app unlocks it by itself.</p></noscript>
+      </div>
+
+      <div data-claim-state="ready" hidden>
+        <p class="label" id="key-label">Your license key</p>
+        <div class="keybox"><code id="license-key" data-license tabindex="0" aria-labelledby="key-label"></code><button class="copy copy--light" type="button" data-copy="#license-key"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.6"/><path d="M10.5 5.5V3.6a1.1 1.1 0 0 0-1.1-1.1H3.6a1.1 1.1 0 0 0-1.1 1.1v5.8a1.1 1.1 0 0 0 1.1 1.1h1.9"/></svg><span data-copy-label>Copy</span></button></div>
+        <p data-from-app hidden><strong>Grayout on your Mac picks it up by itself.</strong> You only need the key for another Mac.</p>
+        <ol class="howto">
+          <li>Click the Grayout icon in the menu bar and choose <strong>Settings&hellip;</strong></li>
+          <li>Under <strong>Your plan</strong>, paste the key and click <strong>Activate</strong>.</li>
+          <li>That&rsquo;s it. Checks run on Pro from the next one.</li>
+        </ol>
+        <p class="small">Save the key in your password manager now. This page drops the checkout link from the address bar so the key can&rsquo;t leak through your history, which means you can&rsquo;t come back to it later. No Grayout yet? <a class="inline-link" href="download.html">Download it</a>.</p>
+      </div>
+
+      <div data-claim-state="pending" hidden>
+        <p>Stripe has your payment, and the license is still being issued. Reload this page in a minute and it will appear here.</p>
+        <p data-from-app hidden><strong>Grayout on your Mac picks it up by itself</strong>, so you can also just go back to the app.</p>
+        <button class="btn btn-dark" type="button" data-claim-retry>Reload this page</button>
+      </div>
+
+      <div data-claim-state="unreachable" hidden>
+        <p>Your payment is safe with Stripe either way. Check your connection, then reload this page to fetch the key.</p>
+        <p data-from-app hidden><strong>Grayout on your Mac picks it up by itself</strong> once it can reach the service.</p>
+        <button class="btn btn-dark" type="button" data-claim-retry>Reload this page</button>
+      </div>
+
+      <div data-claim-state="trouble" hidden>
+        <p>Your payment is safe with Stripe either way. The Grayout service answered with an error, so reload this page in a few minutes to fetch the key.</p>
+        <p data-from-app hidden><strong>Grayout on your Mac picks it up by itself</strong> once the service recovers.</p>
+        <button class="btn btn-dark" type="button" data-claim-retry>Reload this page</button>
+      </div>
+
+      <div data-claim-state="failed" hidden>
+        <p><span data-fail-reason>The payment could not be completed.</span> No license was issued and you have not been charged for it.</p>
+        <p><a class="btn btn-dark" href="pricing.html">Back to pricing</a></p>
+      </div>
+
+      <div data-claim-state="expired" hidden>
+        <p data-from-app hidden>You started this purchase in the app, so Grayout on that Mac picks up the key by itself. Open it there.</p>
+        <p>If you already paid and need your key, <span data-when="support">email <a class="inline-link" href="#" data-support-email></a> from the address you paid with and we&rsquo;ll send it again</span><span data-when="nosupport">ask on <a class="inline-link" href="https://github.com/aarushkandukoori/grayout/issues">GitHub</a> without posting your email or key</span>.</p>
+      </div>
+
+      <div data-claim-state="revoked" hidden>
+        <p>A refunded or disputed subscription can&rsquo;t be used again. To start over, <span data-when="support">email <a class="inline-link" href="#" data-support-email></a></span><span data-when="nosupport">ask on <a class="inline-link" href="https://github.com/aarushkandukoori/grayout/issues">GitHub</a> without posting your email or key</span>.</p>
+      </div>
+
+      <div data-claim-state="badlink" hidden>
+        <p>Open the link Stripe sent you back to once more, from the same browser. If that doesn&rsquo;t work, <a class="inline-link" href="account.html">see other ways to get help</a>.</p>
+      </div>
+
+      <div data-claim-state="none" hidden>
+        <p>Looking to manage a subscription instead? <a class="inline-link" href="account.html">Manage it here</a>. Or see the <a class="inline-link" href="pricing.html">plans</a>.</p>
+      </div>
+
+      <div data-claim-state="off" hidden>
+        <p>Grayout Pro opens soon. Today&rsquo;s release is free and runs on your own OpenAI or Anthropic key.</p>
+        <p><a class="btn btn-primary" href="download.html"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 13h10"/></svg>Download Grayout</a></p>
+      </div>
     </div>
 
-    <div class="steps">
-      <div class="step">
-        <h3>It lives in the menu bar</h3>
-        <p>No Dock icon. Every control is one click away, including <strong>Restore color now</strong>.</p>
-      </div>
-      <div class="step">
-        <h3>Billing is in the app</h3>
-        <p>Settings &gt; Manage subscription opens Stripe’s billing portal, where you can change plan or cancel.</p>
-      </div>
-      <div class="step">
-        <h3>You can always quit</h3>
-        <p>Quitting restores color on the way out, and a watchdog restores it after 20 minutes no matter what.</p>
-      </div>
+    <div class="tips" data-tips hidden>
+      <div class="tip"><h3>It lives in the menu bar</h3><p>There is no Dock icon. The circle at the top right of your screen is Grayout; click it for everything.</p></div>
+      <div class="tip"><h3>Billing is in the app</h3><p>Manage subscription in the menu changes your plan or card, or cancels. So does link.com.</p></div>
+      <div class="tip"><h3>You can always quit</h3><p>Quitting restores color instantly, and so does Restore color now. It never blocks anything.</p></div>
     </div>
   </section>
-
 </main>
-
-<footer class="site-footer">
+<footer class="ftr" id="site-footer">
   <div class="wrap">
-    <div class="foot-grid">
-      <a class="nav-brand" href="index.html"><span class="mark" aria-hidden="true"></span>Grayout for Mac</a>
-      <nav aria-label="Footer">
-        <a href="pricing.html">Pricing</a>
-        <a href="install.html">Install</a>
-        <a href="privacy.html">Privacy</a>
-        <a href="https://github.com/aarushkandukoori/grayout">GitHub</a>
-        <a href="https://github.com/aarushkandukoori/grayout/issues">Issues</a>
-        <a href="https://github.com/aarushkandukoori/grayout/blob/main/LICENSE">MIT</a>
-      </nav>
+    <div class="ftr__grid">
+      <div class="ftr__brand">
+        <div>
+          <a class="logo" href="./" aria-label="Grayout home"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="currentColor" opacity=".5"/><path d="M10 10V1a9 9 0 0 1 9 9z" fill="#D03B3B"/></svg><span>Grayout</span></a>
+          <p>Your Mac goes gray when you drift and comes back in color when you work. Made by Aarush Kandukoori.</p>
+        </div>
+        <div><span class="status" data-status><span class="dot dot--amber"></span><span data-status-text>Subscriptions opening soon</span></span></div>
+      </div>
+      <div class="ftr__cols">
+        <div class="ftr__col">
+          <h2>Product</h2>
+          <ul>
+            <li><a href="download.html">Download</a></li>
+            <li><a href="pricing.html">Pricing</a></li>
+            <li><a href="changelog.html">Changelog</a></li>
+            <li><a href="account.html">Manage subscription</a></li>
+          </ul>
+        </div>
+        <div class="ftr__col">
+          <h2>Resources</h2>
+          <ul>
+            <li><a href="privacy.html">Privacy</a></li>
+            <li><a href="terms.html">Terms</a></li>
+            <li><a href="refunds.html">Refunds</a></li>
+            <li><a href="api-key.html">Use your own key</a></li>
+            <li><a href="https://github.com/aarushkandukoori/grayout">Source code</a></li>
+          </ul>
+        </div>
+        <div class="ftr__col">
+          <h2>Help</h2>
+          <ul>
+            <li><a href="download.html#first-run">First launch</a></li>
+            <li><a href="download.html#stuck">Stuck gray screen</a></li>
+            <li><a href="https://github.com/aarushkandukoori/grayout/issues/new?template=wrong-call.yml">Report a wrong call</a></li>
+            <li><a href="https://github.com/aarushkandukoori/grayout/issues">Contact</a></li>
+          </ul>
+        </div>
+      </div>
     </div>
-    <p class="foot-note">Grayout reports to nobody but you. Aarush Kandukoori, 2026.</p>
+    <div class="ftr__bottom">
+      <span>&copy; 2026 Aarush Kandukoori. MIT licensed.</span>
+      <a href="https://github.com/aarushkandukoori/grayout" aria-label="Grayout on GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1.8a10.2 10.2 0 0 0-3.2 19.9c.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.2-3.4-1.2-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.6 1 1.6 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.6-1.4-2.3-.3-4.6-1.1-4.6-5a3.9 3.9 0 0 1 1-2.7 3.6 3.6 0 0 1 .1-2.7s.9-.3 2.8 1a9.6 9.6 0 0 1 5.1 0c1.9-1.3 2.8-1 2.8-1 .5 1.4.2 2.4.1 2.7a3.9 3.9 0 0 1 1 2.7c0 3.9-2.4 4.7-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10.2 10.2 0 0 0 12 1.8Z"/></svg></a>
+    </div>
   </div>
 </footer>
-
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet__scrim" data-sheet-close></div>
+  <div class="sheet__panel" role="dialog" aria-modal="true" aria-label="Menu">
+    <div class="sheet__handle" aria-hidden="true"></div>
+    <button class="sheet__close" type="button" aria-label="Close menu" data-sheet-close><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
+    <nav aria-label="Mobile">
+      <a href="./">Home</a>
+      <a href="./#how">How it works</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="download.html">Download</a>
+        <a href="privacy.html">Privacy</a>
+      <a href="account.html">Manage subscription</a>
+    </nav>
+    <a class="btn btn-primary btn-block" href="download.html"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 13h10"/></svg>Download for Mac</a>
+  </div>
+</div>
+<div class="grayveil" aria-hidden="true"></div>
+<p class="sr-only" aria-live="polite" data-live></p>
+<div class="toast" role="status" aria-live="polite" data-toast hidden><span data-toast-text></span><button class="toast__x" type="button" aria-label="Dismiss" data-toast-close><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
 </body>
 </html>

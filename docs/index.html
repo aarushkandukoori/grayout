@@ -1,460 +1,590 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en" data-page="home">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark light">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src https://api.grayout.app; base-uri 'none'; form-action 'none'">
-  <title>Grayout for Mac — get distracted, lose color</title>
-  <meta name="description" content="Grayout looks at your screen every 45 seconds and asks a vision model whether you are clearly off task. Two yeses in a row and your whole Mac goes gray. $9.99 a month, 7 days free, no API key.">
-  <link rel="canonical" href="https://aarushkandukoori.github.io/grayout/">
-  <meta property="og:type" content="website">
-  <meta property="og:site_name" content="Grayout for Mac">
-  <meta property="og:title" content="Grayout for Mac — get distracted, lose color">
-  <meta property="og:description" content="Your Mac drains to gray when you are clearly off task, and color comes back when you do. $9.99 a month, 7 days free, no API key.">
-  <meta property="og:url" content="https://aarushkandukoori.github.io/grayout/">
-  <meta property="og:image" content="https://aarushkandukoori.github.io/grayout/img/dashboard.png">
-  <meta name="twitter:card" content="summary_large_image">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%238a8a8a'/%3E%3Cpath d='M16 16 L16 2 A14 14 0 0 1 30 16 Z' fill='%23d03b3b'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="style.css">
-  <script src="app.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://*.workers.dev; base-uri 'self'; form-action 'none'; object-src 'none'; frame-src 'none'; manifest-src 'self'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>Grayout for Mac | Get distracted, lose color</title>
+<meta name="description" content="Grayout glances at your screen every 45 seconds. When you are clearly off task, your whole Mac turns gray with a red border until you get back to work.">
+<link rel="canonical" href="https://aarushkandukoori.github.io/grayout/">
+<meta name="theme-color" content="#DDE2EE">
+<meta name="color-scheme" content="light">
+<link rel="icon" href="img/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="img/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Grayout">
+<meta property="og:title" content="Grayout for Mac: get distracted, lose color">
+<meta property="og:description" content="Grayout glances at your screen every 45 seconds. When you are clearly off task, your whole Mac turns gray with a red border until you get back to work.">
+<meta property="og:url" content="https://aarushkandukoori.github.io/grayout/">
+<meta property="og:image" content="https://aarushkandukoori.github.io/grayout/img/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Grayout: a Mac desktop half in color and half in gray, with a red border on the gray side.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Grayout for Mac: get distracted, lose color">
+<meta name="twitter:description" content="Grayout glances at your screen every 45 seconds. When you are clearly off task, your whole Mac turns gray with a red border until you get back to work.">
+<meta name="twitter:image" content="https://aarushkandukoori.github.io/grayout/img/og.png">
+<link rel="preload" href="fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/eb-garamond-500-latin.woff" as="font" type="font/woff" crossorigin>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="mock.css">
+<link rel="stylesheet" href="home.css">
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script src="motion.js" defer></script>
 </head>
-<body class="v2">
-<div class="prelaunch" role="status">
-  Subscriptions are not open yet. Today's download runs on your own OpenAI or Anthropic key — see <a href="api-key.html">self-hosting</a>.
-</div>
-
-<a class="sr-only" href="#main">Skip to content</a>
-
-<header class="nav" data-nav>
-  <div class="nav-in">
-    <a class="nav-brand" href="index.html"><span class="mark" aria-hidden="true"></span>Grayout</a>
-    <nav class="nav-links" aria-label="Main">
-      <a href="#how">How it works</a>
-      <a href="#cost">Pricing</a>
-      <a href="install.html">Install</a>
-      <a href="privacy.html">Privacy</a>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="hdr hdr--sky">
+  <div class="wrap hdr__in">
+    <a class="logo" href="./" aria-label="Grayout home"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="currentColor" opacity=".5"/><path d="M10 10V1a9 9 0 0 1 9 9z" fill="#D03B3B"/></svg><span>Grayout</span></a>
+    <nav class="nav" aria-label="Main">
+        <a href="./#how">How it works</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="download.html">Download</a>
+        <a href="privacy.html">Privacy</a>
     </nav>
-    <a class="btn btn-primary btn-sm" href="pricing.html">Start free</a>
+    <div class="hdr__end">
+      <button class="burger" type="button" aria-expanded="false" aria-controls="sheet" aria-label="Open menu" data-sheet-open><span></span></button>
+      <a class="burger burger--link" href="#site-footer" aria-label="Menu: every page is listed at the bottom"><span></span></a>
+    </div>
   </div>
 </header>
-
+<a class="btn btn-primary btn-float" href="download.html" data-float tabindex="-1"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 13h10"/></svg>Download</a>
 <main id="main">
-
-  <!-- ------------------------------------------------------------- hero -->
-  <section class="hero wrap">
-    <h1>Get distracted.<br><span class="dim">Lose color.</span></h1>
-    <p class="hero-sub">Grayout watches your screen and drains the color out of your Mac when you are clearly off task.</p>
-
-    <div class="cta">
-      <button type="button" class="btn btn-primary" data-checkout="monthly" data-note="hero-note">Start free</button>
-      <a class="btn btn-ghost" href="https://github.com/aarushkandukoori/grayout/releases/latest/download/Grayout-arm64.dmg">Download</a>
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="hero__art" aria-hidden="true">
+      <svg class="hero__sky" viewBox="0 0 1440 1150" preserveAspectRatio="xMidYMin slice" focusable="false">
+        <defs>
+          <linearGradient id="gSky" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#2051BD"/>
+            <stop offset=".3" stop-color="#2A60CB"/>
+            <stop offset=".47" stop-color="#4486D8"/>
+            <stop offset=".6" stop-color="#A9CBF2"/>
+            <stop offset=".74" stop-color="#EAF2FC"/>
+          </linearGradient>
+          <radialGradient id="gSun">
+            <stop offset="0" stop-color="#FFFFFF"/>
+            <stop offset=".7" stop-color="#FFF4DA"/>
+            <stop offset="1" stop-color="#FFF4DA" stop-opacity="0"/>
+          </radialGradient>
+          <linearGradient id="gH1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9B98EE"/><stop offset=".25" stop-color="#6E6BD8"/></linearGradient>
+          <linearGradient id="gH2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7C98F4"/><stop offset=".2" stop-color="#4D6FE0"/></linearGradient>
+          <linearGradient id="gH3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5FD0C4"/><stop offset=".2" stop-color="#2EA7A0"/></linearGradient>
+          <linearGradient id="gH4" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FAC7AA"/><stop offset=".2" stop-color="#F2A27E"/></linearGradient>
+          <linearGradient id="gH5" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F59A88"/><stop offset=".2" stop-color="#E86F5C"/></linearGradient>
+          <filter id="fBlur80" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="80"/></filter>
+          <filter id="fBlur40" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="40"/></filter>
+          <filter id="fBlur6" x="-20%" y="-200%" width="140%" height="500%"><feGaussianBlur stdDeviation="6"/></filter>
+        </defs>
+        <rect width="1440" height="1150" fill="url(#gSky)"/>
+        <ellipse cx="720" cy="300" rx="640" ry="260" fill="#1A44A6" opacity=".2" filter="url(#fBlur80)"/>
+        <g class="hero__sun">
+          <circle cx="1180" cy="440" r="190" fill="#FFE9C7" opacity=".55" filter="url(#fBlur40)"/>
+          <circle cx="1180" cy="440" r="66" fill="url(#gSun)"/>
+        </g>
+        <g fill="#fff" opacity=".4" filter="url(#fBlur6)">
+          <rect x="40" y="402" width="340" height="14" rx="7"/>
+          <rect x="1010" y="352" width="380" height="12" rx="6"/>
+          <rect x="1080" y="476" width="280" height="10" rx="5"/>
+        </g>
+        <g stroke="#fff" stroke-opacity=".25" stroke-width="2">
+          <path fill="url(#gH1)" opacity=".7" d="M0 506C160 462 300 438 470 472S780 524 940 482 1250 418 1440 462V1150H0Z"/>
+          <path fill="url(#gH2)" d="M0 548C200 504 360 512 540 538S860 580 1040 544 1300 502 1440 526V1150H0Z"/>
+          <path fill="url(#gH3)" d="M0 590C180 556 380 548 560 574S900 620 1120 582 1360 556 1440 570V1150H0Z"/>
+          <path fill="url(#gH4)" d="M0 636C220 604 420 610 620 632S980 666 1200 634 1400 618 1440 626V1150H0Z"/>
+          <path fill="url(#gH5)" d="M0 684C260 654 520 666 760 684S1180 704 1440 674V1150H0Z"/>
+        </g>
+      </svg>
+      <div class="hero__fade"></div>
     </div>
 
-    <p class="fine">7 days free, then $9.99 a month. macOS 13 or later, Apple Silicon &mdash; <a href="https://github.com/aarushkandukoori/grayout/releases/latest/download/Grayout-x64.dmg">Intel build here</a>.</p>
-
-    <div class="checkout-note" id="hero-note" hidden>
-      <span class="msg">Checkout is not live yet.</span>
-      <span class="alt">The service is still being stood up. <a href="install.html">Install Grayout</a> and run 100 checks free in the meantime &mdash; no card, no account.</span>
-    </div>
-  </section>
-
-  <!-- ------------------------------------------------------- the mechanic -->
-  <section class="stage-wrap wrap">
-    <div class="stage-grid">
-
-      <div class="stage">
-        <div class="mac mac--live">
-          <svg class="mock" viewBox="0 0 640 400" role="img" aria-label="A mock Mac desktop. A code editor is open in full color, a social feed slides over it, two strikes land in the Grayout menu bar readout, and the whole desktop drains to gray behind a red border until work resumes and the color returns.">
-            <rect class="m-desk" x="0" y="0" width="640" height="400"/>
-
-            <!-- menu bar -->
-            <rect class="m-barbg" x="0" y="0" width="640" height="22"/>
-            <circle class="m-dim" cx="16" cy="11" r="4.5"/>
-            <rect class="m-dim" x="30" y="8" width="30" height="6" rx="3"/>
-            <rect class="m-dim2" x="68" y="8" width="20" height="6" rx="3"/>
-            <rect class="m-dim2" x="96" y="8" width="26" height="6" rx="3"/>
-            <rect class="m-dim2" x="130" y="8" width="22" height="6" rx="3"/>
-            <rect class="m-dim2" x="548" y="8" width="12" height="6" rx="3"/>
-            <rect class="m-dim2" x="568" y="8" width="12" height="6" rx="3"/>
-            <rect class="m-dim" x="588" y="8" width="36" height="6" rx="3"/>
-
-            <!-- code editor -->
-            <rect class="m-win" x="36" y="42" width="568" height="326" rx="10"/>
-            <rect class="m-wintop" x="36" y="42" width="568" height="26" rx="10"/>
-            <rect class="m-wintop" x="36" y="58" width="568" height="10"/>
-            <circle class="tl-r" cx="54" cy="55" r="4.5"/>
-            <circle class="tl-y" cx="70" cy="55" r="4.5"/>
-            <circle class="tl-g" cx="86" cy="55" r="4.5"/>
-            <rect class="m-dim2" x="292" y="52" width="56" height="6" rx="3"/>
-            <rect class="m-rule-v" x="152" y="68" width="1" height="300"/>
-
-            <rect class="m-side" x="44" y="174" width="102" height="18" rx="6"/>
-            <rect class="m-dim" x="52" y="88" width="76" height="7" rx="3.5"/>
-            <rect class="m-dim2" x="52" y="106" width="58" height="6" rx="3"/>
-            <rect class="m-dim2" x="52" y="122" width="68" height="6" rx="3"/>
-            <rect class="m-dim2" x="52" y="138" width="50" height="6" rx="3"/>
-            <rect class="m-dim2" x="52" y="154" width="64" height="6" rx="3"/>
-            <rect class="c1" x="52" y="180" width="62" height="6" rx="3"/>
-
-            <rect class="c5" x="176" y="88" width="44" height="7" rx="3.5"/>
-            <rect class="c1" x="228" y="88" width="80" height="7" rx="3.5"/>
-            <rect class="c2" x="190" y="105" width="120" height="7" rx="3.5"/>
-            <rect class="c3" x="190" y="122" width="60" height="7" rx="3.5"/>
-            <rect class="m-dim2" x="258" y="122" width="100" height="7" rx="3.5"/>
-            <rect class="m-dim" x="204" y="139" width="150" height="7" rx="3.5"/>
-            <rect class="c4" x="204" y="156" width="90" height="7" rx="3.5"/>
-            <rect class="m-dim2" x="302" y="156" width="70" height="7" rx="3.5"/>
-            <rect class="c1" x="190" y="173" width="110" height="7" rx="3.5"/>
-            <rect class="c5" x="176" y="190" width="50" height="7" rx="3.5"/>
-            <rect class="m-dim" x="190" y="207" width="140" height="7" rx="3.5"/>
-            <rect class="c3" x="190" y="224" width="76" height="7" rx="3.5"/>
-            <rect class="c2" x="274" y="224" width="60" height="7" rx="3.5"/>
-            <rect class="c5" x="176" y="241" width="40" height="7" rx="3.5"/>
-            <rect class="m-dim2" x="190" y="258" width="124" height="7" rx="3.5"/>
-
-            <rect class="m-term" x="176" y="286" width="412" height="68" rx="8"/>
-            <rect class="c2" x="190" y="300" width="110" height="6" rx="3"/>
-            <rect class="m-dim" x="190" y="316" width="170" height="6" rx="3"/>
-            <rect class="m-dim2" x="190" y="332" width="60" height="6" rx="3"/>
-            <rect class="m-caret" x="256" y="330" width="7" height="10"/>
-
-            <!-- the feed that slides over it -->
-            <g class="m-feed">
-              <rect class="f-win" x="150" y="58" width="436" height="310" rx="12"/>
-              <rect class="f-top" x="150" y="58" width="436" height="36" rx="12"/>
-              <rect class="f-top" x="150" y="80" width="436" height="14"/>
-              <circle class="c4" cx="174" cy="76" r="9"/>
-              <rect class="m-dim" x="190" y="71" width="74" height="9" rx="4.5"/>
-              <rect class="f-pill" x="512" y="68" width="58" height="16" rx="8"/>
-
-              <circle class="c1" cx="176" cy="120" r="12"/>
-              <rect class="m-dim" x="198" y="111" width="104" height="8" rx="4"/>
-              <rect class="m-dim2" x="198" y="126" width="140" height="7" rx="3.5"/>
-              <rect class="c3" x="164" y="146" width="408" height="74" rx="8" opacity=".85"/>
-
-              <circle class="c5" cx="176" cy="250" r="12"/>
-              <rect class="m-dim" x="198" y="241" width="88" height="8" rx="4"/>
-              <rect class="m-dim2" x="198" y="256" width="150" height="7" rx="3.5"/>
-              <rect class="c2" x="164" y="276" width="408" height="74" rx="8" opacity=".85"/>
-            </g>
-          </svg>
-
-          <div class="sweep" aria-hidden="true"></div>
-          <div class="edge" aria-hidden="true"></div>
-
-          <div class="hud" aria-hidden="true">
-            <span class="hud-dot"></span>
-            <span class="hud-label"><b class="v v-ok">On task</b><b class="v v-off">Off task</b></span>
-            <span class="hud-strikes"><i class="s s1"></i><i class="s s2"></i></span>
+    <div class="wrap hero__in">
+      <a class="hero__pill" href="download.html#today" data-when="noservice"><span class="dot dot--amber"></span><span>Grayout Pro opens soon. Today&rsquo;s release runs on your own key.</span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h9.5M8.5 4l4 4-4 4"/></svg></a>
+      <h1 id="hero-title" class="hero__title"><span class="w"><span>Get</span></span> <span class="w"><span>distracted.</span></span><br><span class="w"><span>Lose</span></span> <span class="w"><span>color.</span></span></h1>
+      <hr class="hero__rule">
+      <p class="hero__sub">Grayout glances at your screen every 45&nbsp;seconds. When you&rsquo;re clearly off task, your whole Mac turns gray until you get back to work.</p>
+      <div class="hero__cta" data-hero-cta>
+        <div class="split" data-split>
+          <a class="btn btn-primary split__main" href="https://github.com/aarushkandukoori/grayout/releases/latest/download/Grayout-arm64.dmg" data-dl="arm64" data-dl-auto><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 13h10"/></svg><span data-dl-label>Download for Apple Silicon</span></a>
+          <button class="btn btn-primary split__caret" type="button" aria-expanded="false" aria-haspopup="true" aria-label="More download options"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4.5 6.2 3.5 3.6 3.5-3.6"/></svg></button>
+          <div class="menu" hidden>
+            <a href="https://github.com/aarushkandukoori/grayout/releases/latest/download/Grayout-arm64.dmg" data-dl="arm64"><span>Apple Silicon<small>M1 and later</small></span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 13h10"/></svg></a>
+            <a href="https://github.com/aarushkandukoori/grayout/releases/latest/download/Grayout-x64.dmg" data-dl="x64"><span>Intel<small>Macs from before 2021</small></span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 13h10"/></svg></a>
+            <hr>
+            <button type="button" data-copy="=brew install --cask aarushkandukoori/tap/grayout"><span><span data-copy-label>Copy the Homebrew command</span><small class="mono">brew install --cask aarushkandukoori/tap/grayout</small></span></button>
+            <a href="download.html"><span>Install guide<small>First launch takes three extra clicks</small></span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h9.5M8.5 4l4 4-4 4"/></svg></a>
           </div>
         </div>
-
-        <p class="rm-only stills-cap">Working.</p>
-
-        <ol class="ticks" aria-hidden="true">
-          <li class="t1">Checks every 45 seconds</li>
-          <li class="t2">Two strikes</li>
-          <li class="t3">Color drains</li>
-        </ol>
-      </div>
-
-      <!-- held still for anyone who asked their Mac to reduce motion -->
-      <div class="stills">
-        <figure>
-          <div class="mac mac--still is-gray">
-            <svg class="mock" viewBox="0 0 640 400" role="img" aria-label="The same mock Mac desktop after two off-task checks: the social feed is open over the editor, everything is gray, and a red border runs around the display.">
-              <rect class="m-desk" x="0" y="0" width="640" height="400"/>
-              <rect class="m-barbg" x="0" y="0" width="640" height="22"/>
-              <circle class="m-dim" cx="16" cy="11" r="4.5"/>
-              <rect class="m-dim" x="30" y="8" width="30" height="6" rx="3"/>
-              <rect class="m-dim2" x="68" y="8" width="20" height="6" rx="3"/>
-              <rect class="m-dim" x="588" y="8" width="36" height="6" rx="3"/>
-
-              <rect class="m-win" x="36" y="42" width="568" height="326" rx="10"/>
-              <rect class="m-wintop" x="36" y="42" width="568" height="26" rx="10"/>
-              <rect class="m-wintop" x="36" y="58" width="568" height="10"/>
-              <circle class="tl-r" cx="54" cy="55" r="4.5"/>
-              <circle class="tl-y" cx="70" cy="55" r="4.5"/>
-              <circle class="tl-g" cx="86" cy="55" r="4.5"/>
-              <rect class="c5" x="176" y="88" width="44" height="7" rx="3.5"/>
-              <rect class="c1" x="228" y="88" width="80" height="7" rx="3.5"/>
-              <rect class="c2" x="190" y="105" width="120" height="7" rx="3.5"/>
-              <rect class="m-dim" x="204" y="139" width="150" height="7" rx="3.5"/>
-
-              <g class="m-feed">
-                <rect class="f-win" x="150" y="58" width="436" height="310" rx="12"/>
-                <rect class="f-top" x="150" y="58" width="436" height="36" rx="12"/>
-                <rect class="f-top" x="150" y="80" width="436" height="14"/>
-                <circle class="c4" cx="174" cy="76" r="9"/>
-                <rect class="m-dim" x="190" y="71" width="74" height="9" rx="4.5"/>
-                <rect class="f-pill" x="512" y="68" width="58" height="16" rx="8"/>
-
-                <circle class="c1" cx="176" cy="120" r="12"/>
-                <rect class="m-dim" x="198" y="111" width="104" height="8" rx="4"/>
-                <rect class="m-dim2" x="198" y="126" width="140" height="7" rx="3.5"/>
-                <rect class="c3" x="164" y="146" width="408" height="74" rx="8" opacity=".85"/>
-
-                <circle class="c5" cx="176" cy="250" r="12"/>
-                <rect class="m-dim" x="198" y="241" width="88" height="8" rx="4"/>
-                <rect class="m-dim2" x="198" y="256" width="150" height="7" rx="3.5"/>
-                <rect class="c2" x="164" y="276" width="408" height="74" rx="8" opacity=".85"/>
-              </g>
-            </svg>
-            <div class="edge" aria-hidden="true"></div>
-            <div class="hud" aria-hidden="true">
-              <span class="hud-dot is-off"></span>
-              <span class="hud-label"><b class="v v-off is-shown">Off task</b></span>
-              <span class="hud-strikes"><i class="s is-lit"></i><i class="s is-lit"></i></span>
-            </div>
-          </div>
-          <figcaption>Two clearly-off-task checks in a row.</figcaption>
-        </figure>
-      </div>
-
-    </div>
-
-    <p class="stage-caption">A mock desktop on a loop. The gray is a real grayscale filter; on your Mac it is the system-wide one, the same switch as Accessibility &gt; Display &gt; Color Filters.</p>
-  </section>
-
-  <!-- ------------------------------------------------------ how it works -->
-  <section class="sec wrap" id="how">
-    <div class="sec-head reveal">
-      <p class="eyebrow">How it works</p>
-      <h2>Three moving parts.</h2>
-      <p class="sec-sub">Nothing is blocked, nothing is closed, nothing gets typed for you.</p>
-    </div>
-
-    <div class="steps reveal">
-      <div class="step">
-        <svg class="glyph" viewBox="0 0 48 48" role="img" aria-label="A display with a bright line sweeping down it">
-          <rect class="g-fill" x="5" y="9" width="38" height="26" rx="4"/>
-          <rect class="g-frame" x="5" y="9" width="38" height="26" rx="4"/>
-          <rect class="g-line" x="11" y="15" width="16" height="3" rx="1.5"/>
-          <rect class="g-line" x="11" y="22" width="24" height="3" rx="1.5"/>
-          <rect class="g-scan" x="7" y="6" width="34" height="2" rx="1"/>
-          <rect class="g-line" x="19" y="39" width="10" height="3" rx="1.5"/>
-        </svg>
-        <h3>It looks</h3>
-        <p>One screenshot of every display, every 45 seconds. A second monitor is not a hiding place.</p>
-      </div>
-
-      <div class="step">
-        <svg class="glyph" viewBox="0 0 48 48" role="img" aria-label="A verdict mark alternating between a tick and a cross">
-          <circle class="g-fill" cx="24" cy="24" r="17"/>
-          <circle class="g-frame" cx="24" cy="24" r="17"/>
-          <path class="g-tick" d="M16 24.5 L21.5 30 L32 19"/>
-          <path class="g-cross" d="M17.5 17.5 L30.5 30.5 M30.5 17.5 L17.5 30.5"/>
-        </svg>
-        <h3>It judges</h3>
-        <p>A vision model answers one question about the whole screen: is this person clearly off task?</p>
-      </div>
-
-      <div class="step">
-        <svg class="glyph" viewBox="0 0 48 48" role="img" aria-label="A block of color draining to gray inside a frame">
-          <rect class="g-frame" x="3" y="5" width="42" height="38" rx="6"/>
-          <g class="g-drain">
-            <rect class="c4" x="9" y="11" width="30" height="7" rx="3"/>
-            <rect class="c3" x="9" y="20.5" width="30" height="7" rx="3"/>
-            <rect class="c1" x="9" y="30" width="30" height="7" rx="3"/>
-          </g>
-        </svg>
-        <h3>It grays</h3>
-        <p>Two high-confidence yeses in a row and every display loses its color. Color returns when you do.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- ------------------------------------------------------------ flags -->
-  <section class="sec wrap" id="flags">
-    <div class="sec-head reveal">
-      <p class="eyebrow">Judgement</p>
-      <h2>It reads the screen, not a blocklist.</h2>
-      <p class="sec-sub">A lecture on YouTube is work. A feed on YouTube is not. There are no rules to maintain.</p>
-    </div>
-
-    <div class="two-cols reveal">
-      <div class="col-card col-flag">
-        <h3><span class="pip" aria-hidden="true"></span>Flags</h3>
-        <ul>
-          <li>Social media feeds</li>
-          <li>Entertainment video</li>
-          <li>Games</li>
-          <li>Shopping and sports scores</li>
-          <li>Plainly social chat</li>
-          <li>A phone in your hand with nothing on screen</li>
-        </ul>
-      </div>
-      <div class="col-card col-safe">
-        <h3><span class="pip" aria-hidden="true"></span>Never flags</h3>
-        <ul>
-          <li>Editors, terminals, notebooks</li>
-          <li>Documents, spreadsheets, slides</li>
-          <li>Email, calendars, docs, papers</li>
-          <li>Technical video and lectures</li>
-          <li>Calls and screen shares</li>
-          <li>An empty desk, or anything ambiguous</li>
-        </ul>
-      </div>
-    </div>
-  </section>
-
-  <!-- --------------------------------------------------------- receipts -->
-  <section class="sec wrap" id="receipts">
-    <div class="receipt-grid reveal">
-      <div>
-        <p class="eyebrow">Receipts</p>
-        <h2>You can check its work.</h2>
-        <p class="sec-sub">Every check is written down: what it saw, whether it fired, and where your month has gone. Get one wrong and <strong>Wrong call</strong> logs the dispute and backs it off for ten minutes.</p>
-        <a class="btn btn-ghost" href="privacy.html">What leaves your Mac</a>
-      </div>
-      <figure>
-        <img src="img/dashboard.png" width="1400" height="1085" alt="The Grayout dashboard: a focus percentage, the day as one block per check with the off-task ones in red, the money spent today, and a table of everything it flagged with Wrong call? buttons">
-        <figcaption>The dashboard on a day with a few flags. Real window, sample log; the spend line predates the subscription.</figcaption>
-      </figure>
-    </div>
-  </section>
-
-  <!-- ---------------------------------------------------------- pricing -->
-  <section class="sec wrap" id="cost">
-    <div class="sec-head reveal">
-      <p class="eyebrow">Pricing</p>
-      <h2>One price. No API key.</h2>
-      <p class="sec-sub">Grayout makes the model calls and pays for them. You never open a provider account, never paste a key, never watch a meter.</p>
-
-      <div class="toggle" data-toggle role="group" aria-label="Billing period">
-        <button type="button" data-billing="monthly" aria-pressed="true">Monthly</button>
-        <button type="button" data-billing="yearly" aria-pressed="false">Yearly</button>
-        <span class="save">Save 34%</span>
-      </div>
-    </div>
-
-    <div class="plans reveal" data-plans>
-      <div class="plan">
-        <h3>Free taste</h3>
-        <p class="plan-note">No card, no account</p>
-        <div class="price"><span class="amt"><span class="num">$0</span></span></div>
-        <p class="price-sub">100 checks, about a working day</p>
-        <ul>
-          <li>The real thing, not a demo</li>
-          <li>Every display watched</li>
-          <li>Tied to the Mac you install it on</li>
-          <li>Nothing to cancel</li>
-        </ul>
-        <a class="btn btn-ghost" href="https://github.com/aarushkandukoori/grayout/releases/latest/download/Grayout-arm64.dmg">Download</a>
-      </div>
-
-      <div class="plan plan--pro">
-        <span class="plan-tag">Pro</span>
-        <h3>Grayout Pro</h3>
-        <p class="plan-note">Every working day</p>
-        <div class="price">
-          <span class="amt amt-m"><span class="num">$9.99</span><span class="per">per month</span></span>
-          <span class="amt amt-y"><span class="num">$79</span><span class="per">per year</span></span>
-        </div>
-        <p class="price-sub"><span class="only-m">7 days free, cancel any time</span><span class="only-y">$6.58 a month, billed yearly</span></p>
-        <ul>
-          <li>15,000 checks a month</li>
-          <li>Every display, plus the webcam if you want it</li>
-          <li>Grayout pays the model bill</li>
-          <li>Cancel from Stripe’s billing portal</li>
-        </ul>
-        <button type="button" class="btn btn-primary" data-plan-button data-checkout="monthly" data-note="plan-note-box">
-          <span class="only-m">Start 7 days free</span><span class="only-y">Get a year</span>
-        </button>
-      </div>
-    </div>
-
-    <div class="checkout-note" id="plan-note-box" hidden>
-      <span class="msg">Checkout is not live yet.</span>
-      <span class="alt">The service is still being stood up. <a href="install.html">Install Grayout</a> and run 100 checks free in the meantime &mdash; no card, no account.</span>
-    </div>
-
-    <p class="fine plan-fine">Past 15,000 checks the interval stretches instead of cutting you off. Prices in US dollars.</p>
-  </section>
-
-  <!-- -------------------------------------------------------------- faq -->
-  <section class="sec wrap" id="faq">
-    <div class="sec-head reveal">
-      <p class="eyebrow">Questions</p>
-      <h2>The short answers.</h2>
-    </div>
-
-    <div class="faq reveal">
-      <details class="faq-item">
-        <summary>Do I need an API key?</summary>
-        <div><p>No. Your subscription covers the model calls. The app holds a Grayout license key and talks only to Grayout.</p></div>
-      </details>
-
-      <details class="faq-item">
-        <summary>What happens to my screenshots?</summary>
-        <div>
-          <p>Each check sends a resized screenshot of every display to the Grayout API, which asks the model and sends back one three-field verdict. The service never stores them, never logs them and never writes them to disk.</p>
-          <p>On your Mac the screenshots are deleted right after each check, and a webcam frame, if you turn the camera on, is never written to disk at all. The <a href="privacy.html">privacy page</a> has the full list.</p>
-        </div>
-      </details>
-
-      <details class="faq-item">
-        <summary>My Mac is stuck gray.</summary>
-        <div>
-          <p>Click <strong>Restore color now</strong> in the menu bar item; it works in every state. Quitting Grayout also restores color on the way out, and every launch turns grayscale off before anything else runs.</p>
-          <p>With the app gone entirely: System Settings &gt; Accessibility &gt; Display &gt; Color Filters, and turn it off. That is the exact switch Grayout uses. A watchdog also restores color after 20 minutes no matter what.</p>
-        </div>
-      </details>
-
-      <details class="faq-item">
-        <summary>What if it gets one wrong?</summary>
-        <div><p>Click <strong>I am working</strong> in the menu bar. Color comes back, Grayout backs off for ten minutes, and the dispute is logged. It takes two high-confidence flags in a row before anything happens, and the prompt treats anything ambiguous as work.</p></div>
-      </details>
-
-      <details class="faq-item">
-        <summary>Two monitors?</summary>
-        <div><p>Every display is checked and every display goes gray. If any display shows real work, nothing happens.</p></div>
-      </details>
-
-      <details class="faq-item">
-        <summary>Can I cancel?</summary>
-        <div><p>Any time. Settings &gt; Manage subscription opens Stripe’s billing portal, and cancelling there runs your plan to the end of the period you paid for. Cancel during the seven-day trial and you are not charged. Quitting the app itself is always one click.</p></div>
-      </details>
-    </div>
-  </section>
-
-  <!-- ----------------------------------------------------------- closer -->
-  <section class="sec wrap closer">
-    <div class="reveal">
-      <h2>Try it for a week.</h2>
-      <p class="sec-sub">Seven days free, then $9.99 a month. Or run 100 checks with no card at all.</p>
-      <div class="cta">
-        <button type="button" class="btn btn-primary" data-checkout="monthly" data-note="closer-note">Start free</button>
         <a class="btn btn-ghost" href="pricing.html">See pricing</a>
       </div>
-      <div class="checkout-note" id="closer-note" hidden>
-        <span class="msg">Checkout is not live yet.</span>
-        <span class="alt">The service is still being stood up. <a href="install.html">Install Grayout</a> and run 100 checks free in the meantime &mdash; no card, no account.</span>
+      <p class="hero__fine"><span data-when="service">100 checks free. No card, no account.</span><span data-when="noservice">Free and open source.</span> macOS 13 or later, Apple Silicon and Intel.</p>
+    </div>
+
+    <div class="wrap wrap--mid hero__stage">
+      <div class="stage" data-stage>
+        <div class="stage__glow" aria-hidden="true"></div>
+        <div class="mock" data-mock data-state="watch" role="img" aria-label="An animated Mac desktop. A code editor is open and Grayout says Watching. A social feed slides in, Grayout counts two strikes, the whole screen turns gray behind a red border, the Grayout menu offers I'm working, and the color comes back.">
+          <div class="mock__desk">
+            <div class="mock__wall"><i></i><i></i><i></i></div>
+            <div class="mbar">
+              <span class="mbar__l"><i class="mbar__glyph"></i><i class="b b--bold"></i><i class="b"></i><i class="b"></i><i class="b"></i></span>
+              <span class="mbar__r"><i class="b b--s"></i><i class="b b--s"></i><i class="mbar__batt"></i></span>
+            </div>
+            <div class="win win--editor">
+              <div class="win__bar"><i class="tl tl--r"></i><i class="tl tl--y"></i><i class="tl tl--g"></i><span class="win__title"></span></div>
+              <div class="win__body">
+                <div class="ed__side"><i class="w70"></i><i class="w50 on"></i><i class="w60"></i><i class="w40"></i><i class="w55"></i><i class="w45"></i><i class="w65"></i></div>
+                <div class="ed__code">
+                  <p><i class="k w12"></i><i class="f w22"></i><i class="p w8"></i></p>
+                  <p class="in1"><i class="v w14"></i><i class="p w4"></i><i class="s w26"></i></p>
+                  <p class="in1"><i class="k w10"></i><i class="f w18"></i><i class="n w6"></i></p>
+                  <p class="in2"><i class="v w20"></i><i class="p w4"></i><i class="f w16"></i><i class="s w12"></i></p>
+                  <p class="in2"><i class="c w36"></i></p>
+                  <p class="in2"><i class="k w8"></i><i class="v w12"></i><i class="r w10"></i></p>
+                  <p class="in1"><i class="p w4"></i></p>
+                  <p></p>
+                  <p><i class="k w12"></i><i class="f w16"></i><i class="p w8"></i></p>
+                  <p class="in1"><i class="v w18"></i><i class="p w4"></i><i class="n w8"></i></p>
+                  <p class="in1"><i class="k w10"></i><i class="s w30"></i></p>
+                  <p class="in1 caretline"><i class="f w14"></i><i class="caret"></i></p>
+                  <p><i class="p w4"></i></p>
+                </div>
+              </div>
+            </div>
+            <div class="win win--feed">
+              <div class="win__bar win__bar--light"><i class="tl tl--r"></i><i class="tl tl--y"></i><i class="tl tl--g"></i><span class="url"></span></div>
+              <div class="feed">
+                <div class="post"><div class="post__head"><i class="av av--1"></i><i class="nm"></i></div><div class="post__img img--1"><i class="sun"></i></div><div class="post__foot"><i class="heart"></i><i class="nm nm--s"></i></div></div>
+                <div class="post"><div class="post__head"><i class="av av--2"></i><i class="nm"></i></div><div class="post__img img--2"><i class="blob"></i></div><div class="post__foot"><i class="heart"></i><i class="nm nm--s"></i></div></div>
+              </div>
+            </div>
+            <div class="dock" aria-hidden="true">
+              <i class="app app--code"><b></b></i><i class="app app--web"><b></b></i><i class="app app--notes"><b></b></i><i class="app app--music"><b></b></i><i class="app app--gray"><b></b></i><i class="dock__sep"></i><i class="app app--trash"><b></b></i>
+            </div>
+            <div class="mock__sweep"></div>
+          </div>
+          <div class="mock__veil"></div>
+          <div class="mock__border"></div>
+          <div class="tray">
+            <span class="tray__ro">
+              <span class="ro ro--watch"><span class="dot dot--green pulse"></span>Watching</span>
+              <span class="ro ro--s1">1 strike</span>
+              <span class="ro ro--s2">2 strikes</span>
+              <span class="ro ro--off">Off task</span>
+              <span class="ro__ring"></span>
+            </span>
+            <span class="tray__icon"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 8V2.2A5.8 5.8 0 0 1 13.8 8z" fill="currentColor"/><path d="M8 8h5.8A5.8 5.8 0 1 1 8 2.2z" fill="currentColor" opacity=".55"/></svg></span>
+          </div>
+          <div class="gmenu">
+            <div class="gmenu__status"><b data-gm-status>Watching</b><span data-gm-line>code editor and terminal</span></div>
+            <hr>
+            <div class="gmenu__row gmenu__row--work">I&rsquo;m working</div>
+            <div class="gmenu__row">Pause<span class="sub">&rsaquo;</span></div>
+            <div class="gmenu__row">Check now</div>
+            <div class="gmenu__row">Open dashboard&hellip;<span class="kbd">&#8984;D</span></div>
+            <hr>
+            <div class="gmenu__row">Restore color now</div>
+            <div class="gmenu__row">Quit Grayout<span class="kbd">&#8984;Q</span></div>
+            <i class="cursor"></i>
+          </div>
+        </div>
+      </div>
+      <p class="stage__caption">Color while you work. Gray when you drift.</p>
+      <div class="preview-row">
+        <button class="preview-chip" type="button" data-preview-gray aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 1.8a6.2 6.2 0 0 1 0 12.4z" fill="currentColor"/></svg><span>Preview the gray on this page</span></button>
+        <button class="motion-toggle" type="button" data-motion-toggle aria-pressed="false"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><rect x="3.5" y="3" width="3" height="10" rx="1"/><rect x="9.5" y="3" width="3" height="10" rx="1"/></svg><span>Pause animations</span></button>
       </div>
     </div>
   </section>
 
-</main>
-
-<footer class="site-footer">
-  <div class="wrap">
-    <div class="foot-grid">
-      <a class="nav-brand" href="index.html"><span class="mark" aria-hidden="true"></span>Grayout for Mac</a>
-      <nav aria-label="Footer">
-        <a href="pricing.html">Pricing</a>
-        <a href="install.html">Install</a>
-        <a href="privacy.html">Privacy</a>
-        <a href="https://github.com/aarushkandukoori/grayout">GitHub</a>
-        <a href="https://github.com/aarushkandukoori/grayout/releases">Releases</a>
-        <a href="https://github.com/aarushkandukoori/grayout/issues">Issues</a>
-        <a href="https://github.com/aarushkandukoori/grayout/blob/main/SECURITY.md">Security</a>
-        <a href="https://github.com/aarushkandukoori/grayout/blob/main/LICENSE">MIT</a>
-      </nav>
+  <section class="sec how" id="how" aria-labelledby="how-title">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2 id="how-title" class="h2" data-reveal><span class="grad">What Grayout does while you work</span></h2>
+      </div>
+      <div class="fcards">
+        <article class="fcard fcard--blue on-dark dl-1" data-reveal="card">
+          <h3 class="fcard__title">Grayout <span class="gpill"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z"/><circle cx="8" cy="8" r="2"/></svg>looks</span> at your screen</h3>
+          <p class="fcard__body">Every 45 seconds it takes a quick look at each display and asks an AI model one question: is this person clearly off task?</p>
+          <div class="vis vis-timer" data-timer aria-hidden="true">
+            <div class="timer mono" data-timer-num>00:45</div>
+            <div class="timer__status"><span class="dot dot--green pulse"></span>Watching</div>
+            <div class="strip" data-strip></div>
+            <p class="strip__label">One block per check</p>
+            <div class="glass-input"><span class="mono" data-timer-phrase>code editor and terminal</span><span class="glass-input__go"></span></div>
+          </div>
+        </article>
+        <article class="fcard fcard--light dl-2" data-reveal="card">
+          <h3 class="fcard__title">When you drift, it <span class="gpill gpill--ink"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 1.8a6.2 6.2 0 0 1 0 12.4z" fill="currentColor"/></svg>grays</span> your Mac</h3>
+          <p class="fcard__body">Two off-task answers in a row, both with high confidence, and every display drains to gray behind a red border. Get back to work and the color comes back.</p>
+          <div class="vis vis-strikes" data-strikes aria-hidden="true">
+            <div class="pilltool"><span class="pip"></span><span class="pip"></span><span class="pilltool__label">strikes</span></div>
+            <div class="miniwrap">
+              <div class="miniwin">
+                <div class="win__bar"><i class="tl tl--r"></i><i class="tl tl--y"></i><i class="tl tl--g"></i></div>
+                <div class="miniwin__body">
+                  <div class="mf"><div class="mf__head"><i class="av av--1"></i><i class="nm"></i></div><div class="mf__img img--1"><i class="sun"></i></div><i class="heart"></i></div>
+                  <div class="mf"><div class="mf__head"><i class="av av--2"></i><i class="nm"></i></div><div class="mf__img img--2"><i class="blob"></i></div><i class="heart"></i></div>
+                  <div class="mf"><div class="mf__head"><i class="av av--3"></i><i class="nm"></i></div><div class="mf__img img--3"><i class="sun"></i></div><i class="heart"></i></div>
+                </div>
+              </div>
+              <div class="miniwin__border"></div>
+            </div>
+          </div>
+        </article>
+      </div>
     </div>
-    <p class="foot-note">Grayout reports to nobody but you. There is no team dashboard and there will not be an employer edition. Aarush Kandukoori, 2026.</p>
+  </section>
+
+  <section class="sec showcase" aria-labelledby="day-title">
+    <div class="wrap center">
+      <div class="sec-head">
+        <h2 id="day-title" class="h2" data-reveal><span class="grad">See your whole day at a glance</span></h2>
+        <p class="sub dl-1" data-reveal>The dashboard shows a focus score, one block per check, and everything it flagged, so you can check its work.</p>
+      </div>
+      <div class="frame" data-reveal="frame" data-dash>
+        <span class="frame__tag">Sample day</span>
+        <div class="dash" role="img" aria-label="A sample Grayout dashboard: focus 82 percent, a strip of 28 checks with five off task, and a table of the five flagged moments.">
+          <div class="dash__head">
+            <div class="dash__id"><span class="mono dash__brand">GRAYOUT</span><span class="dash__watch"><span class="dot dot--green"></span>watching</span><span class="mono dash__now">code editor and terminal</span></div>
+            <div class="dash__btns"><span class="dbtn">Check now</span><span class="dbtn">Pause &#9662;</span><span class="dbtn dbtn--ghost">Restore color</span></div>
+          </div>
+          <div class="dash__card dash__score">
+            <div class="score"><span class="score__n">82</span><span class="score__u">%</span></div>
+            <p><strong>It caught you twice.</strong> The screen went gray for about 2 minutes in total.</p>
+          </div>
+          <div class="dash__card">
+            <p class="mono dash__label">THE DAY</p>
+            <p class="dash__hint">One block per check.</p>
+            <div class="daybar" data-daybar></div>
+            <div class="daybar__axis mono"><span>09:12</span><span>09:33</span></div>
+            <div class="dash__legend"><span><i class="lg lg--ok"></i>working</span><span><i class="lg lg--off"></i>off task</span><span><i class="lg lg--line"></i>screen gray</span></div>
+          </div>
+          <div class="dash__card">
+            <p class="mono dash__label">EVERYTHING IT FLAGGED</p>
+            <p class="dash__hint">Two flags in a row turn the screen gray. One on its own is forgiven.</p>
+            <table class="flags">
+              <thead><tr><th class="mono">TIME</th><th class="mono">WHAT IT SAW</th><th class="mono">RESULT</th><th><span class="sr-only">Actions</span></th></tr></thead>
+              <tbody>
+                <tr><td class="mono">09:16</td><td>online shopping<small>Safari</small></td><td><span class="fchip">1st strike</span></td><td><span class="dbtn dbtn--sm">Wrong call?</span></td></tr>
+                <tr><td class="mono">09:20</td><td>social media feed<small>Safari</small></td><td><span class="fchip">1st strike</span></td><td><span class="dbtn dbtn--sm">Wrong call?</span></td></tr>
+                <tr><td class="mono">09:21</td><td>social media feed<small>Safari</small></td><td><span class="fchip fchip--red">screen gray</span></td><td><span class="dbtn dbtn--sm">Wrong call?</span></td></tr>
+                <tr><td class="mono">09:27</td><td>short video feed<small>Safari</small></td><td><span class="fchip">1st strike</span></td><td><span class="dbtn dbtn--sm">Wrong call?</span></td></tr>
+                <tr><td class="mono">09:28</td><td>short video feed<small>Safari</small></td><td><span class="fchip fchip--red">screen gray</span></td><td><span class="dbtn dbtn--sm">Wrong call?</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec calm" aria-labelledby="calm-title">
+    <div class="wrap">
+      <div class="sec-head center">
+        <h2 id="calm-title" class="h2" data-reveal><span class="grad">Strict only when it&rsquo;s sure</span></h2>
+        <p class="sub dl-1" data-reveal>It steps in on clear distractions, forgives everything else, and always lets you step back out.</p>
+      </div>
+      <div class="trio" data-trio>
+        <figure class="tcard dl-3" data-reveal="snap">
+          <div class="tcard__vis vis-verdicts" aria-hidden="true">
+            <div class="vlist">
+              <div class="vlist__head"><span>Last three checks</span><span class="chip chip--green"><span class="dot dot--green"></span>Fails toward color</span></div>
+              <div class="vrow"><span class="vdot vdot--red"></span><span class="vrow__t">social media feed<small>high confidence</small></span><span class="chip chip--red">strike</span></div>
+              <div class="vrow"><span class="vdot vdot--green"></span><span class="vrow__t">research paper PDF<small>work</small></span><span class="chip chip--green">fine</span></div>
+              <div class="vrow"><span class="vdot vdot--gray"></span><span class="vrow__t">unclear<small>low confidence</small></span><span class="chip chip--gray">ignored</span></div>
+            </div>
+          </div>
+          <figcaption><strong>Forgives the maybes.</strong> Only a high-confidence off-task answer counts as a strike. Errors, refusals and unsure answers reset the count to zero.</figcaption>
+        </figure>
+        <figure class="tcard dl-4" data-reveal="snap">
+          <div class="tcard__vis vis-compare" data-compare>
+            <div class="cmp" aria-hidden="true">
+              <div class="cmp__layer cmp__color"><div class="cmp__scene"><i class="cs-win"><b></b><b></b><b></b></i><i class="cs-img img--1"><i class="sun"></i></i><i class="cs-img img--2"><i class="blob"></i></i></div></div>
+              <div class="cmp__layer cmp__gray"><div class="cmp__scene"><i class="cs-win"><b></b><b></b><b></b></i><i class="cs-img img--1"><i class="sun"></i></i><i class="cs-img img--2"><i class="blob"></i></i></div></div>
+              <div class="cmp__edge"></div>
+              <span class="cmp__tag cmp__tag--l">In color</span>
+              <span class="cmp__tag cmp__tag--r">Off task</span>
+              <span class="cmp__line"><span class="cmp__handle"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4 2.5 8 6 12M10 4l3.5 4L10 12"/></svg></span></span>
+            </div>
+            <label class="sr-only" for="cmp-range">Compare color and gray</label>
+            <input class="cmp__range" id="cmp-range" type="range" min="0" max="100" value="50" data-compare-range>
+          </div>
+          <figcaption><strong>Never blocks a thing.</strong> It can&rsquo;t close tabs, lock apps, type or click. It changes the color of your screen and nothing else.</figcaption>
+        </figure>
+        <figure class="tcard dl-5" data-reveal="snap">
+          <div class="tcard__vis vis-menu" data-menucycle aria-hidden="true">
+            <div class="mini-menus">
+              <div class="gmenu gmenu--static">
+                <div class="gmenu__status"><b>Watching</b><span>code editor and terminal</span></div>
+                <hr>
+                <div class="gmenu__row is-sel" data-mc>Pause<span class="sub">&rsaquo;</span></div>
+                <div class="gmenu__row" data-mc>Check now</div>
+                <div class="gmenu__row" data-mc>Open dashboard&hellip;<span class="kbd">&#8984;D</span></div>
+                <div class="gmenu__row" data-mc>Restore color now</div>
+                <div class="gmenu__row" data-mc>Quit Grayout<span class="kbd">&#8984;Q</span></div>
+              </div>
+              <div class="gmenu gmenu--sub">
+                <div class="gmenu__row" data-ms>For 15 minutes</div>
+                <div class="gmenu__row" data-ms>For 1 hour</div>
+                <div class="gmenu__row" data-ms>Until tomorrow</div>
+                <div class="gmenu__row" data-ms>Until I resume</div>
+              </div>
+            </div>
+            <div class="kc-row"><span class="kc" data-kc>&#8984;</span><span class="kc" data-kc>D</span><span class="kc-plus">or</span><span class="kc" data-kc>&#8984;</span><span class="kc" data-kc>Q</span></div>
+          </div>
+          <figcaption><strong>You stay in charge.</strong> Pause it, tell it you&rsquo;re working, or restore color from the menu bar. A 20-minute watchdog brings color back no matter what.</figcaption>
+        </figure>
+      </div>
+      <div class="skip-row" data-reveal>
+        <p class="eyebrow center">It doesn&rsquo;t look during</p>
+        <ul class="skips">
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="11" height="10" rx="2"/><path d="m13 9 5-3v8l-5-3"/></svg>Video calls</li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><rect x="3.5" y="8.5" width="13" height="9" rx="2"/><path d="M6.5 8.5V6a3.5 3.5 0 0 1 7 0v2.5"/><circle cx="10" cy="13" r="1" fill="currentColor"/></svg>Password managers</li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="3.5" width="15" height="10" rx="1.8"/><path d="M7 17h6M10 13.5V17" stroke-linecap="round"/><path d="M10 6.5v1.8M8 10h4" stroke-linecap="round"/></svg>A locked screen</li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/><path d="M10 5.5V10l3 2"/></svg>10 minutes away</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec marquee-sec" aria-labelledby="log-title">
+    <p class="eyebrow center" id="log-title" data-reveal>The kind of thing it writes in your log</p>
+    <div class="marquee" data-reveal>
+      <div class="marquee__row">
+        <div class="marquee__track">
+          <ul class="marquee__list">
+            <li><i class="dot dot--green"></i>code editor and terminal</li><li><i class="dot dot--red"></i>social media feed</li><li><i class="dot dot--green"></i>slides and speaker notes</li><li><i class="dot dot--red"></i>short video feed</li><li><i class="dot dot--green"></i>spreadsheet</li><li><i class="dot dot--red"></i>online shopping</li><li><i class="dot dot--green"></i>design tool</li>
+          </ul>
+          <ul class="marquee__list" aria-hidden="true">
+            <li><i class="dot dot--green"></i>code editor and terminal</li><li><i class="dot dot--red"></i>social media feed</li><li><i class="dot dot--green"></i>slides and speaker notes</li><li><i class="dot dot--red"></i>short video feed</li><li><i class="dot dot--green"></i>spreadsheet</li><li><i class="dot dot--red"></i>online shopping</li><li><i class="dot dot--green"></i>design tool</li>
+          </ul>
+        </div>
+      </div>
+      <div class="marquee__row marquee__row--rev">
+        <div class="marquee__track">
+          <ul class="marquee__list">
+            <li><i class="dot dot--green"></i>research paper PDF</li><li><i class="dot dot--red"></i>sports highlights</li><li><i class="dot dot--green"></i>email inbox</li><li><i class="dot dot--red"></i>game</li><li><i class="dot dot--green"></i>video call</li><li><i class="dot dot--red"></i>news feed</li><li><i class="dot dot--green"></i>docs and outline</li>
+          </ul>
+          <ul class="marquee__list" aria-hidden="true">
+            <li><i class="dot dot--green"></i>research paper PDF</li><li><i class="dot dot--red"></i>sports highlights</li><li><i class="dot dot--green"></i>email inbox</li><li><i class="dot dot--red"></i>game</li><li><i class="dot dot--green"></i>video call</li><li><i class="dot dot--red"></i>news feed</li><li><i class="dot dot--green"></i>docs and outline</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <p class="marquee__note center" data-reveal>Each phrase names a kind of activity. Words from your screen are not recorded. Phrases stay on your Mac for 30 days.</p>
+  </section>
+
+  <section class="sec stats" aria-labelledby="stats-title">
+    <div class="wrap stats__in">
+      <div class="stats__vis" data-reveal="frame" data-pipe aria-hidden="true">
+        <div class="pipe">
+          <div class="pipe__shot"><div class="pipe__screen"><i class="ps-bar"></i><i class="ps-win"></i><i class="ps-img img--1"><i class="sun"></i></i><i class="ps-img img--2"><i class="blob"></i></i></div><span class="pipe__caps mono"><span>1366 px wide</span><span>image dropped</span></span></div>
+          <svg class="pipe__line pipe__line--1" viewBox="0 0 4 80" preserveAspectRatio="none"><path d="M2 0v80" stroke="currentColor" stroke-width="2" stroke-dasharray="4 5"/></svg>
+          <div class="pipe__ai"><span class="dot"></span>AI model</div>
+          <svg class="pipe__line pipe__line--2" viewBox="0 0 4 80" preserveAspectRatio="none"><path d="M2 0v80" stroke="currentColor" stroke-width="2" stroke-dasharray="4 5"/></svg>
+          <pre class="pipe__json mono"><span class="j">{</span>
+  <span class="jk">"off_task"</span>: <span class="jv">false</span>,
+  <span class="jk">"activity"</span>: <span class="js">"code editor and terminal"</span>,
+  <span class="jk">"confidence"</span>: <span class="js">"high"</span>
+<span class="j">}</span></pre>
+        </div>
+      </div>
+      <div class="stats__text">
+        <h2 id="stats-title" class="stats__title" data-reveal><span class="grad grad--deep">What happens to a screenshot</span></h2>
+        <dl class="srows">
+          <div class="srow dl-3" data-reveal="snap"><dt class="srow__n">1366<span>px</span></dt><dd><strong>Shrunk before it leaves</strong>Each display is resized and compressed, and the file on your Mac is deleted right after.</dd></div>
+          <div class="srow dl-4" data-reveal="snap"><dt class="srow__n">0</dt><dd><strong>Copies Grayout keeps</strong>The image goes to the AI model for a verdict and is then dropped. Grayout never stores it and never logs it.</dd></div>
+          <div class="srow dl-5" data-reveal="snap"><dt class="srow__n">3</dt><dd><strong>Fields come back</strong>Off task or not, a short activity phrase, and a confidence. That&rsquo;s all the app receives.</dd></div>
+        </dl>
+        <p class="stats__foot" data-reveal>On Grayout Pro the image passes through the Grayout service on its way to the model. On your own key it goes straight from your Mac to OpenAI or Anthropic. <a class="arrow-link" href="privacy.html">Read the privacy policy <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h9.5M8.5 4l4 4-4 4"/></svg></a></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec pricing-band" id="pricing" aria-labelledby="price-title">
+    <div class="wrap center">
+      <div class="sec-head">
+        <h2 id="price-title" class="h2" data-reveal><span class="grad">Simple pricing</span></h2>
+        <p class="sub dl-1" data-reveal><span data-when="live">Start with 100 free checks. Upgrade when it earns its keep.</span><span data-when="soon">Start with 100 free checks. Pro subscriptions open soon.</span><span data-when="noservice">Use it today on your own key. Pro, with nothing to set up, opens soon.</span></p>
+      </div>
+      <div class="billing" data-billing>
+        <button type="button" class="billing__lab" data-label="monthly">Monthly</button>
+        <button type="button" class="switch" role="switch" aria-checked="false" aria-label="Yearly billing"></button>
+        <button type="button" class="billing__lab" data-label="yearly">Yearly</button>
+      </div>
+      <div class="plans">
+        <article class="plan" data-reveal="snap">
+          <div class="plan__top"><h3>Free taste</h3><span class="chip chip--amber" data-when="noservice"><span class="dot dot--amber"></span>Opens soon</span></div>
+          <div class="plan__price">Free</div>
+          <p class="plan__note"><span data-when="service">100 checks to see it work. No card, no account.</span><span data-when="noservice">100 free checks start when the Grayout service opens.</span></p>
+          <div class="plan__cta">
+            <div data-when="service"><div class="split split--dark" data-split>
+          <a class="btn btn-dark split__main" href="https://github.com/aarushkandukoori/grayout/releases/latest/download/Grayout-arm64.dmg" data-dl="arm64" data-dl-auto><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 13h10"/></svg><span data-dl-label>Download for Apple Silicon</span></a>
+          <button class="btn btn-dark split__caret" type="button" aria-expanded="false" aria-haspopup="true" aria-label="More download options"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4.5 6.2 3.5 3.6 3.5-3.6"/></svg></button>
+          <div class="menu menu--left" hidden>
+            <a href="https://github.com/aarushkandukoori/grayout/releases/latest/download/Grayout-arm64.dmg" data-dl="arm64"><span>Apple Silicon<small>M1 and later</small></span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 13h10"/></svg></a>
+            <a href="https://github.com/aarushkandukoori/grayout/releases/latest/download/Grayout-x64.dmg" data-dl="x64"><span>Intel<small>Macs from before 2021</small></span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 13h10"/></svg></a>
+            <hr>
+            <button type="button" data-copy="=brew install --cask aarushkandukoori/tap/grayout"><span><span data-copy-label>Copy the Homebrew command</span><small class="mono">brew install --cask aarushkandukoori/tap/grayout</small></span></button>
+            <a href="download.html"><span>Install guide<small>First launch takes three extra clicks</small></span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h9.5M8.5 4l4 4-4 4"/></svg></a>
+          </div>
+        </div></div>
+            <a class="btn btn-light" href="changelog.html#v2" data-when="noservice">See what&rsquo;s coming</a>
+          </div>
+          <p class="plan__desc"><span data-when="service">The whole app, for a first taste.</span><span data-when="noservice">When it opens: the whole app, for a first taste.</span></p>
+          <ul class="plan__feats">
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg>Gray screen and red border</li>
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg>The full dashboard</li>
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg>Up to three displays</li>
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg>Ends after 100 checks</li>
+          </ul>
+        </article>
+        <article class="plan plan--pro dl-1" data-reveal="snap" data-checkout-scope>
+          <div class="plan__top"><h3>Pro</h3><span class="chip chip--blue" data-plan-show="yearly">34% off</span><span class="chip chip--blue" data-plan-show="monthly" data-when="live">7 days free</span><span class="chip chip--amber" data-when="notlive"><span class="dot dot--amber"></span>Opens soon</span></div>
+          <div class="plan__price"><span data-roll data-monthly="9.99" data-yearly="79">$9.99</span><small><span data-plan-show="monthly">/ month</span><span data-plan-show="yearly">/ year</span></small></div>
+          <p class="plan__note"><span data-plan-show="monthly"><span data-when="live">7-day free trial with up to 1,000 checks for new subscribers, then $9.99 a month</span><span data-when="notlive">$9.99 a month, with a 7-day free trial of up to 1,000 checks for first-time subscribers</span>, plus tax where it applies.</span><span data-plan-show="yearly">Billed $79 once a year, plus tax where it applies. About $6.58 a month.</span></p>
+          <div class="plan__cta">
+            <button class="btn btn-dark" type="button" data-buy="auto" data-when="live"><span data-btn-label><span data-plan-show="monthly">Start 7-day free trial</span><span data-plan-show="yearly">Subscribe yearly</span></span></button>
+            <a class="btn btn-dark" href="download.html" data-when="soon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 13h10"/></svg>Download free</a>
+            <a class="btn btn-dark" href="download.html#today" data-when="noservice">Use your own key today</a>
+          </div>
+          <p class="plan__msg" data-checkout-msg role="status" aria-live="polite"></p>
+          <p class="plan__desc"><span data-when="live">Everything in the free taste, all month long.</span><span data-when="soon">Subscriptions open soon. Start with 100 free checks; when they open, upgrade from the menu bar.</span><span data-when="noservice">Subscriptions open soon. Until then, today&rsquo;s release runs on your own OpenAI or Anthropic key.</span></p>
+          <ul class="plan__feats">
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg>10,000 checks a month</li>
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg>Past that, one check every 10 minutes</li>
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg>No API key to get</li>
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg>Cancel any time from the menu bar</li>
+          </ul>
+        </article>
+        <article class="plan plan--own dl-2" data-reveal="snap">
+          <div class="plan__top"><h3>Your own key</h3><span class="chip chip--green" data-when="noservice"><span class="dot dot--green"></span>Available today</span></div>
+          <div class="plan__price">$0<small>plus your API costs</small></div>
+          <p class="plan__note">Your OpenAI or Anthropic account pays for each check, a fraction of a cent.</p>
+          <div class="plan__cta"><a class="btn btn-light" href="api-key.html">Read the guide</a></div>
+          <p class="plan__desc">Open source under the MIT license.</p>
+          <ul class="plan__feats">
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg>Your OpenAI or Anthropic key</li>
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg>Screenshots go straight to your provider</li>
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg>Community support on GitHub</li>
+          </ul>
+        </article>
+      </div>
+      <p class="fine">Prices in US dollars, plus sales tax or VAT where it applies, worked out at checkout. You may see your local currency there. Payments are processed by Stripe and sold through Link, so your statement shows LINK.COM*. Grayout never sees your card number.</p>
+      <p class="compare-link"><a class="arrow-link" href="pricing.html#compare">Compare plans <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h9.5M8.5 4l4 4-4 4"/></svg></a></p>
+    </div>
+  </section>
+
+  <section class="sec faq-sec" id="faq" aria-labelledby="faq-title">
+    <div class="wrap">
+      <div class="faq-head">
+        <h2 id="faq-title" class="h2 h2--flat" data-reveal>Questions, answered</h2>
+        <a class="arrow-link" href="pricing.html#billing-faq" data-reveal>Billing questions <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h9.5M8.5 4l4 4-4 4"/></svg></a>
+      </div>
+      <div class="faq dl-1" data-faq data-reveal>
+        <div class="faq__item" id="q-off-task"><button class="faq__q" type="button">What counts as off task? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>Grayout asks an AI model one question about your screen: is this person clearly not working? Add a one-line description of your work in Settings and it judges against that. Anything ambiguous counts as work.</p></div></div></div>
+        <div class="faq__item" id="q-calls"><button class="faq__q" type="button">Will it gray me out during a video call? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>No. When a video-call app such as Zoom, FaceTime, Teams or Webex is in front, Grayout skips the check and clears any alert. You can change that list in Settings.</p></div></div></div>
+        <div class="faq__item" id="q-screens"><button class="faq__q" type="button">What happens to my screenshots? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>Each display is resized and sent for a verdict, then dropped. On Pro it passes through the Grayout service to the AI model, and the service never stores or logs it. On your own key it goes straight to OpenAI or Anthropic under your account. When a password manager is in front, nothing is captured at all.</p></div></div></div>
+        <div class="faq__item" id="q-color"><button class="faq__q" type="button">How do I get my color back? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>Get back to work and the next check restores it. You can also click I&rsquo;m working, pause, or choose Restore color now in the menu bar. Quitting restores color, and a 20-minute watchdog does too.</p></div></div></div>
+        <div class="faq__item" id="q-free"><button class="faq__q" type="button">How far do 100 free checks go? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>About 2 hours of active use at the 45-second default. A check is only spent when you&rsquo;re at your Mac and something on screen changed. That&rsquo;s enough to watch it catch you. No card, no account, no email.</p><p data-when="noservice">The free checks start when the Grayout service opens. Until then, today&rsquo;s release runs on your own OpenAI or Anthropic key.</p></div></div></div>
+        <div class="faq__item" id="q-allowance"><button class="faq__q" type="button">Is 10,000 checks a month enough? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>Yes, with room to spare. A full month of work at the default pace is around 8,000 checks before unchanged screens are skipped, and roughly half that after. If you ever pass 10,000, Grayout keeps going at one check every 10 minutes until the month resets.</p></div></div></div>
+        <div class="faq__item" id="q-gatekeeper"><button class="faq__q" type="button">Why does macOS warn me the first time I open it? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>Grayout isn&rsquo;t notarized by Apple yet, so the first launch needs Open Anyway in System Settings. The <a class="inline-link" href="download.html#first-run">install guide</a> walks through it in three clicks.</p></div></div></div>
+        <div class="faq__item" id="q-billing"><button class="faq__q" type="button">How does billing work? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>Payments run through Stripe and Grayout Pro is sold through Link, so Grayout never sees your card number. Sales tax or VAT is worked out at checkout. Cancel any time from Manage subscription in the menu bar or at link.com; Grayout keeps working until the period you paid for ends.</p></div></div></div>
+        <div class="faq__item" id="q-open"><button class="faq__q" type="button">Is it open source? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>Yes, MIT licensed. If you would rather use your own OpenAI or Anthropic key, <a class="inline-link" href="api-key.html">here is how</a>.</p></div></div></div>
+        <div class="faq__item" id="q-who"><button class="faq__q" type="button">Who makes Grayout? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>Aarush Kandukoori, a student founder. Wrong calls and bugs go to <a class="inline-link" href="https://github.com/aarushkandukoori/grayout/issues">GitHub issues</a>.</p></div></div></div>
+      </div>
+    </div>
+  </section>
+</main>
+<section class="cta-band" aria-labelledby="cta-title">
+  <div class="wrap cta-band__in">
+    <div>
+      <h2 id="cta-title" data-reveal>Keep your Mac in color.<br><span class="grad2">Try Grayout on your next work session.</span></h2>
+      <div class="actions" data-reveal>
+        <a class="btn btn-primary" href="download.html"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 13h10"/></svg>Download for Mac</a>
+        <a class="arrow-link" href="pricing.html">See pricing <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h9.5M8.5 4l4 4-4 4"/></svg></a>
+      </div>
+      <p class="note dl-2" data-reveal>
+        <span data-when="noservice">Free download for macOS 13 or later. Today&rsquo;s release runs on your own OpenAI or Anthropic key.</span>
+        <span data-when="service">100 checks free. No card, no account.</span>
+      </p>
+    </div>
+    <div class="keys" aria-hidden="true" data-keys>
+      <div class="keycap keycap--a"><div class="keycap__in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor" stroke="none"/></svg></div></div>
+      <div class="keycap keycap--b"><div class="keycap__in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 5v7a3 3 0 0 1-3 3H6"/><path d="m10 11-4 4 4 4"/></svg></div></div>
+    </div>
+  </div>
+</section>
+<footer class="ftr" id="site-footer">
+  <div class="wrap">
+    <div class="ftr__grid">
+      <div class="ftr__brand">
+        <div>
+          <a class="logo" href="./" aria-label="Grayout home"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="currentColor" opacity=".5"/><path d="M10 10V1a9 9 0 0 1 9 9z" fill="#D03B3B"/></svg><span>Grayout</span></a>
+          <p>Your Mac goes gray when you drift and comes back in color when you work. Made by Aarush Kandukoori.</p>
+        </div>
+        <div><span class="status" data-status><span class="dot dot--amber"></span><span data-status-text>Subscriptions opening soon</span></span></div>
+      </div>
+      <div class="ftr__cols">
+        <div class="ftr__col">
+          <h2>Product</h2>
+          <ul>
+            <li><a href="download.html">Download</a></li>
+            <li><a href="pricing.html">Pricing</a></li>
+            <li><a href="changelog.html">Changelog</a></li>
+            <li><a href="account.html">Manage subscription</a></li>
+          </ul>
+        </div>
+        <div class="ftr__col">
+          <h2>Resources</h2>
+          <ul>
+            <li><a href="privacy.html">Privacy</a></li>
+            <li><a href="terms.html">Terms</a></li>
+            <li><a href="refunds.html">Refunds</a></li>
+            <li><a href="api-key.html">Use your own key</a></li>
+            <li><a href="https://github.com/aarushkandukoori/grayout">Source code</a></li>
+          </ul>
+        </div>
+        <div class="ftr__col">
+          <h2>Help</h2>
+          <ul>
+            <li><a href="download.html#first-run">First launch</a></li>
+            <li><a href="download.html#stuck">Stuck gray screen</a></li>
+            <li><a href="https://github.com/aarushkandukoori/grayout/issues/new?template=wrong-call.yml">Report a wrong call</a></li>
+            <li><a href="https://github.com/aarushkandukoori/grayout/issues">Contact</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="ftr__bottom">
+      <span>&copy; 2026 Aarush Kandukoori. MIT licensed.</span>
+      <button class="motion-toggle" type="button" data-motion-toggle aria-pressed="false"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><rect x="3.5" y="3" width="3" height="10" rx="1"/><rect x="9.5" y="3" width="3" height="10" rx="1"/></svg><span>Pause animations</span></button>
+      <a href="https://github.com/aarushkandukoori/grayout" aria-label="Grayout on GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1.8a10.2 10.2 0 0 0-3.2 19.9c.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.2-3.4-1.2-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.6 1 1.6 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.6-1.4-2.3-.3-4.6-1.1-4.6-5a3.9 3.9 0 0 1 1-2.7 3.6 3.6 0 0 1 .1-2.7s.9-.3 2.8 1a9.6 9.6 0 0 1 5.1 0c1.9-1.3 2.8-1 2.8-1 .5 1.4.2 2.4.1 2.7a3.9 3.9 0 0 1 1 2.7c0 3.9-2.4 4.7-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10.2 10.2 0 0 0 12 1.8Z"/></svg></a>
+    </div>
   </div>
 </footer>
-
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet__scrim" data-sheet-close></div>
+  <div class="sheet__panel" role="dialog" aria-modal="true" aria-label="Menu">
+    <div class="sheet__handle" aria-hidden="true"></div>
+    <button class="sheet__close" type="button" aria-label="Close menu" data-sheet-close><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
+    <nav aria-label="Mobile">
+      <a href="./">Home</a>
+      <a href="./#how">How it works</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="download.html">Download</a>
+        <a href="privacy.html">Privacy</a>
+      <a href="account.html">Manage subscription</a>
+    </nav>
+    <a class="btn btn-primary btn-block" href="download.html"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 13h10"/></svg>Download for Mac</a>
+  </div>
+</div>
+<div class="grayveil" aria-hidden="true"></div>
+<p class="sr-only" aria-live="polite" data-live></p>
+<div class="toast" role="status" aria-live="polite" data-toast hidden><span data-toast-text></span><button class="toast__x" type="button" aria-label="Dismiss" data-toast-close><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
 </body>
 </html>

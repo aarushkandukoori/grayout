@@ -28,13 +28,15 @@ const permissions = require('./src/permissions');
 const { createLoop } = require('./src/loop');
 const { createTray } = require('./src/tray');
 const { createUpdater } = require('./src/updates');
-const { registerIpc } = require('./src/ipc');
+const { registerIpc, afterAccountRefresh } = require('./src/ipc');
+const { createTrialReminder } = require('./src/trialreminder');
 
 let config = null;
 let loop = null;
 let tray = null;
 let updater = null;
 let account = null;
+let trialReminder = null;
 let permState = { screen: 'not-determined', camera: 'not-determined' };
 let configWatchTimer = null;
 
@@ -45,10 +47,17 @@ function logVerdict(entry) {
   try { fs.appendFileSync(paths.VERDICT_LOG, JSON.stringify(entry) + '\n', { mode: 0o600 }); } catch {}
 }
 
-function notify(title, body) {
+// `onClick` is optional: what to open when the person clicks the notification.
+// The last notification is kept in a variable: if it were garbage-collected,
+// its click handler would be lost with it.
+let lastNotification = null;
+function notify(title, body, onClick) {
   try {
     if (!Notification.isSupported()) return;
-    new Notification({ title, body, silent: true }).show();
+    const n = new Notification({ title, body, silent: true });
+    if (typeof onClick === 'function') n.on('click', onClick);
+    n.show();
+    lastNotification = n;
   } catch {}
 }
 
@@ -278,12 +287,28 @@ if (!app.requestSingleInstanceLock()) {
     watchConfigFile();
     if (config.checkForUpdates) updater.start();
 
-    // Re-validate the license on launch (docs/API-CONTRACT.md §/v1/activate).
-    // Best effort and never blocking: a service that cannot be reached changes
-    // nothing about what the screen looks like.
+    // On launch, re-read the plan, or collect a key that a purchase finished
+    // after the app stopped waiting for it (docs/API-CONTRACT.md 6.6). Best
+    // effort and never blocking: a service that cannot be reached changes
+    // nothing about what the screen looks like. A build with no service
+    // address makes no request at all.
+    // A fresh answer that the plan is served also lifts a plan refusal the
+    // loop may already be waiting out (afterAccountRefresh in src/ipc.js).
     if (!selfHosted()) {
-      account.status({ force: true }).then(() => onStatus()).catch(() => {});
+      account.refresh({ force: true })
+        .then(r => { afterAccountRefresh(loop, r); onStatus(); })
+        .catch(() => {});
     }
+
+    // Link sends no reminder before a 7-day trial turns into a charge, so the
+    // app sends one itself, about two days before (src/trialreminder.js).
+    trialReminder = createTrialReminder({
+      account,
+      state,
+      notify: (title, body) => notify(title, body, () => windows.openDashboard('account')),
+      onRefreshed: r => { afterAccountRefresh(loop, r); onStatus(); }
+    });
+    trialReminder.start();
 
     // Registers the app in System Settings > Screen Recording and raises the
     // prompt if it hasn't been approved yet. Must happen before the first tick.

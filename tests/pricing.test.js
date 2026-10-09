@@ -155,7 +155,7 @@ describe('the subscription', () => {
 
   test('free taste and the monthly allowance', () => {
     assert.equal(FREE_CHECKS, 100);
-    assert.equal(INCLUDED_CHECKS, 15000);
+    assert.equal(INCLUDED_CHECKS, 10000, 'the contract (section 2) and the site both say 10,000');
   });
 
   test('the yearly saving is computed, so it can never be a stale claim', () => {

@@ -1,0 +1,7 @@
+# Crawlers only read robots.txt at a domain's root, so this file is advisory.
+# The sitemap is the useful part: submit it in Google Search Console.
+User-agent: *
+Disallow: /grayout/success.html
+Allow: /
+
+Sitemap: https://aarushkandukoori.github.io/grayout/sitemap.xml

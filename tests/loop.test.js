@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const helpers = require('./helpers');
 
 const dir = helpers.freshUserData('loop');
-const { createLoop, BACKOFF_STEPS_MS, TICK_HARD_LIMIT_MS } = require('../src/loop');
+const { createLoop, BACKOFF_STEPS_MS, TICK_HARD_LIMIT_MS, DAILY_BUDGET_LINE, NOT_CONNECTED_LINE, UNREGISTERED_LINE, SECRETS_LOCKED_LINE } = require('../src/loop');
 const { DEFAULT_CONFIG } = require('../src/config');
 const { NoKeyError } = require('../src/analyzer');
 
@@ -993,24 +993,25 @@ describe('12. change-gating', () => {
 
 describe('13. the hosted plan', () => {
   const LICENSE = 'gry_live_7KQ2R9XW4M0ZT8VN3HJ5CB6D';
-  const DEVICE = 'a'.repeat(32);
-  const serviceErr = (kind, message) => Object.assign(new Error(message || kind), { kind });
+  const serviceErr = (kind, message, extra = {}) => Object.assign(new Error(message || kind), { kind }, extra);
 
   /** A loop on the hosted path, with a recording stand-in for src/account.js. */
-  function hosted({ cfg = {}, snapshot = {}, deps = {} } = {}) {
+  function hosted({ cfg = {}, snapshot = {}, deps = {}, connected = true } = {}) {
     const calls = { noteCheck: [], noteProblem: [] };
     const snap = {
-      plan: 'monthly', status: 'active',
-      usage: { checksUsed: 12, checksIncluded: 15000, periodEnd: null },
+      configured: connected,
+      plan: 'active', status: 'active', interval: 'monthly', service: true,
+      usage: { checksUsed: 12, checksIncluded: 10000, periodEnd: null, resetsAt: '2026-11-01T00:00:00Z' },
       hasLicense: true, licenseMasked: 'gry_live_…CB6D', problem: null, needsSubscription: false,
       ...snapshot
     };
     const account = {
+      configured: () => connected,
       getLicense: () => LICENSE,
-      deviceId: () => DEVICE,
+      check: async () => { throw new Error('the loop must not call the service itself'); },
       snapshot: () => snap,
       noteCheck: s => { calls.noteCheck.push(s); snap.needsSubscription = false; },
-      noteProblem: k => { calls.noteProblem.push(k); snap.problem = k; snap.needsSubscription = true; }
+      noteProblem: (k, detail) => { calls.noteProblem.push(detail && detail.reason ? [k, detail.reason] : k); snap.problem = k; snap.needsSubscription = k !== 'quota_exceeded'; }
     };
     const h = build({
       cfg: { provider: 'grayout', ...cfg },
@@ -1027,21 +1028,23 @@ describe('13. the hosted plan', () => {
 
   const hostedOff = () => ({
     verdict: v(true), engine: 'api', usage: null, model: 'grayout',
-    service: { plan: 'active', usage: { checksUsed: 14, checksIncluded: 15000, periodEnd: null } }
+    service: { plan: 'active', usage: { checksUsed: 14, checksIncluded: 10000, periodEnd: null } }
   });
 
   const hostedOk = (plan = 'active') => ({
     verdict: v(false), engine: 'api', usage: null, model: 'grayout',
-    service: { plan, usage: { checksUsed: 13, checksIncluded: 15000, periodEnd: '2026-10-22T00:00:00Z' } }
+    service: { plan, service: true, usage: { checksUsed: 13, checksIncluded: 10000, periodEnd: '2026-10-22T00:00:00Z' } }
   });
 
-  test('the license and the device id ride along instead of a model key', async () => {
+  test('the account client rides along instead of a model key; the key and token never pass through the loop', async () => {
     const h = hosted();
     await h.step(hostedOk());
     const { ctx } = h.calls.analyze[0];
     assert.equal(ctx.apiKey, null);
-    assert.equal(ctx.license, LICENSE);
-    assert.equal(ctx.deviceId, DEVICE);
+    assert.equal(ctx.account, h.acct.account, 'the analyzer asks the account client, which adds the identity itself');
+    assert.equal('license' in ctx, false);
+    assert.equal('deviceId' in ctx, false);
+    assert.equal('deviceToken' in ctx, false);
     assert.equal(h.live().needsKey, false, 'the hosted path never asks for an API key');
     assert.equal(h.calls.log[0].model, 'grayout');
     assert.equal(h.calls.log[0].cost, null, 'no model bill to meter');
@@ -1051,7 +1054,7 @@ describe('13. the hosted plan', () => {
   test('a good check hands the plan and the counters to the account', async () => {
     const h = hosted();
     await h.step(hostedOk('trialing'));
-    assert.deepEqual(h.acct.calls.noteCheck, [{ plan: 'trialing', usage: { checksUsed: 13, checksIncluded: 15000, periodEnd: '2026-10-22T00:00:00Z' } }]);
+    assert.deepEqual(h.acct.calls.noteCheck, [{ plan: 'trialing', service: true, usage: { checksUsed: 13, checksIncluded: 10000, periodEnd: '2026-10-22T00:00:00Z' } }]);
     assert.equal(h.live().needsSubscription, false);
   });
 
@@ -1059,10 +1062,10 @@ describe('13. the hosted plan', () => {
     const h = hosted();
     await h.step(hostedOk());
     const live = h.live();
-    assert.equal(live.plan, 'monthly');
+    assert.equal(live.plan, 'active');
     assert.equal(live.status, 'active');
     assert.equal(live.checksUsed, 12);
-    assert.equal(live.checksIncluded, 15000);
+    assert.equal(live.checksIncluded, 10000);
     assert.equal(live.needsSubscription, false);
     assert.equal(JSON.stringify(live).includes(LICENSE), false, 'never the key itself');
   });
@@ -1075,30 +1078,203 @@ describe('13. the hosted plan', () => {
     assert.equal(live.needsSubscription, false);
   });
 
-  test('every plan problem says what to do, backs off 15 minutes and tells the account', async t => {
+  test('every plan problem says what to do, stops calling and tells the account', async t => {
     t.mock.method(console, 'error', () => {});
     const cases = {
-      no_license: 'subscription needed — open Settings to subscribe',
+      no_license: "this Mac's license key is missing — paste it in Settings",
+      license_invalid: 'license key was not accepted — open Settings',
+      license_revoked: 'subscription was refunded or disputed — see Settings',
       trial_expired: 'trial ended — subscribe in Settings',
-      subscription_inactive: 'subscription paused — update payment to resume',
-      free_exhausted: 'free checks used up — subscribe in Settings',
-      quota_exceeded: 'monthly checks used up — resumes next period',
-      key_rejected: 'license key was not accepted — open Settings'
+      subscription_inactive: 'subscription not active — update payment in Settings or at link.com',
+      free_exhausted: 'free checks used up — subscribe in Settings'
     };
     for (const [kind, line] of Object.entries(cases)) {
       const h = hosted();
-      const at = h.now;
       await h.step({ throw: serviceErr(kind) });
       assert.equal(h.live().errorKind, kind, kind);
       assert.equal(h.live().lastLine, line, kind);
       assert.equal(h.live().needsSubscription, true, kind);
-      assert.equal(h.live().backoffUntil, at + 15 * MIN, kind);
       assert.deepEqual(h.acct.calls.noteProblem, [kind], kind);
       assert.equal(h.live().needsKey, false, kind);
-      // Inside the backoff nothing is sent again.
+      // Inside the wait nothing is sent again, and the line stays readable.
       await h.step();
       assert.equal(h.calls.analyze.length, 1, kind);
+      assert.equal(h.live().lastLine, line, `${kind}: not replaced by "waiting — retrying at"`);
     }
+  });
+
+  test('a refusal that can change from outside (a card fixed at link.com) is retried after 15 minutes', async t => {
+    t.mock.method(console, 'error', () => {});
+    for (const kind of ['no_license', 'trial_expired', 'subscription_inactive']) {
+      const h = hosted();
+      const at = h.now;
+      await h.step({ throw: serviceErr(kind) });
+      assert.equal(h.live().planHold, false, kind);
+      assert.equal(h.live().backoffUntil, at + 15 * MIN, kind);
+      h.now = at + 15 * MIN;
+      await h.step(hostedOk());
+      assert.equal(h.calls.analyze.length, 2, `${kind}: asked again once the 15 minutes were up`);
+      assert.equal(h.live().needsSubscription, false, kind);
+    }
+  });
+
+  test('a refusal that cannot change on its own holds until reload(): no screenshot is taken or sent', async t => {
+    // Regression: free_exhausted (this device), license_revoked and
+    // license_invalid used to be retried every 15 minutes forever, capturing
+    // and uploading the screen ~96 times a day just to be refused.
+    t.mock.method(console, 'error', () => {});
+    for (const [kind, extra] of [['free_exhausted', { reason: 'device' }], ['free_exhausted', {}], ['license_revoked', {}], ['license_invalid', {}]]) {
+      const h = hosted();
+      await h.step({ throw: serviceErr(kind, kind, extra) });
+      assert.equal(h.live().planHold, true, kind);
+      assert.equal(h.calls.capture, 1, kind);
+      const line = h.live().lastLine;
+      // A whole day later, still nothing captured or sent.
+      h.advance(24 * 60 * MIN);
+      await h.step();
+      await h.step();
+      assert.equal(h.calls.capture, 1, `${kind}: no capture while held`);
+      assert.equal(h.calls.analyze.length, 1, `${kind}: no request while held`);
+      assert.equal(h.live().lastLine, line, kind);
+      assert.equal(h.live().needsSubscription, true, kind);
+      // "Check now" alone does not lift it: only a change to the plan does.
+      await h.loop.checkNow();
+      assert.equal(h.calls.analyze.length, 1, `${kind}: Check now does not re-send a refused plan`);
+      // A new key, a purchase or a restore reloads the loop: one real check.
+      h.loop.reload();
+      await h.step(hostedOk());
+      assert.equal(h.calls.analyze.length, 2, `${kind}: reload lifts the hold`);
+      assert.equal(h.live().planHold, false, kind);
+    }
+  });
+
+  test('the shared daily budget is not held: it comes back after midnight UTC', async t => {
+    t.mock.method(console, 'error', () => {});
+    const h = hosted({ snapshot: { hasLicense: false, status: 'free' } });
+    await h.step({ throw: serviceErr('free_exhausted', 'Paused for today.', { reason: 'daily_budget' }) });
+    assert.equal(h.live().planHold, false);
+    assert.ok(h.live().backoffUntil > h.now);
+  });
+
+  test('clearPlanHold: a fresh "served" answer lifts a plan wait at once; other waits are left alone', async t => {
+    // Regression: after fixing a card at link.com and opening Settings, the
+    // panel said Subscribed while the loop sat out its 15-minute wait.
+    t.mock.method(console, 'error', () => {});
+    const h = hosted();
+    await h.step({ throw: serviceErr('subscription_inactive') });
+    assert.ok(h.live().backoffUntil > h.now);
+    // What /v1/status does first: the account forgets the refusal.
+    h.acct.snap.problem = null;
+    h.acct.snap.needsSubscription = false;
+    assert.equal(h.loop.clearPlanHold(), true);
+    assert.equal(h.live().needsSubscription, false, 'the menu bar stops saying "needs attention"');
+    assert.equal(h.live().backoffUntil, 0);
+    assert.equal(h.live().errorKind, null);
+    await h.step(hostedOk());
+    assert.equal(h.calls.analyze.length, 2, 'checked again straight away');
+
+    const held = hosted();
+    await held.step({ throw: serviceErr('license_revoked') });
+    assert.equal(held.loop.clearPlanHold(), true);
+    assert.equal(held.live().planHold, false);
+
+    const busy = hosted();
+    await busy.step({ throw: serviceErr('rate_limited', 'Slow down.', { retryAfter: 120 }) });
+    const until = busy.live().backoffUntil;
+    assert.equal(busy.loop.clearPlanHold(), false, 'nothing to lift');
+    assert.equal(busy.live().backoffUntil, until, 'a rate-limit wait is not the plan\'s to lift');
+  });
+
+  test('somebody who already paid is never told to subscribe (no_license)', () => {
+    assert.equal(/subscribe/i.test(require('../src/loop').SUBSCRIPTION_LINES.no_license), false);
+  });
+
+  test('free checks paused for everybody today: wait until midnight UTC, and this Mac\'s meter is not filled', async t => {
+    t.mock.method(console, 'error', () => {});
+    const h = hosted({ snapshot: { hasLicense: false, status: 'free' } });
+    await h.step({ throw: serviceErr('free_exhausted', 'Paused for today.', { reason: 'daily_budget' }) });
+    assert.equal(h.live().lastLine, DAILY_BUDGET_LINE);
+    const d = new Date(T0);
+    assert.equal(h.live().backoffUntil, Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1) + 60000);
+    assert.deepEqual(h.acct.calls.noteProblem, [['free_exhausted', 'daily_budget']]);
+    assert.equal(h.live().needsSubscription, true);
+  });
+
+  test('past the monthly allowance: wait as told, say until when, and it is not a plan problem', async t => {
+    t.mock.method(console, 'error', () => {});
+    const h = hosted();
+    const at = h.now;
+    await h.step({ throw: serviceErr('quota_exceeded', 'Monthly checks used up.', { retryAfter: 420 }) });
+    assert.equal(h.live().backoffUntil, at + 420 * 1000, 'retryAfter is honoured');
+    // The reset is 00:00 UTC on the 1st, printed as that UTC date (never "Oct 31" in a US evening).
+    const nov1 = new Date(Date.UTC(2026, 10, 1)).toLocaleDateString([], { month: 'short', day: 'numeric', timeZone: 'UTC' });
+    assert.equal(h.live().lastLine, `monthly checks used up: checking every 10 minutes until ${nov1}`);
+    assert.equal(h.live().needsSubscription, false);
+    assert.deepEqual(h.acct.calls.noteProblem, ['quota_exceeded']);
+    const h2 = hosted();
+    const at2 = h2.now;
+    await h2.step({ throw: serviceErr('quota_exceeded') });
+    assert.equal(h2.live().backoffUntil, at2 + 10 * MIN, 'no retryAfter: the 10-minute slow interval');
+  });
+
+  test('a Mac the service will not register: say so, wait 15 minutes, no plan problem', async t => {
+    t.mock.method(console, 'error', () => {});
+    const h = hosted();
+    const at = h.now;
+    await h.step({ throw: serviceErr('device_unverified', 'Grayout could not register this Mac with the service. Try again later.') });
+    assert.equal(h.live().lastLine, UNREGISTERED_LINE);
+    assert.equal(h.live().backoffUntil, at + 15 * MIN);
+    assert.equal(h.live().needsSubscription, false);
+    await h.step();
+    assert.equal(h.calls.analyze.length, 1, 'no new registration attempts inside the wait');
+  });
+
+  test('saved keys the Keychain will not unlock: say so, wait 15 minutes, no plan problem', async t => {
+    t.mock.method(console, 'error', () => {});
+    const h = hosted();
+    const at = h.now;
+    await h.step({ throw: serviceErr('secrets_locked', 'Grayout could not unlock its saved keys.') });
+    assert.equal(h.live().lastLine, SECRETS_LOCKED_LINE);
+    assert.equal(h.live().backoffUntil, at + 15 * MIN);
+    assert.equal(h.live().needsSubscription, false);
+    await h.step();
+    assert.equal(h.calls.analyze.length, 1);
+  });
+
+  test('a rate limit with retryAfter waits at least that long', async t => {
+    t.mock.method(console, 'error', () => {});
+    const h = hosted();
+    const at = h.now;
+    await h.step({ throw: serviceErr('rate_limited', 'Slow down.', { retryAfter: 120 }) });
+    assert.equal(h.live().backoffUntil, at + 120000);
+  });
+
+  test('the service missing a setting (not_configured, 503) is treated like a busy service', async t => {
+    t.mock.method(console, 'error', () => {});
+    const h = hosted();
+    const at = h.now;
+    await h.step({ throw: serviceErr('not_configured', 'Billing is not set up.') });
+    assert.equal(h.live().backoffUntil, at + 30000);
+    assert.match(h.live().lastLine, /^Grayout busy — retrying at /);
+    assert.equal(h.live().needsSubscription, false);
+  });
+
+  test('a build with no service address takes no screenshot at all and gives the color back', async t => {
+    t.mock.method(console, 'error', () => {});
+    const h = hosted({ connected: false });
+    await h.step();
+    assert.equal(h.calls.capture, 0, 'nothing captured');
+    assert.equal(h.calls.analyze.length, 0, 'nothing sent');
+    assert.equal(h.live().lastLine, NOT_CONNECTED_LINE);
+    assert.equal(h.live().errorKind, 'not_connected');
+    assert.equal(h.live().alerting, false);
+  });
+
+  test('a self-hosted key works in a build with no service address', async () => {
+    const h = build({ deps: { account: { configured: () => false, snapshot: () => null } } });   // default deps: an Anthropic key
+    await h.step(ON());
+    assert.equal(h.calls.capture, 1);
+    assert.equal(h.calls.analyze.length, 1);
   });
 
   test('a billing state never leaves the Mac gray', async t => {
@@ -1149,7 +1325,10 @@ describe('13. the hosted plan', () => {
 describe('escape hatches', () => {
   test('previewGray shows the consequence, then proves the restore path', async () => {
     const h = build();
-    const p = h.loop.previewGray(30);
+    // The preview runs on a real timer. 30 ms was flaky when the whole suite
+    // ran in parallel: a starved process can let 30 ms pass between two event
+    // loop turns, so the color came back before the "it is gray" asserts ran.
+    const p = h.loop.previewGray(400);
     await helpers.turns(2);
     assert.equal(h.calls.gray.at(-1), true);
     assert.equal(h.calls.paint.at(-1), true);

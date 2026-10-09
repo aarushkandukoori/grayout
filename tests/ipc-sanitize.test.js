@@ -248,11 +248,12 @@ describe('registerIpc with fakes', () => {
     assert.equal(r.config.model, 'grayout');
     assert.equal(r.selfHosted, false);
     assert.equal(r.live.needsKey, false, 'the hosted path never asks for an API key');
-    assert.deepEqual(Object.keys(r.account).sort(), ['hasLicense', 'licenseMasked', 'needsSubscription', 'plan', 'status', 'usage']);
+    assert.deepEqual(Object.keys(r.account).sort(), ['cancelAtPeriodEnd', 'configured', 'hasLicense', 'interval', 'licenseMasked', 'linkUrl', 'manageNote',
+      'needsSubscription', 'periodEnd', 'plan', 'problem', 'problemReason', 'secretsLocked', 'service', 'status', 'trialEnd', 'usage']);
     assert.equal(r.account.plan, 'free');
     assert.equal(r.account.hasLicense, false);
     assert.equal(r.freeChecks, 100);
-    assert.equal(r.includedChecks, 15000);
+    assert.equal(r.includedChecks, 10000);
     assert.equal(r.plans.monthly.price, 9.99);
   });
 

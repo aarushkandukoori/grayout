@@ -142,7 +142,7 @@ tccutil reset ScreenCapture com.aarushkandukoori.grayout
 Self-hosting is a documented promise, so it gets tested like one.
 
 - [ ] Follow the README's Self-hosting section exactly, from a clean clone, without reading any other file.
-- [ ] With `provider` set to `openai` or `anthropic`, checks run on the personal key, and a network monitor shows **no connection to `api.grayout.app` at all** — not for a license check, not for anything.
+- [ ] With `provider` set to `openai` or `anthropic`, checks run on the personal key, and a network monitor shows **no connection to the Grayout service at all** — not for a license check, not for anything.
 - [ ] Removing the license from that install changes nothing; it never needed one.
 - [ ] Setting `provider` back to `grayout` returns to the subscription path.
 

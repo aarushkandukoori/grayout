@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Production test of the SELF-HOSTED provider path — the escape hatch, not the
-// product. The subscription path (api.grayout.app) is covered by the Worker's
+// product. The subscription path (the hosted service) is covered by the Worker's
 // own suite: `npm --prefix server test`.
 //
 // Usage (BUILD-SPEC §24 step 3):

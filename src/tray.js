@@ -5,6 +5,7 @@ const paths = require('./paths');
 const permissions = require('./permissions');
 const loginitem = require('./loginitem');
 const secrets = require('./secrets');
+const { safeReleaseUrl } = require('./updates');
 
 let tray = null;
 const icons = {};
@@ -111,8 +112,10 @@ function refresh(ctx) {
   ] : [];
 
   const update = ctx.updater ? ctx.updater.getAvailable() : null;
+  // update.url came from the network. safeReleaseUrl only lets an https page
+  // of this repo's releases through, so the menu never opens anything else.
   const updateItem = update
-    ? { label: `Update available: v${update.version} — Download`, click: () => shell.openExternal(update.url) }
+    ? { label: `Update available: v${update.version} — Download`, click: () => shell.openExternal(safeReleaseUrl(update.url)) }
     : { label: 'Check for updates', click: () => ctx.checkForUpdates() };
 
   const li = loginitem.getStatus();

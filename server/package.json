@@ -3,12 +3,19 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Grayout's hosted API: subscriptions, licensing and the vision proxy",
+  "description": "Grayout's hosted API: subscriptions, licensing and the vision proxy (Cloudflare Worker + D1)",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "test": "node --test 'test/**/*.test.js'"
+    "deploy": "bash scripts/deploy.sh",
+    "test": "node --disable-warning=ExperimentalWarning --test 'test/**/*.test.js'"
   },
-  "dependencies": { "stripe": "^20.1.0" },
-  "devDependencies": { "wrangler": "^4.44.0" }
+  "dependencies": {
+    "stripe": "^22.6.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.44.0"
+  },
+  "engines": {
+    "node": ">=22.13"
+  }
 }

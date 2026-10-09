@@ -6,10 +6,30 @@ const { execFile } = require('child_process');
 const paths = require('./paths');
 
 const MAX_WIDTH = 1366;
+// The Grayout service refuses any image taller than twice MAX_WIDTH (contract
+// 6.11 step 1: at most 1366 px wide and 2732 px tall). Only a very tall
+// portrait display gets near it, but without this limit every check from such
+// a Mac would come back 400 and never be judged.
+const MAX_HEIGHT = 2 * MAX_WIDTH;
 const MAX_DISPLAYS = 3;          // cost ceiling: 3 images per check
 // A capture of a black/asleep display compresses to almost nothing. Below this
 // we treat it as "nothing to see" rather than as evidence of anything.
 const MIN_PLAUSIBLE_BYTES = 6000;
+
+/**
+ * The size to shrink a capture to so it fits within MAX_WIDTH by MAX_HEIGHT,
+ * keeping its shape, or null when it already fits. Rounded, then clamped, so
+ * floating-point error can never leave it one pixel over a limit.
+ */
+function fitSize(width, height) {
+  if (!(width > 0) || !(height > 0)) return null;
+  const scale = Math.min(MAX_WIDTH / width, MAX_HEIGHT / height);
+  if (scale >= 1) return null;
+  return {
+    width: Math.max(1, Math.min(MAX_WIDTH, Math.round(width * scale))),
+    height: Math.max(1, Math.min(MAX_HEIGHT, Math.round(height * scale)))
+  };
+}
 
 function outPath(i) {
   return path.join(paths.FRAMES_DIR, `raw-${i}.jpg`);
@@ -73,8 +93,9 @@ async function captureScreens(nativeImage, displayCount = 1) {
 
       let img = nativeImage.createFromBuffer(buf);
       if (img.isEmpty()) continue;
-      const { width } = img.getSize();
-      if (width > MAX_WIDTH) img = img.resize({ width: MAX_WIDTH, quality: 'good' });
+      const { width, height } = img.getSize();
+      const fit = fitSize(width, height);
+      if (fit) img = img.resize({ width: fit.width, height: fit.height, quality: 'good' });
       images.push(img.toJPEG(65).toString('base64'));
     }
 
@@ -87,4 +108,4 @@ async function captureScreens(nativeImage, displayCount = 1) {
   }
 }
 
-module.exports = { captureScreens, MAX_WIDTH, MAX_DISPLAYS, MIN_PLAUSIBLE_BYTES };
+module.exports = { captureScreens, fitSize, MAX_WIDTH, MAX_HEIGHT, MAX_DISPLAYS, MIN_PLAUSIBLE_BYTES };

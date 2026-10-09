@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2051BD"/><stop offset=".45" stop-color="#3473D6"/><stop offset=".72" stop-color="#7FB0EC"/><stop offset="1" stop-color="#DCEAFB"/>
+    </linearGradient>
+    <radialGradient id="sun"><stop offset="0" stop-color="#fff"/><stop offset=".7" stop-color="#FFF4DA"/><stop offset="1" stop-color="#FFF4DA" stop-opacity="0"/></radialGradient>
+    <radialGradient id="w1" cx=".15" cy=".85" r=".7"><stop offset="0" stop-color="#3C6CF0"/><stop offset="1" stop-color="#3C6CF0" stop-opacity="0"/></radialGradient>
+    <radialGradient id="w2" cx=".85" cy=".2" r=".6"><stop offset="0" stop-color="#FF9A62"/><stop offset="1" stop-color="#FF9A62" stop-opacity="0"/></radialGradient>
+    <radialGradient id="w3" cx=".6" cy=".7" r=".55"><stop offset="0" stop-color="#F06BA8"/><stop offset="1" stop-color="#F06BA8" stop-opacity="0"/></radialGradient>
+    <linearGradient id="wb" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5B4BDB"/><stop offset="1" stop-color="#F7B267"/></linearGradient>
+    <linearGradient id="feed" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF9A62"/><stop offset=".55" stop-color="#F06BA8"/><stop offset="1" stop-color="#7B5CFF"/></linearGradient>
+    <linearGradient id="feed2" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#29C7AC"/><stop offset="1" stop-color="#3D7BFD"/></linearGradient>
+    <clipPath id="win"><rect x="660" y="130" width="470" height="330" rx="16"/></clipPath>
+    <clipPath id="right"><rect x="895" y="130" width="235" height="330"/></clipPath>
+    <filter id="gray"><feColorMatrix type="saturate" values="0"/></filter>
+    <filter id="blur"><feGaussianBlur stdDeviation="30"/></filter>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy="24" stdDeviation="24" flood-color="#0A1440" flood-opacity=".35"/></filter>
+    <g id="desk">
+      <rect x="660" y="130" width="470" height="330" fill="url(#wb)"/>
+      <rect x="660" y="130" width="470" height="330" fill="url(#w1)"/>
+      <rect x="660" y="130" width="470" height="330" fill="url(#w2)"/>
+      <rect x="660" y="130" width="470" height="330" fill="url(#w3)"/>
+      <rect x="660" y="130" width="470" height="18" fill="#fff" fill-opacity=".2"/>
+      <rect x="700" y="172" width="250" height="210" rx="10" fill="#16171C"/>
+      <circle cx="716" cy="186" r="4.5" fill="#FF5F57"/><circle cx="730" cy="186" r="4.5" fill="#FEBC2E"/><circle cx="744" cy="186" r="4.5" fill="#28C840"/>
+      <rect x="720" y="212" width="60" height="7" rx="3.5" fill="#BB9AF7"/><rect x="786" y="212" width="90" height="7" rx="3.5" fill="#7AA2F7"/>
+      <rect x="736" y="230" width="44" height="7" rx="3.5" fill="#E0AF68"/><rect x="786" y="230" width="110" height="7" rx="3.5" fill="#9ECE6A"/>
+      <rect x="736" y="248" width="80" height="7" rx="3.5" fill="#7AA2F7"/><rect x="822" y="248" width="30" height="7" rx="3.5" fill="#F7768E"/>
+      <rect x="752" y="266" width="120" height="7" rx="3.5" fill="#ffffff" fill-opacity=".2"/>
+      <rect x="736" y="284" width="64" height="7" rx="3.5" fill="#BB9AF7"/><rect x="806" y="284" width="70" height="7" rx="3.5" fill="#E0AF68"/>
+      <rect x="720" y="302" width="40" height="7" rx="3.5" fill="#7DCFFF"/>
+      <rect x="800" y="196" width="200" height="234" rx="10" fill="#fff"/>
+      <rect x="812" y="210" width="176" height="98" rx="8" fill="url(#feed)"/>
+      <circle cx="950" cy="238" r="16" fill="#FFE082"/>
+      <rect x="812" y="318" width="176" height="98" rx="8" fill="url(#feed2)"/>
+      <path d="M812 392c44-26 128-30 176-6v22a8 8 0 0 1-8 8H820a8 8 0 0 1-8-8z" fill="#1FA187"/>
+    </g>
+  </defs>
+  <rect width="1200" height="630" fill="url(#sky)"/>
+  <circle cx="560" cy="470" r="140" fill="#FFE9C7" opacity=".5" filter="url(#blur)"/>
+  <circle cx="560" cy="470" r="48" fill="url(#sun)"/>
+  <path d="M0 500C140 460 260 440 400 470S660 520 800 482 1060 440 1200 470V630H0Z" fill="#6E6BD8" opacity=".6"/>
+  <path d="M0 540C170 506 300 512 460 534S740 572 900 540 1110 512 1200 530V630H0Z" fill="#4D6FE0"/>
+  <path d="M0 580C160 556 340 548 500 570S800 604 980 576 1140 566 1200 572V630H0Z" fill="#2EA7A0"/>
+  <path d="M0 612C220 592 420 598 620 614S980 628 1200 606V630H0Z" fill="#F2A27E"/>
+  <g filter="url(#shadow)"><rect x="660" y="130" width="470" height="330" rx="16" fill="#3B3F7A"/></g>
+  <g clip-path="url(#win)">
+    <use href="#desk"/>
+    <g clip-path="url(#right)" filter="url(#gray)"><use href="#desk"/></g>
+    <rect x="896.5" y="131.5" width="232" height="327" fill="none" stroke="#D03B3B" stroke-width="4"/>
+    <line x1="895" y1="130" x2="895" y2="460" stroke="#fff" stroke-width="2.5"/>
+  </g>
+  <rect x="1032" y="140" width="84" height="22" rx="11" fill="#9E2626"/>
+  <text x="1074" y="155.5" text-anchor="middle" font-family="Geist, Helvetica, Arial, sans-serif" font-size="12" font-weight="500" fill="#fff">Off task</text>
+  <g transform="translate(80 84)">
+    <circle cx="16" cy="16" r="16" fill="#fff" fill-opacity=".55"/><path d="M16 16V0a16 16 0 0 1 16 16z" fill="#D03B3B"/>
+    <text x="44" y="27" font-family="Geist, Helvetica, Arial, sans-serif" font-size="30" font-weight="600" fill="#fff" letter-spacing="-.5">Grayout</text>
+  </g>
+  <text font-family="'EB Garamond', Georgia, serif" font-size="84" font-weight="500" fill="#fff" letter-spacing="-1">
+    <tspan x="76" y="250">Get distracted.</tspan>
+    <tspan x="76" y="336">Lose color.</tspan>
+  </text>
+  <text font-family="Geist, Helvetica, Arial, sans-serif" font-size="26" font-weight="500" fill="#fff" fill-opacity=".92" letter-spacing="-.4">
+    <tspan x="80" y="404">Your Mac turns gray when you drift,</tspan>
+    <tspan x="80" y="440">and color comes back when you work.</tspan>
+  </text>
+</svg>

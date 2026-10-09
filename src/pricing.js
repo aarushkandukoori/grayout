@@ -10,7 +10,10 @@
 
 // Subscription, decided from measured unit costs (docs/API-CONTRACT.md).
 const FREE_CHECKS = 100;        // the free taste: no card, no account, device-bound
-const INCLUDED_CHECKS = 15000;  // checks a month on either paid plan
+// 10,000 is the contract's number (docs/API-CONTRACT.md sections 2 and 13),
+// and the website and terms promise it. Change the contract first, then here,
+// then server/src/config.js, then the site.
+const INCLUDED_CHECKS = 10000;  // checks a month on either paid plan
 
 const PLANS = {
   monthly: {

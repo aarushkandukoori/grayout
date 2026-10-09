@@ -133,6 +133,8 @@
   .cmd { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 14px; font-size: 13px; }
   .cmd code { overflow-wrap: anywhere; }
   .hidden { display: none !important; }
+  .plan-pick { margin: 0 0 14px; max-width: 520px; }
+  #buy-note { margin: 12px 0 0; }
   @media (max-width: 640px) {
     .srow, .perm { grid-template-columns: 1fr; }
     .verdict { grid-template-columns: 1fr; gap: 12px; }
@@ -311,18 +313,34 @@
       <h2>Your plan</h2>
       <p class="note" id="account-line">Loading</p>
       <p class="note" id="account-usage"></p>
+      <!-- Both plans can be bought from here, so a returning buyer always checks
+           out through this Mac (its known customer, no second trial) instead of
+           the website. -->
+      <div class="plan-pick" id="plan-pick" role="radiogroup" aria-label="Choose a plan">
+        <label class="radio-row">
+          <input type="radio" name="dash-plan" value="monthly" checked>
+          <span class="radio-text"><b>Monthly</b> &mdash; <span id="dash-price-monthly">billed every month</span></span>
+        </label>
+        <label class="radio-row">
+          <input type="radio" name="dash-plan" value="yearly">
+          <span class="radio-text"><b>Yearly</b> &mdash; <span id="dash-price-yearly">billed once a year</span></span>
+        </label>
+      </div>
       <div class="actions" style="padding-top:0">
         <button type="button" id="btn-subscribe" class="btn btn-primary">Subscribe</button>
         <button type="button" id="btn-manage" class="btn">Manage subscription</button>
+        <button type="button" id="btn-restore-key" class="link">Restore my key</button>
         <button type="button" id="btn-cancel-claim" class="link hidden">Cancel</button>
         <span id="account-msg" class="status"></span>
       </div>
+      <p class="note hidden" id="buy-note">Bought Grayout on the website? Paste the key from the purchase page below instead of subscribing again, so you are only charged once.</p>
       <div class="field-row" id="license-row">
         <input type="text" id="f-license" class="field mono" placeholder="gry_live_…" spellcheck="false" autocapitalize="characters" autocomplete="off" aria-label="Grayout license key">
         <button type="button" id="btn-license-save" class="btn" disabled>Activate</button>
       </div>
       <div class="keyfoot">
-        <span class="muted">Billing goes through Stripe. Grayout never sees your card details. Your license key is stored in the macOS Keychain and never written anywhere else.</span>
+        <span class="muted" id="billing-note">Payments are processed by Stripe and sold through Link, so your card statement shows LINK.COM*, and prices are plus tax where it applies. Grayout never sees your card details. To update your card, see receipts or cancel, use Manage subscription. You can also manage it at link.com, where this purchase is listed as Sold through Link. Your license key is stored in the macOS Keychain and never written anywhere else.</span>
+        <button type="button" id="btn-link" class="link">Open link.com</button>
         <button type="button" id="btn-plans" class="link">See plans</button>
       </div>
     </div>

@@ -1,179 +1,292 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en" data-page="pricing">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark light">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src https://api.grayout.app; base-uri 'none'; form-action 'none'">
-  <title>Pricing — Grayout for Mac</title>
-  <meta name="description" content="Grayout is $9.99 a month or $79 a year, with a 7-day free trial and 100 checks free with no card. No API key, no provider account, no meter to watch.">
-  <link rel="canonical" href="https://aarushkandukoori.github.io/grayout/pricing.html">
-  <meta property="og:type" content="website">
-  <meta property="og:site_name" content="Grayout for Mac">
-  <meta property="og:title" content="Pricing — Grayout for Mac">
-  <meta property="og:description" content="$9.99 a month or $79 a year, 7 days free, and 100 checks with no card at all.">
-  <meta property="og:url" content="https://aarushkandukoori.github.io/grayout/pricing.html">
-  <meta property="og:image" content="https://aarushkandukoori.github.io/grayout/img/dashboard.png">
-  <meta name="twitter:card" content="summary_large_image">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%238a8a8a'/%3E%3Cpath d='M16 16 L16 2 A14 14 0 0 1 30 16 Z' fill='%23d03b3b'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="style.css">
-  <script src="app.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://*.workers.dev; base-uri 'self'; form-action 'none'; object-src 'none'; frame-src 'none'; manifest-src 'self'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>Pricing | Grayout for Mac</title>
+<meta name="description" content="Grayout Pro is $9.99 a month or $79 a year, plus tax where it applies, with 10,000 checks a month and a 7-day free trial for new subscribers. Or run it free on your own API key.">
+<link rel="canonical" href="https://aarushkandukoori.github.io/grayout/pricing.html">
+<meta name="theme-color" content="#DDE2EE">
+<meta name="color-scheme" content="light">
+<link rel="icon" href="img/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="img/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Grayout">
+<meta property="og:title" content="Grayout pricing">
+<meta property="og:description" content="Grayout Pro is $9.99 a month or $79 a year, plus tax where it applies, with 10,000 checks a month and a 7-day free trial for new subscribers. Or run it free on your own API key.">
+<meta property="og:url" content="https://aarushkandukoori.github.io/grayout/pricing.html">
+<meta property="og:image" content="https://aarushkandukoori.github.io/grayout/img/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Grayout: a Mac desktop half in color and half in gray, with a red border on the gray side.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Grayout pricing">
+<meta name="twitter:description" content="Grayout Pro is $9.99 a month or $79 a year, plus tax where it applies, with 10,000 checks a month and a 7-day free trial for new subscribers. Or run it free on your own API key.">
+<meta name="twitter:image" content="https://aarushkandukoori.github.io/grayout/img/og.png">
+<link rel="preload" href="fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="pages.css">
+<script src="config.js"></script>
+<script src="app.js"></script>
 </head>
-<body class="v2">
-<div class="prelaunch" role="status">
-  Subscriptions are not open yet. Today's download runs on your own OpenAI or Anthropic key — see <a href="api-key.html">self-hosting</a>.
-</div>
-
-<a class="sr-only" href="#main">Skip to content</a>
-
-<header class="nav" data-nav>
-  <div class="nav-in">
-    <a class="nav-brand" href="index.html"><span class="mark" aria-hidden="true"></span>Grayout</a>
-    <nav class="nav-links" aria-label="Main">
-      <a href="index.html#how">How it works</a>
-      <a href="pricing.html">Pricing</a>
-      <a href="install.html">Install</a>
-      <a href="privacy.html">Privacy</a>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="hdr">
+  <div class="wrap hdr__in">
+    <a class="logo" href="./" aria-label="Grayout home"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="currentColor" opacity=".5"/><path d="M10 10V1a9 9 0 0 1 9 9z" fill="#D03B3B"/></svg><span>Grayout</span></a>
+    <nav class="nav" aria-label="Main">
+        <a href="./#how">How it works</a>
+        <a href="pricing.html" aria-current="page">Pricing</a>
+        <a href="download.html">Download</a>
+        <a href="privacy.html">Privacy</a>
     </nav>
-    <a class="btn btn-ghost btn-sm" href="install.html">Install</a>
+    <div class="hdr__end">
+      <button class="burger" type="button" aria-expanded="false" aria-controls="sheet" aria-label="Open menu" data-sheet-open><span></span></button>
+      <a class="burger burger--link" href="#site-footer" aria-label="Menu: every page is listed at the bottom"><span></span></a>
+    </div>
   </div>
 </header>
-
+<a class="btn btn-primary btn-float" href="download.html" data-float tabindex="-1"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 13h10"/></svg>Download</a>
 <main id="main">
-
-  <section class="hero wrap">
-    <h1>One price.<br><span class="dim">No API key.</span></h1>
-    <p class="hero-sub">Grayout makes the model calls and pays for them. You never open a provider account.</p>
-
-    <div class="toggle" data-toggle role="group" aria-label="Billing period">
-      <button type="button" data-billing="monthly" aria-pressed="true">Monthly</button>
-      <button type="button" data-billing="yearly" aria-pressed="false">Yearly</button>
-      <span class="save">Save 34%</span>
+  <section class="band band--price center" aria-labelledby="price-h1">
+    <div class="wrap">
+      <h1 id="price-h1" class="price-h1"><span data-when="service">100 checks <span class="tile" aria-hidden="true"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" fill="none" stroke="#fff" stroke-width="5"/><path d="M32 32V10a22 22 0 0 1 22 22z" fill="#fff"/><path d="M32 32h22A22 22 0 1 1 32 10z" fill="#fff" opacity=".45"/></svg></span> on the house.</span><span data-when="noservice">Simple <span class="tile" aria-hidden="true"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" fill="none" stroke="#fff" stroke-width="5"/><path d="M32 32V10a22 22 0 0 1 22 22z" fill="#fff"/><path d="M32 32h22A22 22 0 1 1 32 10z" fill="#fff" opacity=".45"/></svg></span> pricing.</span></h1>
+      <p class="lede"><span data-when="live">Try it free for about 2 hours of real work. If it keeps you honest, Pro keeps it running all month.</span><span data-when="soon">Try it free for about 2 hours of real work. Pro, for the whole month, opens soon.</span><span data-when="noservice">Use Grayout today on your own API key. Grayout Pro, with nothing to set up, opens soon.</span></p>
+      <div class="callout callout--blue canceled" data-canceled hidden role="status"><p class="t">Checkout canceled. No charge was made.</p><p>You can start again whenever you like, or keep using the free download.</p></div>
+      <div class="price-controls">
+        <div class="billing" data-billing>
+        <button type="button" class="billing__lab" data-label="monthly">Monthly</button>
+        <button type="button" class="switch" role="switch" aria-checked="false" aria-label="Yearly billing"></button>
+        <button type="button" class="billing__lab" data-label="yearly">Yearly</button>
+      </div>
+      </div>
+      <h2 class="sr-only">Plans</h2>
+      <div class="plans">
+        <article class="plan" data-reveal="snap">
+          <div class="plan__top"><h3>Free taste</h3><span class="chip chip--amber" data-when="noservice"><span class="dot dot--amber"></span>Opens soon</span></div>
+          <div class="plan__price">Free</div>
+          <p class="plan__note"><span data-when="service">100 checks to see it work. No card, no account.</span><span data-when="noservice">100 free checks start when the Grayout service opens.</span></p>
+          <div class="plan__cta">
+            <div data-when="service"><div class="split split--dark" data-split>
+          <a class="btn btn-dark split__main" href="https://github.com/aarushkandukoori/grayout/releases/latest/download/Grayout-arm64.dmg" data-dl="arm64" data-dl-auto><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 13h10"/></svg><span data-dl-label>Download for Apple Silicon</span></a>
+          <button class="btn btn-dark split__caret" type="button" aria-expanded="false" aria-haspopup="true" aria-label="More download options"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4.5 6.2 3.5 3.6 3.5-3.6"/></svg></button>
+          <div class="menu menu--left" hidden>
+            <a href="https://github.com/aarushkandukoori/grayout/releases/latest/download/Grayout-arm64.dmg" data-dl="arm64"><span>Apple Silicon<small>M1 and later</small></span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 13h10"/></svg></a>
+            <a href="https://github.com/aarushkandukoori/grayout/releases/latest/download/Grayout-x64.dmg" data-dl="x64"><span>Intel<small>Macs from before 2021</small></span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 13h10"/></svg></a>
+            <hr>
+            <button type="button" data-copy="=brew install --cask aarushkandukoori/tap/grayout"><span><span data-copy-label>Copy the Homebrew command</span><small class="mono">brew install --cask aarushkandukoori/tap/grayout</small></span></button>
+            <a href="download.html"><span>Install guide<small>First launch takes three extra clicks</small></span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h9.5M8.5 4l4 4-4 4"/></svg></a>
+          </div>
+        </div></div>
+            <a class="btn btn-light" href="changelog.html#v2" data-when="noservice">See what&rsquo;s coming</a>
+          </div>
+          <p class="plan__desc"><span data-when="service">The whole app, for a first taste.</span><span data-when="noservice">When it opens: the whole app, for a first taste.</span></p>
+          <ul class="plan__feats">
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg>Gray screen and red border</li>
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg>The full dashboard</li>
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg>Up to three displays</li>
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg>Ends after 100 checks</li>
+          </ul>
+        </article>
+        <article class="plan plan--pro dl-1" data-reveal="snap" data-checkout-scope>
+          <div class="plan__top"><h3>Pro</h3><span class="chip chip--blue" data-plan-show="yearly">34% off</span><span class="chip chip--blue" data-plan-show="monthly" data-when="live">7 days free</span><span class="chip chip--amber" data-when="notlive"><span class="dot dot--amber"></span>Opens soon</span></div>
+          <div class="plan__price"><span data-roll data-monthly="9.99" data-yearly="79">$9.99</span><small><span data-plan-show="monthly">/ month</span><span data-plan-show="yearly">/ year</span></small></div>
+          <p class="plan__note"><span data-plan-show="monthly"><span data-when="live">7-day free trial with up to 1,000 checks for new subscribers, then $9.99 a month</span><span data-when="notlive">$9.99 a month, with a 7-day free trial of up to 1,000 checks for first-time subscribers</span>, plus tax where it applies.</span><span data-plan-show="yearly">Billed $79 once a year, plus tax where it applies. About $6.58 a month.</span></p>
+          <div class="plan__cta">
+            <button class="btn btn-dark" type="button" data-buy="auto" data-when="live"><span data-btn-label><span data-plan-show="monthly">Start 7-day free trial</span><span data-plan-show="yearly">Subscribe yearly</span></span></button>
+            <a class="btn btn-dark" href="download.html" data-when="soon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 13h10"/></svg>Download free</a>
+            <a class="btn btn-dark" href="download.html#today" data-when="noservice">Use your own key today</a>
+          </div>
+          <p class="plan__msg" data-checkout-msg role="status" aria-live="polite"></p>
+          <p class="plan__desc"><span data-when="live">Everything in the free taste, all month long.</span><span data-when="soon">Subscriptions open soon. Start with 100 free checks; when they open, upgrade from the menu bar.</span><span data-when="noservice">Subscriptions open soon. Until then, today&rsquo;s release runs on your own OpenAI or Anthropic key.</span></p>
+          <ul class="plan__feats">
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg>10,000 checks a month</li>
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg>Past that, one check every 10 minutes</li>
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg>No API key to get</li>
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg>Cancel any time from the menu bar</li>
+          </ul>
+        </article>
+        <article class="plan plan--own dl-2" data-reveal="snap">
+          <div class="plan__top"><h3>Your own key</h3><span class="chip chip--green" data-when="noservice"><span class="dot dot--green"></span>Available today</span></div>
+          <div class="plan__price">$0<small>plus your API costs</small></div>
+          <p class="plan__note">Your OpenAI or Anthropic account pays for each check, a fraction of a cent.</p>
+          <div class="plan__cta"><a class="btn btn-light" href="api-key.html">Read the guide</a></div>
+          <p class="plan__desc">Open source under the MIT license.</p>
+          <ul class="plan__feats">
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg>Your OpenAI or Anthropic key</li>
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg>Screenshots go straight to your provider</li>
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg>Community support on GitHub</li>
+          </ul>
+        </article>
+      </div>
+      <p class="fine">Prices in US dollars, plus sales tax or VAT where it applies, worked out at checkout. You may see your local currency there. Payments are processed by Stripe and sold through Link, so your statement shows LINK.COM*. Grayout never sees your card number.</p>
     </div>
   </section>
 
-  <section class="sec wrap" id="plans">
-    <div class="plans" data-plans>
-      <div class="plan">
-        <h3>Free taste</h3>
-        <p class="plan-note">No card, no account</p>
-        <div class="price"><span class="amt"><span class="num">$0</span></span></div>
-        <p class="price-sub">100 checks, about a working day</p>
-        <ul>
-          <li>The real thing, not a demo</li>
-          <li>Every display watched</li>
-          <li>Tied to the Mac you install it on</li>
-          <li>Nothing to cancel</li>
-        </ul>
-        <a class="btn btn-ghost" href="https://github.com/aarushkandukoori/grayout/releases/latest/download/Grayout-arm64.dmg">Download</a>
+  <section class="sec" aria-labelledby="after-title">
+    <div class="wrap wrap--price">
+      <div class="sec-head center">
+        <p class="sec-chip" data-when="notlive"><span class="chip chip--amber"><span class="dot dot--amber"></span>Opens soon</span></p>
+        <h2 id="after-title" class="h2" data-reveal><span class="grad">What happens after you subscribe</span></h2>
+        <p class="sub dl-1" data-reveal>No surprises. Here is the whole life of a Grayout Pro subscription.</p>
       </div>
-
-      <div class="plan plan--pro">
-        <span class="plan-tag">Pro</span>
-        <h3>Grayout Pro</h3>
-        <p class="plan-note">Every working day</p>
-        <div class="price">
-          <span class="amt amt-m"><span class="num">$9.99</span><span class="per">per month</span></span>
-          <span class="amt amt-y"><span class="num">$79</span><span class="per">per year</span></span>
-        </div>
-        <p class="price-sub"><span class="only-m">7 days free, cancel any time</span><span class="only-y">$6.58 a month, billed yearly</span></p>
-        <ul>
-          <li>15,000 checks a month</li>
-          <li>Every display, plus the webcam if you want it</li>
-          <li>Grayout pays the model bill</li>
-          <li>Cancel from Stripe’s billing portal</li>
-        </ul>
-        <button type="button" class="btn btn-primary" data-plan-button data-checkout="monthly" data-note="pricing-note">
-          <span class="only-m">Start 7 days free</span><span class="only-y">Get a year</span>
-        </button>
-      </div>
-    </div>
-
-    <div class="checkout-note" id="pricing-note" hidden>
-      <span class="msg">Checkout is not live yet.</span>
-      <span class="alt">The service is still being stood up. <a href="install.html">Install Grayout</a> and run 100 checks free in the meantime &mdash; no card, no account.</span>
-    </div>
-
-    <p class="fine plan-fine">Prices in US dollars. A yearly plan is billed once and has no trial period; the monthly plan carries the seven free days.</p>
-  </section>
-
-  <section class="sec wrap" id="billing">
-    <div class="sec-head reveal">
-      <p class="eyebrow">Billing</p>
-      <h2>The awkward questions.</h2>
-    </div>
-
-    <div class="faq reveal">
-      <details class="faq-item">
-        <summary>What counts as a check?</summary>
+      <ol class="after">
+        <li class="after__step" data-reveal="snap"><span class="after__when">Day 1</span><h3>Start the trial</h3><p>Checkout is a Stripe page. Monthly plans start with 7 free days for new subscribers. The trial includes up to 1,000 checks. Your card is saved now and first charged on day 8.</p></li>
+        <li class="after__step dl-1" data-reveal="snap"><span class="after__when">Seconds later</span><h3>Grayout unlocks</h3><p>If you subscribed from the app, it unlocks itself. If you subscribed here, the next page shows your license key to paste into Settings.</p></li>
+        <li class="after__step dl-2" data-reveal="snap"><span class="after__when">Day 8</span><h3>The first charge</h3><p>$9.99 plus any tax, then every month on the same date. Cancel before the trial ends and you pay nothing. Link sends no reminder email for a 7-day trial, so Grayout shows a Mac notification about two days before it ends.</p></li>
+        <li class="after__step dl-3" data-reveal="snap"><span class="after__when">Every month</span><h3>10,000 checks included</h3><p>A month of work is about 8,000 checks, roughly 4,000 once unchanged screens are skipped. If you pass 10,000, Grayout checks once every 10 minutes until the count resets on the 1st, so it keeps working.</p></li>
+        <li class="after__step dl-4" data-reveal="snap"><span class="after__when">Any time</span><h3>Cancel in two clicks</h3><p>Use Manage subscription in the menu bar or link.com. Pro keeps working until the end of the period you paid for, then Grayout stops checking. It never grays your screen over billing.</p></li>
+      </ol>
+      <div class="mor" data-reveal>
+        <div class="mor__icon" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><rect x="1.8" y="3.5" width="12.4" height="9" rx="1.6"/><path d="M1.8 6.5h12.4M4.5 10h2.5" stroke-linecap="round"/></svg></div>
         <div>
-          <p>One look at your screen. Grayout skips the call when nothing has changed on any display and the frontmost app is the same, so an idle desk costs almost nothing; it forces a real check at least every three minutes regardless.</p>
-          <p>At the 45-second default, a full working month is typically well under the 15,000 included.</p>
+          <h3>Who you pay</h3>
+          <p>Grayout Pro is sold through Link, Stripe&rsquo;s checkout. Stripe is the merchant of record: it works out and collects sales tax or VAT, sends your receipts, and answers payment questions. Your statement shows LINK.COM*, and you can see or cancel the order at <a class="inline-link" href="https://link.com">link.com</a>. Grayout never sees your card number. <a class="inline-link" href="refunds.html">Refunds</a> and <a class="inline-link" href="terms.html">terms</a>.</p>
         </div>
-      </details>
-
-      <details class="faq-item">
-        <summary>What happens past 15,000 checks?</summary>
-        <div><p>The interval stretches instead of cutting you off. Nothing goes gray because of a billing state, and there is no overage charge.</p></div>
-      </details>
-
-      <details class="faq-item">
-        <summary>What happens when the trial ends?</summary>
-        <div><p>The monthly plan starts billing $9.99 on day eight. Cancel before then and you are not charged. The app tells you which day you are on.</p></div>
-      </details>
-
-      <details class="faq-item">
-        <summary>Do I need an account?</summary>
-        <div><p>Not for the free taste. For Pro you pay through the checkout page and the app claims its license on its own: there is no password to make and no key to copy.</p></div>
-      </details>
-
-      <details class="faq-item">
-        <summary>How do I cancel?</summary>
-        <div><p>Settings &gt; Manage subscription opens Stripe’s billing portal. Cancel there and your subscription runs to the end of the period you paid for.</p></div>
-      </details>
-
-      <details class="faq-item">
-        <summary>What does Grayout see?</summary>
-        <div><p>A resized screenshot of each display and an optional webcam frame, sent for each check and dropped as soon as the model answers. They are never stored, never logged and never written to disk by the service. The <a href="privacy.html">privacy page</a> lists everything.</p></div>
-      </details>
-    </div>
-  </section>
-
-  <section class="sec wrap closer">
-    <div class="reveal">
-      <h2>Try it for a week.</h2>
-      <p class="sec-sub">Seven days free, then $9.99 a month. Or run 100 checks with no card at all.</p>
-      <div class="cta">
-        <button type="button" class="btn btn-primary" data-checkout="monthly" data-note="closer-note">Start free</button>
-        <a class="btn btn-ghost" href="install.html">How to install</a>
-      </div>
-      <div class="checkout-note" id="closer-note" hidden>
-        <span class="msg">Checkout is not live yet.</span>
-        <span class="alt">The service is still being stood up. <a href="install.html">Install Grayout</a> and run 100 checks free in the meantime &mdash; no card, no account.</span>
       </div>
     </div>
   </section>
 
+  <section class="sec" id="compare" aria-labelledby="compare-title">
+    <div class="wrap wrap--price">
+      <div class="sec-head center">
+        <h2 id="compare-title" class="h2" data-reveal><span class="grad">Compare plans</span></h2>
+      </div>
+      <p class="compare-hint">Swipe the table sideways to see all three plans.</p>
+      <div class="compare-wrap" data-reveal>
+        <table class="compare">
+          <thead>
+            <tr>
+              <th scope="col"><span class="sr-only">Feature</span></th>
+              <th scope="col"><span class="t">Free taste</span><span class="p">Free</span><a class="btn btn-light btn-sm" href="download.html" data-when="service">Download</a><span class="chip chip--amber" data-when="noservice">Opens soon</span></th>
+              <th scope="col" data-checkout-scope><span class="t">Pro</span><span class="p"><span data-plan-show="monthly">$9.99 a month</span><span data-plan-show="yearly">$79 a year</span> plus tax</span><button class="btn btn-dark btn-sm" type="button" data-buy="auto" data-when="live"><span data-btn-label><span data-plan-show="monthly">Start trial</span><span data-plan-show="yearly">Subscribe</span></span></button><a class="btn btn-dark btn-sm" href="download.html" data-when="soon">Download free</a><span class="chip chip--amber" data-when="noservice">Opens soon</span><span class="plan__msg" data-checkout-msg role="status" aria-live="polite"></span></th>
+              <th scope="col"><span class="t">Your own key</span><span class="p">$0 plus API costs</span><a class="btn btn-light btn-sm" href="api-key.html">Read the guide</a></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Price</th><td>Free</td><td>$9.99 a month or $79 a year, plus tax where it applies</td><td>$0, plus what your provider charges per check</td></tr>
+            <tr><th scope="row">Checks</th><td>100 in total</td><td>10,000 a month, then one every 10 minutes</td><td>Whatever your key pays for</td></tr>
+            <tr><th scope="row">Card needed</th><td>No</td><td>Yes. Monthly starts with a 7-day trial (up to 1,000 checks) for new subscribers</td><td>No</td></tr>
+            <tr><th scope="row">Account</th><td>None</td><td>None. A license key unlocks the app</td><td>None</td></tr>
+            <tr><th scope="row">API key needed</th><td>No</td><td>No</td><td>Yes, OpenAI or Anthropic</td></tr>
+            <tr><th scope="row">Gray screen and red border</th><td><span class="y"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg><span class="sr-only">Included</span></span></td><td><span class="y"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg><span class="sr-only">Included</span></span></td><td><span class="y"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg><span class="sr-only">Included</span></span></td></tr>
+            <tr><th scope="row">Dashboard and 30-day log</th><td><span class="y"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg><span class="sr-only">Included</span></span></td><td><span class="y"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg><span class="sr-only">Included</span></span></td><td><span class="y"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg><span class="sr-only">Included</span></span></td></tr>
+            <tr><th scope="row">Up to three displays</th><td><span class="y"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg><span class="sr-only">Included</span></span></td><td><span class="y"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg><span class="sr-only">Included</span></span></td><td><span class="y"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg><span class="sr-only">Included</span></span></td></tr>
+            <tr><th scope="row">Where screenshots go</th><td>Grayout service, then the AI model</td><td>Grayout service, then the AI model</td><td>Straight to your provider</td></tr>
+            <tr><th scope="row">Support</th><td>GitHub</td><td>GitHub<span data-when="support">, plus email</span></td><td>GitHub</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec faq-sec" id="billing-faq" aria-labelledby="bfaq-title">
+    <div class="wrap">
+      <div class="faq-head">
+        <h2 id="bfaq-title" class="h2 h2--flat" data-reveal>Billing questions</h2>
+        <a class="arrow-link" href="./#faq" data-reveal>Product questions <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h9.5M8.5 4l4 4-4 4"/></svg></a>
+      </div>
+      <div class="faq" data-faq data-reveal>
+        <div class="faq__item" id="b-trial"><button class="faq__q" type="button">Who gets the free trial? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>Anyone subscribing to the monthly plan for the first time. It lasts 7 days, needs a card, and includes up to 1,000 checks. A week of work is about 1,900 checks, roughly 950 once unchanged screens are skipped, and Grayout skips them on its own. There is one trial per person: if the email or card you use already had one, the new trial ends at once and the first month is charged right away. The yearly plan has no trial; it is already cheaper.</p></div></div></div>
+        <div class="faq__item" id="b-cancel"><button class="faq__q" type="button">How do I cancel? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>Click the Grayout icon in the menu bar and choose Manage subscription, or sign in at link.com, where the purchase is listed as sold through Link. Pro keeps working until the end of the period you already paid for. <a class="inline-link" href="account.html">More ways to manage it</a>.</p></div></div></div>
+        <div class="faq__item" id="b-refund"><button class="faq__q" type="button">Can I get a refund? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>Yes. Ask within 30 days of a charge and it is refunded in full, no argument. <span data-when="support">A yearly plan after its first 30 days gets the unused whole months back. </span><a class="inline-link" href="refunds.html">The refund policy</a> has the details.</p></div></div></div>
+        <div class="faq__item" id="b-tax"><button class="faq__q" type="button">Do prices include tax? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>No. Prices are in US dollars before tax. Where sales tax or VAT applies, Stripe adds it at checkout, and you see the total before you pay. Checkout may show the price in your local currency.</p></div></div></div>
+        <div class="faq__item" id="b-statement"><button class="faq__q" type="button">What will my card statement say? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>LINK.COM* followed by a short description. Grayout Pro is sold through Link, Stripe&rsquo;s checkout, so receipts and refund notices come from Link too.</p></div></div></div>
+        <div class="faq__item" id="b-switch"><button class="faq__q" type="button">Can I switch between monthly and yearly? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>Yes, from Manage subscription. The change is prorated, so you only pay the difference.</p></div></div></div>
+        <div class="faq__item" id="b-two"><button class="faq__q" type="button">Can I use it on two Macs? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>Yes. Paste the same license key into Settings on the other Mac. Both share the 10,000 checks a month.</p></div></div></div>
+        <div class="faq__item" id="b-data"><button class="faq__q" type="button">What happens to my data when I cancel? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>The service holds a license record with your monthly check counts, plus the device and trial records listed in the <a class="inline-link" href="privacy.html#service">privacy policy</a>, which also says how long each is kept and <a class="inline-link" href="privacy.html#deletion">how to have them deleted</a>. Screenshots were never stored.</p></div></div></div>
+      </div>
+    </div>
+  </section>
 </main>
-
-<footer class="site-footer">
-  <div class="wrap">
-    <div class="foot-grid">
-      <a class="nav-brand" href="index.html"><span class="mark" aria-hidden="true"></span>Grayout for Mac</a>
-      <nav aria-label="Footer">
-        <a href="pricing.html">Pricing</a>
-        <a href="install.html">Install</a>
-        <a href="privacy.html">Privacy</a>
-        <a href="https://github.com/aarushkandukoori/grayout">GitHub</a>
-        <a href="https://github.com/aarushkandukoori/grayout/releases">Releases</a>
-        <a href="https://github.com/aarushkandukoori/grayout/issues">Issues</a>
-        <a href="https://github.com/aarushkandukoori/grayout/blob/main/SECURITY.md">Security</a>
-        <a href="https://github.com/aarushkandukoori/grayout/blob/main/LICENSE">MIT</a>
-      </nav>
+<section class="cta-band" aria-labelledby="cta-title">
+  <div class="wrap cta-band__in">
+    <div>
+      <h2 id="cta-title" data-reveal>Keep your Mac in color.<br><span class="grad2">Try Grayout on your next work session.</span></h2>
+      <div class="actions" data-reveal>
+        <a class="btn btn-primary" href="download.html"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 13h10"/></svg>Download for Mac</a>
+        <a class="arrow-link" href="download.html#first-run">How to install <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h9.5M8.5 4l4 4-4 4"/></svg></a>
+      </div>
+      <p class="note dl-2" data-reveal>
+        <span data-when="noservice">Free download for macOS 13 or later. Today&rsquo;s release runs on your own OpenAI or Anthropic key.</span>
+        <span data-when="service">100 checks free. No card, no account.</span>
+      </p>
     </div>
-    <p class="foot-note">Grayout reports to nobody but you. There is no team dashboard and there will not be an employer edition. Aarush Kandukoori, 2026.</p>
+    <div class="keys" aria-hidden="true" data-keys>
+      <div class="keycap keycap--a"><div class="keycap__in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor" stroke="none"/></svg></div></div>
+      <div class="keycap keycap--b"><div class="keycap__in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 5v7a3 3 0 0 1-3 3H6"/><path d="m10 11-4 4 4 4"/></svg></div></div>
+    </div>
+  </div>
+</section>
+<footer class="ftr" id="site-footer">
+  <div class="wrap">
+    <div class="ftr__grid">
+      <div class="ftr__brand">
+        <div>
+          <a class="logo" href="./" aria-label="Grayout home"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="currentColor" opacity=".5"/><path d="M10 10V1a9 9 0 0 1 9 9z" fill="#D03B3B"/></svg><span>Grayout</span></a>
+          <p>Your Mac goes gray when you drift and comes back in color when you work. Made by Aarush Kandukoori.</p>
+        </div>
+        <div><span class="status" data-status><span class="dot dot--amber"></span><span data-status-text>Subscriptions opening soon</span></span></div>
+      </div>
+      <div class="ftr__cols">
+        <div class="ftr__col">
+          <h2>Product</h2>
+          <ul>
+            <li><a href="download.html">Download</a></li>
+            <li><a href="pricing.html">Pricing</a></li>
+            <li><a href="changelog.html">Changelog</a></li>
+            <li><a href="account.html">Manage subscription</a></li>
+          </ul>
+        </div>
+        <div class="ftr__col">
+          <h2>Resources</h2>
+          <ul>
+            <li><a href="privacy.html">Privacy</a></li>
+            <li><a href="terms.html">Terms</a></li>
+            <li><a href="refunds.html">Refunds</a></li>
+            <li><a href="api-key.html">Use your own key</a></li>
+            <li><a href="https://github.com/aarushkandukoori/grayout">Source code</a></li>
+          </ul>
+        </div>
+        <div class="ftr__col">
+          <h2>Help</h2>
+          <ul>
+            <li><a href="download.html#first-run">First launch</a></li>
+            <li><a href="download.html#stuck">Stuck gray screen</a></li>
+            <li><a href="https://github.com/aarushkandukoori/grayout/issues/new?template=wrong-call.yml">Report a wrong call</a></li>
+            <li><a href="https://github.com/aarushkandukoori/grayout/issues">Contact</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="ftr__bottom">
+      <span>&copy; 2026 Aarush Kandukoori. MIT licensed.</span>
+      <button class="motion-toggle" type="button" data-motion-toggle aria-pressed="false"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><rect x="3.5" y="3" width="3" height="10" rx="1"/><rect x="9.5" y="3" width="3" height="10" rx="1"/></svg><span>Pause animations</span></button>
+      <a href="https://github.com/aarushkandukoori/grayout" aria-label="Grayout on GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1.8a10.2 10.2 0 0 0-3.2 19.9c.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.2-3.4-1.2-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.6 1 1.6 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.6-1.4-2.3-.3-4.6-1.1-4.6-5a3.9 3.9 0 0 1 1-2.7 3.6 3.6 0 0 1 .1-2.7s.9-.3 2.8 1a9.6 9.6 0 0 1 5.1 0c1.9-1.3 2.8-1 2.8-1 .5 1.4.2 2.4.1 2.7a3.9 3.9 0 0 1 1 2.7c0 3.9-2.4 4.7-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10.2 10.2 0 0 0 12 1.8Z"/></svg></a>
+    </div>
   </div>
 </footer>
-
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet__scrim" data-sheet-close></div>
+  <div class="sheet__panel" role="dialog" aria-modal="true" aria-label="Menu">
+    <div class="sheet__handle" aria-hidden="true"></div>
+    <button class="sheet__close" type="button" aria-label="Close menu" data-sheet-close><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
+    <nav aria-label="Mobile">
+      <a href="./">Home</a>
+      <a href="./#how">How it works</a>
+        <a href="pricing.html" aria-current="page">Pricing</a>
+        <a href="download.html">Download</a>
+        <a href="privacy.html">Privacy</a>
+      <a href="account.html">Manage subscription</a>
+    </nav>
+    <a class="btn btn-primary btn-block" href="download.html"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 13h10"/></svg>Download for Mac</a>
+  </div>
+</div>
+<div class="grayveil" aria-hidden="true"></div>
+<p class="sr-only" aria-live="polite" data-live></p>
+<div class="toast" role="status" aria-live="polite" data-toast hidden><span data-toast-text></span><button class="toast__x" type="button" aria-label="Dismiss" data-toast-close><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
 </body>
 </html>

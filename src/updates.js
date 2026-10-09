@@ -22,6 +22,22 @@ function isNewer(candidate, current) {
   return false;
 }
 
+// The only release pages the tray may open. html_url comes from the network,
+// and the tray hands it to shell.openExternal, which opens any scheme (file:,
+// custom app links). So anything that is not an https page of this repo's
+// releases is replaced by the fixed download page.
+const RELEASES_PATH_PREFIX = '/aarushkandukoori/grayout/releases/';
+
+/** html_url if it is an https github.com page of this repo's releases, else DOWNLOAD_PAGE. */
+function safeReleaseUrl(value) {
+  if (typeof value !== 'string' || value.length > 500) return DOWNLOAD_PAGE;
+  let u;
+  try { u = new URL(value); } catch { return DOWNLOAD_PAGE; }
+  const ok = u.protocol === 'https:' && u.hostname === 'github.com' && !u.username && !u.password &&
+    u.port === '' && u.pathname.startsWith(RELEASES_PATH_PREFIX);
+  return ok ? u.toString() : DOWNLOAD_PAGE;
+}
+
 /** Resolve { tag, version, url } or null. Never throws. */
 async function fetchLatest({ fetchImpl = fetch, currentVersion = '0.0.0' } = {}) {
   try {
@@ -32,7 +48,7 @@ async function fetchLatest({ fetchImpl = fetch, currentVersion = '0.0.0' } = {})
     if (!res.ok) return null;
     const j = await res.json();
     if (!j || typeof j.tag_name !== 'string') return null;
-    return { tag: j.tag_name, version: j.tag_name.replace(/^v/i, ''), url: typeof j.html_url === 'string' ? j.html_url : DOWNLOAD_PAGE };
+    return { tag: j.tag_name, version: j.tag_name.replace(/^v/i, ''), url: safeReleaseUrl(j.html_url) };
   } catch {
     return null;
   }
@@ -78,4 +94,4 @@ function createUpdater(deps) {
   return { check, start, stop, getAvailable, dismiss };
 }
 
-module.exports = { isNewer, parseVersion, fetchLatest, createUpdater, RELEASES_URL, DOWNLOAD_PAGE };
+module.exports = { isNewer, parseVersion, fetchLatest, safeReleaseUrl, createUpdater, RELEASES_URL, DOWNLOAD_PAGE };

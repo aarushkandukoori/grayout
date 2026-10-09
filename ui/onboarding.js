@@ -145,9 +145,11 @@
   }
 
   /* ---------------- screen 3: the plan ----------------
-     v2 sells a subscription. There is no API key here: the service holds the
-     model key. Every price on this screen comes from src/pricing.js through
-     onb:getState, so a price is changed in exactly one place. */
+     The product is a subscription. There is no API key here: the service holds
+     the model key. Every price on this screen comes from src/pricing.js through
+     onb:getState, so a price is changed in exactly one place. Payments are
+     Stripe Managed Payments: Stripe, selling through Link, is the seller, adds
+     tax where it applies, and the statement says LINK.COM*. */
 
   let plan = 'monthly';
   let claiming = false;   // the browser tab is open and /v1/claim is polling
@@ -159,6 +161,12 @@
   };
   const countOf = (v, dflt) => (Number.isFinite(v) ? v : dflt);
   const commas = n => n.toLocaleString('en-US');
+  const TAX = 'plus tax where it applies';
+  const MANAGE = 'You can also manage it at link.com, where this purchase is listed as Sold through Link.';
+
+  // False only when this build was never given the service's address. Then
+  // nothing on this screen can work, and it says so instead of failing.
+  const connected = () => !(S && S.account && S.account.configured === false);
 
   function subStatus(text, cls) {
     const el = $('sub-status');
@@ -168,9 +176,10 @@
   }
 
   function syncPlanButtons() {
-    const locked = claiming || busy;
+    const locked = claiming || busy || !connected();
     $('btn-subscribe').disabled = locked;
     $('btn-free').disabled = locked;
+    $('btn-have-key').disabled = !connected();
     $('btn-activate').disabled = locked || !$('license').value.trim();
     for (const r of document.querySelectorAll('input[name="plan"]')) r.disabled = locked;
     show($('btn-cancel-claim'), claiming);
@@ -186,15 +195,15 @@
     if (m) {
       setText($('price-monthly'), `${m.priceLabel} ${m.periodLabel}`);
       setText($('note-monthly'), m.trialDays
-        ? `${m.trialDays}-day free trial, then ${m.priceLabel} ${m.periodLabel}. Cancel any time.`
-        : 'Cancel any time.');
+        ? `${m.trialDays}-day free trial, then ${m.priceLabel} ${m.periodLabel} ${TAX}. Cancel any time.`
+        : `${TAX[0].toUpperCase()}${TAX.slice(1)}. Cancel any time.`);
     }
     if (y) {
       const off = Number.isFinite(y.savingsPercent) ? `, ${y.savingsPercent}% off` : '';
       setText($('price-yearly'), `${y.priceLabel} ${y.periodLabel}`);
       setText($('note-yearly'), y.perMonthLabel
-        ? `${y.perMonthLabel} a month, billed yearly${off}.`
-        : `Billed yearly${off}.`);
+        ? `${y.perMonthLabel} a month, billed yearly${off}, ${TAX}.`
+        : `Billed yearly${off}, ${TAX}.`);
     }
     setText($('plan-included'), included === null
       ? ''
@@ -207,9 +216,11 @@
     const acct = (S && S.account) || null;
     const has = !!(acct && acct.hasLicense);
     setText($('plan-existing'), has
-      ? `This Mac already has a license${acct.licenseMasked ? ` (${acct.licenseMasked})` : ''}. Continue, or subscribe again to replace it.`
+      ? `This Mac already has a license key${acct.licenseMasked ? ` (${acct.licenseMasked})` : ''}. Continue to use it.`
       : '');
-    show($('btn-3-continue'), has);
+    show($('plan-unavailable'), !connected());
+    // Without a service there is nothing to choose here, so setup goes on.
+    show($('btn-3-continue'), has || !connected());
 
     for (const r of document.querySelectorAll('input[name="plan"]')) r.checked = r.value === plan;
     subStatus('');
@@ -217,45 +228,96 @@
   }
 
   function detailOf(r) {
-    return r && typeof r.message === 'string' ? r.message.replace(/\s+/g, ' ').trim().slice(0, 160) : '';
+    return r && typeof r.message === 'string' ? r.message.replace(/\s+/g, ' ').trim().slice(0, 300) : '';
+  }
+
+  // Messages for the failures every call on this screen can hit.
+  function commonMessage(r) {
+    const kind = r && r.kind;
+    if (kind === 'network') return 'Could not reach the Grayout service. Check your connection and try again.';
+    if (kind === 'not_connected') return 'This build of Grayout is not connected to the Grayout service yet.';
+    if (kind === 'device_unverified') return 'Grayout could not register this Mac with the service. Try again later.';
+    if (kind === 'secrets_locked') return detailOf(r) || 'Grayout could not unlock its saved keys in the macOS Keychain. Quit and reopen Grayout, and choose Always Allow.';
+    if (kind === 'not_configured' || kind === 'overloaded') return 'The Grayout service is not ready right now. Try again in a few minutes.';
+    if (kind === 'rate_limited') return 'Too many tries just now. Wait a minute and try again.';
+    // The service's own sentence names the support address to write to.
+    if (kind === 'license_revoked') return detailOf(r) || 'This subscription was refunded or disputed.';
+    return '';
   }
 
   function checkoutMessage(r) {
-    const kind = r && r.kind;
-    if (kind === 'network') return 'Could not reach the Grayout service. Check your connection and try again.';
-    if (kind === 'rate_limited') return 'Too many tries just now. Wait a moment and press Subscribe again.';
+    const common = commonMessage(r);
+    if (common) return common;
     const detail = detailOf(r);
     return detail ? `Checkout did not start: ${detail}` : 'Checkout did not start. Try again.';
   }
 
+  // "Already subscribed" is good news, not an error: nothing was charged.
+  function alreadySubscribedMessage(r) {
+    return [
+      detailOf(r) || 'This Mac already has a Grayout subscription, so nothing new was charged.',
+      r.restored ? 'Its license key is back on this Mac.' : '',
+      r.opened ? 'The billing page is open in your browser if you want to change or cancel it.' : '',
+      r.manageNote || MANAGE
+    ].filter(Boolean).join(' ');
+  }
+
   function claimMessage(r) {
     const kind = r && r.kind;
-    if (kind === 'timeout') return 'Checkout was not finished in time. Press Subscribe to start again.';
-    if (kind === 'claim_expired') return 'That checkout link has expired. Press Subscribe to start again.';
-    if (kind === 'key_rejected' || kind === 'no_license') return 'The service did not accept that purchase. Press Subscribe to start again.';
-    if (kind === 'network') return 'Grayout lost its connection while waiting. If you did pay, paste the license key below.';
+    // Never tell somebody who may have paid to pay again. A checkout page left
+    // open in the browser can still be paid after Grayout stops waiting, so a
+    // new one is only started after the old tab is closed: two open checkouts
+    // could both be paid.
+    if (kind === 'timeout') return 'Grayout stopped waiting for the checkout. If you finished paying, your key arrives by itself the next time Grayout opens or you open Settings. If not, close that checkout tab first, then press Subscribe to start again, so you are only charged once.';
+    if (kind === 'code_expired') return 'That checkout link has expired. If you finished paying, your key arrives by itself the next time you open Settings. If not, press Subscribe to start again.';
+    if (kind === 'payment_failed') return 'The payment did not go through, so nothing was charged. Press Subscribe to try again.';
+    if (kind === 'checkout_expired') return 'That checkout expired before it was finished. Press Subscribe to start again.';
+    if (kind === 'network') return 'Grayout lost its connection while waiting. If you finished paying, your key arrives by itself the next time you open Settings, or paste it below.';
+    const common = commonMessage(r);
+    if (common) return common;
     const detail = detailOf(r);
     return detail || 'Checkout did not finish. Press Subscribe to try again.';
   }
 
   function activateMessage(r) {
     const kind = r && r.kind;
-    if (kind === 'license_invalid' || kind === 'key_rejected') return 'That key is not one this service issued. Check it for missing characters.';
+    if (kind === 'license_invalid') return 'That license key is not one Grayout issued. Check it for missing characters.';
     if (kind === 'no_license') return 'Paste your license key first.';
-    if (kind === 'trial_expired' || kind === 'subscription_inactive') return 'That license is no longer active. Subscribe again above to start a new one.';
-    if (kind === 'network') return 'Could not reach the Grayout service. Check your connection and try again.';
+    const common = commonMessage(r);
+    if (common) return common;
     const detail = detailOf(r);
     return detail || 'That key could not be activated.';
   }
 
+  /** What to say while the browser checkout is open. */
+  function waitingMessage(r) {
+    const first = r.reused
+      ? 'Your checkout is still open, so Grayout reopened that same page instead of starting a second one.'
+      : 'Finish in your browser.';
+    // `trial` is the service's answer for this checkout, so somebody who
+    // already had a trial is told before paying that no new one applies.
+    const trial = r.plan === 'monthly'
+      ? (r.trial ? ' This checkout starts with a free trial.' : ' This checkout has no free trial, because this Mac or its subscription already had one.')
+      : '';
+    return `${first}${trial} This window unlocks itself the moment the payment goes through.`;
+  }
+
   async function subscribe() {
-    if (claiming || busy) return;
+    if (claiming || busy || !connected()) return;
     busy = true;
     syncPlanButtons();
     subStatus('Opening checkout in your browser…');
     let r;
     try { r = await api.startCheckout(plan); } catch (e) { r = { ok: false, kind: 'unknown', message: e && e.message }; }
     busy = false;
+    if (r && r.kind === 'already_subscribed') {
+      await refreshState();
+      syncPlanButtons();
+      const has = !!(S && S.account && S.account.hasLicense);
+      show($('btn-3-continue'), has);
+      subStatus(alreadySubscribedMessage(r), has ? 'ok' : null);
+      return;
+    }
     if (!r || !r.ok) { syncPlanButtons(); subStatus(checkoutMessage(r), 'err'); return; }
     if (r.opened === false) {
       syncPlanButtons();
@@ -265,7 +327,7 @@
 
     claiming = true;
     syncPlanButtons();
-    subStatus('Finish in your browser. This window unlocks itself the moment the payment goes through.');
+    subStatus(waitingMessage(r));
     let c;
     try { c = await api.pollClaim(r.deviceCode); } catch (e) { c = { ok: false, kind: 'unknown', message: e && e.message }; }
     claiming = false;
@@ -273,21 +335,23 @@
 
     if (c && c.ok) {
       await refreshState();
-      subStatus('Subscribed. Grayout is ready.', 'ok');
+      subStatus(c.status === 'trialing' ? 'Your free trial has started. Grayout is ready.' : 'Subscribed. Grayout is ready.', 'ok');
       go(4);
       return;
     }
-    if (c && c.kind === 'cancelled') { subStatus(''); return; }
+    // Only the waiting stopped. The page in the browser can still be paid, and
+    // pressing Subscribe again reopens it rather than starting a second one.
+    if (c && c.kind === 'cancelled') { subStatus('Stopped waiting. The checkout page is still open in your browser: press Subscribe to pick it up again rather than starting a new one.'); return; }
     subStatus(claimMessage(c), 'err');
   }
 
   function cancelCheckout() {
-    // pollClaim resolves with kind 'cancelled'; subscribe() clears the line.
+    // pollClaim resolves with kind 'cancelled'; subscribe() says what that means.
     swallow(api.cancelClaim());
   }
 
   async function startFree() {
-    if (claiming || busy) return;
+    if (claiming || busy || !connected()) return;
     busy = true;
     syncPlanButtons();
     await swallow(api.startFree());
@@ -299,7 +363,7 @@
 
   async function activateLicense() {
     const key = $('license').value.trim();
-    if (!key || claiming || busy) return;
+    if (!key || claiming || busy || !connected()) return;
     busy = true;
     syncPlanButtons();
     subStatus('Checking that key…');
@@ -310,6 +374,13 @@
     if (r && r.ok) {
       $('license').value = '';
       await refreshState();
+      // A canceled or lapsed key still activates; the service then says
+      // service: false. Say so rather than pretending all is well.
+      if (r.service === false) {
+        show($('btn-3-continue'), true);
+        subStatus(`That key is saved on this Mac, but its subscription is not active right now. Update the payment in Settings under Your plan. ${MANAGE}`, 'err');
+        return;
+      }
       subStatus('That license is active on this Mac.', 'ok');
       go(4);
       return;
@@ -553,6 +624,7 @@
     else if (step === 2) { if (!$('btn-2-continue').disabled) go(3); else handled = false; }
     else if (step === 3) {
       if (claiming || busy) handled = false;
+      else if (!connected()) go(4);
       else if ($('license').value.trim()) activateLicense();
       else subscribe();
     }

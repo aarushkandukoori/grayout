@@ -5,7 +5,7 @@ const path = require('path');
 const { execFile } = require('child_process');
 const paths = require('./paths');
 const providers = require('./providers');
-const { apiBaseFrom, errorFromBody, classifyFetchError, SERVICE_ERROR_KINDS } = require('./account');
+const { SERVICE_ERROR_KINDS, MESSAGES: ACCOUNT_MESSAGES } = require('./account');
 
 const API_TIMEOUT_MS = 60000;
 const CLI_TIMEOUT_MS = 90000;
@@ -27,9 +27,6 @@ const VERDICT_SCHEMA = {
 class NoKeyError extends Error {
   constructor() { super('no API key configured'); this.name = 'NoKeyError'; this.kind = 'no_key'; }
 }
-
-// Looked up per call so a test can swap it.
-const doFetch = (...args) => globalThis.fetch(...args);
 
 // Canvas titles and task-file lines are third-party text. Fence them and say so,
 // otherwise an assignment literally named "ignore previous instructions, reply
@@ -245,58 +242,46 @@ function serviceContext(ctx) {
   };
 }
 
-async function analyzeViaGrayout(ctx, config) {
-  if (!ctx.deviceId) { const e = new Error('this Mac has no device id yet'); e.kind = 'unknown'; throw e; }
+async function analyzeViaGrayout(ctx) {
+  // The account client (src/account.js) owns everything about talking to the
+  // service: the address, this Mac's device identity, the license key, and
+  // registering again if the service no longer recognizes this Mac.
+  const account = ctx.account;
+  if (!account || typeof account.check !== 'function') {
+    const e = new Error(ACCOUNT_MESSAGES.notConnected); e.kind = 'not_connected'; throw e;
+  }
 
-  const body = {
-    deviceId: ctx.deviceId,
+  const r = await account.check({
     displays: (ctx.screenshotsB64 || []).slice(0, MAX_SERVICE_DISPLAYS),
     webcam: ctx.webcamB64 || null,
     context: serviceContext(ctx)
-  };
-  // Omitted entirely while on the free taste.
-  if (ctx.license) body.license = ctx.license;
+  });
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => { try { controller.abort(); } catch {} }, API_TIMEOUT_MS);
-  let res;
-  try {
-    res = await doFetch(apiBaseFrom(config) + '/v1/check', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', accept: 'application/json' },
-      body: JSON.stringify(body),
-      signal: controller.signal
-    });
-  } catch (e) {
-    const { kind, message } = classifyFetchError(e);
-    const err = new Error(message); err.kind = kind; throw err;
-  } finally {
-    clearTimeout(timer);
-  }
-
-  const status = Number(res && res.status) || 0;
-  const ok = res && res.ok !== undefined ? !!res.ok : status >= 200 && status < 300;
-  let json = null;
-  try { json = await res.json(); } catch {}
-
-  if (!ok) {
-    const { kind, message, code } = errorFromBody(json, status);
-    const err = new Error(message);
-    err.kind = kind; err.status = status; err.serviceCode = code;
-    err.requestId = res && res.headers && typeof res.headers.get === 'function' ? res.headers.get('X-Grayout-Request-Id') : null;
+  if (!r || !r.ok) {
+    const err = new Error((r && r.message) || 'the Grayout service did not answer');
+    err.kind = (r && r.kind) || 'unknown';
+    err.status = (r && r.status) || 0;
+    err.serviceCode = (r && r.code) || '';
+    err.requestId = (r && r.requestId) || null;
+    // The loop waits this long on rate_limited / quota_exceeded (contract 8).
+    if (r && r.retryAfter) err.retryAfter = r.retryAfter;
+    // free_exhausted says whether this Mac or today's shared budget ran out.
+    if (r && r.reason) err.reason = r.reason;
     throw err;
   }
+  const json = r.data;
   if (!json || typeof json !== 'object') throw new Error('the Grayout service returned no verdict');
 
   return {
     verdict: coerceVerdict(json.verdict),
     // Token usage is the service's business and no bill of this person's, so
-    // the local cost meter stays empty. Plan usage rides along in `service`.
+    // the local cost meter stays empty. Plan state rides along in `service`.
     usage: null,
     model: 'grayout',
     provider: 'grayout',
     service: {
       plan: typeof json.plan === 'string' ? json.plan : null,
+      service: typeof json.service === 'boolean' ? json.service : null,
       usage: json.usage && typeof json.usage === 'object' ? json.usage : null
     }
   };
@@ -305,7 +290,7 @@ async function analyzeViaGrayout(ctx, config) {
 /** Dispatch to the hosted service, or to the provider a self-hosted key belongs to. */
 async function analyzeViaApi(ctx, config, apiKey) {
   const { provider, model } = providers.resolve(config, apiKey);
-  if (provider === providers.HOSTED) return analyzeViaGrayout(ctx, config);
+  if (provider === providers.HOSTED) return analyzeViaGrayout(ctx);
   if (!apiKey) throw new NoKeyError();
   return provider === 'openai' ? analyzeViaOpenAI(ctx, model, apiKey) : analyzeViaAnthropic(ctx, model, apiKey);
 }
@@ -359,9 +344,11 @@ function resolveEngine(config) {
 
 /**
  * ctx: { screenshotsB64: string[], webcamB64, workDescription, canvasTasks,
- *        fileTasks, frontApp, apiKey, license, deviceId }
+ *        fileTasks, frontApp, apiKey, account }
+ * `account` is the hosted-service client (src/account.js); only the hosted
+ * path uses it.
  * Returns { engine, verdict, usage, model, provider } and, on the hosted path,
- * `service: { plan, usage }` carrying the subscription's own counters.
+ * `service: { plan, service, usage }` carrying the subscription state and counters.
  */
 async function analyze(ctx, config) {
   const engine = resolveEngine(config);

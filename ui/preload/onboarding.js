@@ -24,12 +24,13 @@ contextBridge.exposeInMainWorld('grayout', {
   startFree: () => invoke('onb:startFree'),
 
   // subscription — the same names the dashboard exposes
-  accountStatus: opts => invoke('account:status', opts || null),      // { ok, plan, status, usage, hasLicense, licenseMasked, needsSubscription }
-  startCheckout: plan => invoke('account:startCheckout', plan),        // { ok, url, deviceCode, plan, expiresIn, opened }
-  pollClaim: deviceCode => invoke('account:pollClaim', deviceCode),    // resolves when checkout finishes, is cancelled, or times out
+  accountStatus: opts => invoke('account:status', opts || null),      // { ok, configured, status, interval, service, usage, hasLicense, licenseMasked, needsSubscription }
+  startCheckout: plan => invoke('account:startCheckout', plan),        // { ok, url, deviceCode, plan, trial, expiresIn, reused, opened } or { ok:false, kind:'already_subscribed', portalUrl, restored, opened }
+  pollClaim: deviceCode => invoke('account:pollClaim', deviceCode),    // resolves when checkout finishes, is cancelled, or the code expires
   cancelClaim: () => invoke('account:cancelClaim'),
   activateLicense: license => invoke('account:activate', license),
-  openBillingPortal: () => invoke('account:portal'),
+  restoreLicense: () => invoke('account:restore'),                     // { ok, restored } — the key the service has on file for this Mac
+  openBillingPortal: () => invoke('account:portal'),                   // { ok, url, opened, manageNote }
 
   openExternal: url => invoke('shell:openExternal', url),
   copyText: text => invoke('clipboard:copy', text)
