@@ -37,9 +37,20 @@ function normalizeBase(value) {
 
 const DEFAULT_CONFIG = {
   schemaVersion: 1,
-  // 'api' is the product. 'cli' is honored only when running unpackaged with
-  // GRAYOUT_DEV_ENGINE=cli (maintainer use), see analyzer.resolveEngine.
+  // 'api' is the product: the hosted service, or a self-hosted model key (see
+  // `provider`). 'cli' runs each check through the local `claude` CLI on its
+  // Claude subscription login instead, with no service, plan or key involved;
+  // see analyzer.resolveEngine.
   engine: 'api',
+  // Full path to the claude binary (or a drop-in wrapper) for engine 'cli';
+  // '~/' is allowed. '' searches ~/.local/bin, /opt/homebrew/bin,
+  // /usr/local/bin and uses that claude's own login. Kept as written even when
+  // wrong: claudecli.resolveBinary reports a bad path rather than switching.
+  cliPath: '',
+  // Engine 'cli': keep checking after the Claude plan's limit, on the
+  // account's paid extra usage (billed at API prices). Off: checks stop until
+  // the limit resets, after at most one such check.
+  cliAllowOverage: false,
   // 'auto' is the hosted Grayout service unless a model key is saved, in which
   // case it self-hosts on that provider. Force with 'grayout' | 'anthropic' |
   // 'openai'. See providers.js.
@@ -142,6 +153,9 @@ function coerce(cfg) {
   }
 
   if (out.engine !== 'api' && out.engine !== 'cli' && out.engine !== 'auto') out.engine = 'api';
+  // Only trimmed. Blanking a path that is missing right now (or written with ~/)
+  // would silently move checks to another binary and the account behind it.
+  out.cliPath = out.cliPath.trim();
   if (!['auto', 'grayout', 'anthropic', 'openai'].includes(out.provider)) out.provider = 'auto';
   if (!/^(claude-|gpt-|o\d)[a-z0-9.\-]+$/i.test(out.model)) out.model = DEFAULT_CONFIG.model;
   // A bad base URL is dropped rather than kept: frames must never be posted to
@@ -203,7 +217,7 @@ function loadConfig({ onCanvasToken } = {}) {
     const backup = paths.CONFIG_PATH + '.invalid';
     try { fs.writeFileSync(backup, raw, { mode: 0o600 }); } catch {}
     console.error(`[config] ${paths.CONFIG_PATH} is not valid JSON (${e.message}). ` +
-                  `Your file was copied to ${backup}; running on defaults until you fix it.`);
+                  `Your file was copied to ${backup}; it is ignored until you fix it.`);
     return { ...coerce({}), _invalid: true };
   }
 
@@ -227,17 +241,35 @@ function loadConfig({ onCanvasToken } = {}) {
   return merged;
 }
 
-/** Merge `partial` into the on-disk config, validate, write, return the new config. */
-function saveConfig(partial) {
-  let current = {};
+/**
+ * Merge `partial` into the on-disk config, validate, write, return the new
+ * config. When the file is missing or does not parse, `fallback` (the config
+ * in use) is the base instead of the defaults, which would quietly switch
+ * engine, and with it who answers and pays for checks.
+ */
+function saveConfig(partial, fallback) {
+  let current = null;
   try { current = JSON.parse(fs.readFileSync(paths.CONFIG_PATH, 'utf8')); } catch {}
-  if (!current || typeof current !== 'object' || Array.isArray(current)) current = {};
+  if (!current || typeof current !== 'object' || Array.isArray(current)) {
+    current = fallback && typeof fallback === 'object' && !fallback._invalid ? fallback : {};
+  }
   const merged = coerce({ ...current, ...partial, canvas: { ...(current.canvas || {}), ...((partial && partial.canvas) || {}) } });
   writeConfig(merged);
   return merged;
 }
 
+/**
+ * config.json changed on disk (main.js watches it) → what the running app does:
+ * 'invalid' keeps the settings in use (the defaults loadConfig falls back to
+ * would switch engine, and who answers checks, over one comma), 'apply' or
+ * 'same'.
+ */
+function reloadAction(current, next) {
+  if (!next || next._invalid) return 'invalid';
+  return JSON.stringify(next) === JSON.stringify(current) ? 'same' : 'apply';
+}
+
 module.exports = {
-  DEFAULT_CONFIG, NUMERIC_BOUNDS, MAX_WORK_DESCRIPTION, coerce, loadConfig, saveConfig, writeConfig,
+  DEFAULT_CONFIG, NUMERIC_BOUNDS, MAX_WORK_DESCRIPTION, coerce, loadConfig, saveConfig, writeConfig, reloadAction,
   DEFAULT_API_BASE, LOCAL_HOSTS, normalizeBase
 };

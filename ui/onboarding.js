@@ -167,6 +167,9 @@
   // False only when this build was never given the service's address. Then
   // nothing on this screen can work, and it says so instead of failing.
   const connected = () => !(S && S.account && S.account.configured === false);
+  // engine "cli" in config.json: checks use the Claude CLI's own login, so no
+  // Grayout plan (and no key) is needed and Continue is enough.
+  const usesCli = () => !!(S && S.engine === 'cli');
 
   function subStatus(text, cls) {
     const el = $('sub-status');
@@ -215,12 +218,15 @@
     // is nothing to buy: Continue is enough.
     const acct = (S && S.account) || null;
     const has = !!(acct && acct.hasLicense);
-    setText($('plan-existing'), has
-      ? `This Mac already has a license key${acct.licenseMasked ? ` (${acct.licenseMasked})` : ''}. Continue to use it.`
-      : '');
-    show($('plan-unavailable'), !connected());
+    const cli = usesCli();
+    setText($('plan-existing'), cli
+      ? 'Grayout is set to check through the Claude CLI on your Claude subscription (engine "cli" in config.json), so no Grayout plan or key is needed. Continue.'
+      : has
+        ? `This Mac already has a license key${acct.licenseMasked ? ` (${acct.licenseMasked})` : ''}. Continue to use it.`
+        : '');
+    show($('plan-unavailable'), !cli && !connected());
     // Without a service there is nothing to choose here, so setup goes on.
-    show($('btn-3-continue'), has || !connected());
+    show($('btn-3-continue'), cli || has || !connected());
 
     for (const r of document.querySelectorAll('input[name="plan"]')) r.checked = r.value === plan;
     subStatus('');
@@ -417,16 +423,21 @@
     // On the subscription there is no per-check bill to show, so the rows count
     // checks against the allowance instead of dollars nobody pays.
     const hosted = !(S && S.selfHosted);
+    const cli = usesCli();
     for (const sec of [30, 45, 90]) {
       const row = est[sec];
-      if (hosted) {
+      if (cli) {
+        setText($(`est-${sec}`), 'no per-check charge');
+      } else if (hosted) {
         setText($(`est-${sec}`), row && Number.isFinite(row.checks) ? `about ${commas(row.checks)} checks a day` : '');
       } else {
         const d = row && money(row.daily);
         setText($(`est-${sec}`), d ? `about ${d} a day` : 'estimate unavailable');
       }
     }
-    if (hosted) {
+    if (cli) {
+      setText($('est-note'), "Checks run through the Claude CLI on your Claude subscription, so there is no per-check charge. Each check counts toward the plan's usage limits.");
+    } else if (hosted) {
       const included = countOf(S && S.includedChecks, null);
       setText($('est-note'), included === null
         ? 'Change-gating skips the check when nothing on screen moved, so the real count is usually about half of this.'

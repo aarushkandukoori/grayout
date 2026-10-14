@@ -6,6 +6,7 @@ const permissions = require('./permissions');
 const loginitem = require('./loginitem');
 const secrets = require('./secrets');
 const { safeReleaseUrl } = require('./updates');
+const { resolveEngine } = require('./analyzer');
 
 let tray = null;
 const icons = {};
@@ -48,10 +49,11 @@ function refresh(ctx) {
   const live = ctx.loop.getLive();
   const cfg = ctx.getConfig();
   const setup = !ctx.onboardingDone();
-  // A model key is only ever needed when self-hosting; on the hosted plan the
-  // credential is a license key and the tray talks about the subscription.
+  // A model key is only ever needed when self-hosting on the API engine; on the
+  // hosted plan the credential is a license key and the tray talks about the
+  // subscription, and the CLI engine uses the CLI's own login.
   const selfHosted = ctx.selfHosted ? ctx.selfHosted() : true;
-  const needsKey = selfHosted && (live.needsKey || !secrets.getApiKey());
+  const needsKey = selfHosted && (live.needsKey || (resolveEngine(cfg) === 'api' && !secrets.getApiKey()));
   const perm = ctx.permState();
 
   const icon = live.needsScreenPermission ? 'trayBlockedTemplate'
@@ -94,8 +96,23 @@ function refresh(ctx) {
     { type: 'separator' }
   ] : [];
 
-  const keyItems = (!setup && needsKey) ? [
+  // An invalid config.json at launch means engine is only the default: say that instead.
+  const keyItems = (!setup && needsKey && !live.configInvalid) ? [
     { label: 'API key needed — open Settings…', click: () => ctx.windows.openDashboard('settings') },
+    { type: 'separator' }
+  ] : [];
+
+  // How to log back in depends on the binary (a wrapper has its own way).
+  const login = live.cliLogin || { command: 'claude auth login', text: 'run claude auth login in Terminal' };
+  const cliItems = live.configInvalid ? [
+    { label: 'config.json has a JSON error: checks paused', enabled: false },
+    { type: 'separator' }
+  ] : (!setup && live.errorKind === 'cli_auth') ? [
+    { label: login.command ? `Claude CLI logged out: run ${login.command}` : 'Claude CLI logged out', enabled: false },
+    ...(login.command ? [{ label: `Copy "${login.command}"`, click: () => clipboard.writeText(login.command) }] : []),
+    { type: 'separator' }
+  ] : (!setup && live.errorKind === 'cli_missing') ? [
+    { label: 'Claude CLI not found: set cliPath in config.json', enabled: false },
     { type: 'separator' }
   ] : [];
 
@@ -136,6 +153,7 @@ function refresh(ctx) {
     ...grayNote,
     ...subscriptionItems,
     ...keyItems,
+    ...cliItems,
     ...setupItems,
     { label: statusLabel, enabled: false },
     { label: String(secondLine || '').slice(0, 60), enabled: false },

@@ -48,6 +48,11 @@ const SECRETS_LOCKED_LINE = "can't unlock Grayout's saved keys — reopen Grayou
 // than stalling the loop forever with the alert possibly stuck on.
 const TICK_HARD_LIMIT_MS = 150000;
 const BACKOFF_STEPS_MS = [30000, 60000, 120000, 300000];
+// A CLI check billed as extra usage with no readable reset time: try again after this.
+const OVERAGE_FALLBACK_MS = 60 * 60000;
+const CONFIG_INVALID_LINE = 'config.json has a JSON error — checks paused until it is fixed';
+const CLI_MISSING_LINE = 'Claude CLI not found — install Claude Code or set cliPath in config.json';
+const CLI_LOGIN_DEFAULT = { command: 'claude auth login', text: 'run claude auth login in Terminal' };
 const PERMISSION_RE = /screencapture|could not create image|Screen Recording|produced no file/i;
 
 function createLoop(deps) {
@@ -65,6 +70,11 @@ function createLoop(deps) {
     grayscale: { set: async () => true, forceOffSync: () => true, available: () => true, usable: () => true },
     secrets: { getApiKey: () => null, getCanvasToken: () => '' },
     requiresKey: () => true,
+    // 'api' | 'cli' (analyzer.resolveEngine). On 'cli' the hosted service and
+    // any stored model key play no part: not in the gates, not in error lines.
+    engine: () => 'api',
+    // True while config.json did not parse at launch (config() is then only defaults).
+    configInvalid: () => false,
     // The hosted-service client (src/account.js). Absent in tests and on the
     // self-hosted path, where the loop behaves exactly as it did in v1.
     account: null,
@@ -101,6 +111,8 @@ function createLoop(deps) {
     // like permission; screenDenied is the authoritative answer from macOS
     // (fed in by main.js) and is the only thing that stops us capturing.
     needsScreenPermission: false, screenDenied: false, needsKey: false, capHit: false, errorKind: null,
+    // { command, text } for a logged-out CLI (claudecli.loginHelp), else null.
+    cliLogin: null,
     previewing: false
   };
   let timer = null;
@@ -151,6 +163,14 @@ function createLoop(deps) {
 
   function fmtTime(ts) {
     try { return new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); } catch { return ''; }
+  }
+
+  // A usage-limit reset can be days away (weekly limits); name the day then.
+  function fmtWhen(ts) {
+    try {
+      const sameDay = new Date(ts).toDateString() === new Date(d.now()).toDateString();
+      return sameDay ? fmtTime(ts) : new Date(ts).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+    } catch { return ''; }
   }
 
   // The next 00:00 UTC, plus a minute so the service's day has really turned.
@@ -217,6 +237,17 @@ function createLoop(deps) {
         return;
       }
 
+      // config.json did not parse at launch, so cfg is only the defaults. Running
+      // on them could switch engine (from the CLI to the hosted service, say)
+      // over one comma, so nothing is captured or sent until it parses.
+      if (d.configInvalid()) {
+        s.strikeCount = 0;
+        s.lastLine = CONFIG_INVALID_LINE;
+        if (s.alerting) await clearAlert(s.lastLine);
+        else status();
+        return;
+      }
+
       if (s.locked) { s.lastLine = 'screen locked — checks paused'; status(); return; }
       if (s.wokeAt && now - s.wokeAt < c.wakeGraceSec * 1000) { s.lastLine = 'just woke — waiting'; status(); return; }
       // A plan refusal that only the person can fix: nothing is captured or
@@ -234,8 +265,8 @@ function createLoop(deps) {
 
       // The hosted service, but this build was never given its address (the
       // deploy step did not fill in DEFAULT_API_BASE). Nobody can judge a
-      // screenshot, so do not even take one.
-      const hostedPath = providers.resolve(c, apiKey).provider === providers.HOSTED;
+      // screenshot, so do not even take one. The CLI engine never uses it.
+      const hostedPath = d.engine() !== 'cli' && providers.resolve(c, apiKey).provider === providers.HOSTED;
       if (hostedPath && d.account && typeof d.account.configured === 'function' && !d.account.configured()) {
         s.strikeCount = 0;
         s.errorKind = 'not_connected';
@@ -332,7 +363,7 @@ function createLoop(deps) {
       ]);
       if (stale()) return;
 
-      const { verdict, engine, usage, model, service } = await d.analyze({
+      const { verdict, engine, usage, model, provider, service, overage } = await d.analyze({
         screenshotsB64: capture.images,
         webcamB64,
         workDescription: c.workDescription,
@@ -353,6 +384,7 @@ function createLoop(deps) {
       s.planProblem = null;
       s.planHold = false;
       s.holdLine = false;
+      s.cliLogin = null;
       s.lastCheckAt = d.now();
       // This is now the reference frame for change-gating.
       s.lastHashes = hashes;
@@ -368,14 +400,31 @@ function createLoop(deps) {
       const ts = d.now();
       s.lastVerdictTs = ts;
       s.lastActivity = verdict.activity || '';
-      const cost = costUsd(usage, model || c.model);
+      // The CLI runs on a flat-rate Claude subscription: no per-check charge,
+      // unless the account is paying for overage, which bills at API prices.
+      const cost = engine === 'cli' && !(usage && usage.overage) ? 0 : costUsd(usage, model || c.model);
       d.logVerdict({
         ts, off: verdict.off_task, conf: verdict.confidence,
         activity: verdict.activity, app: frontApp || null,
         displays: capture.images.length, strikes: s.strikeCount, engine,
+        ...(provider ? { provider } : {}),
         model: model || c.model, usage: usage || null, cost: cost === null ? null : Number(cost.toFixed(6))
       });
       d.state.bumpChecks();
+
+      // The plan's limit is used up and this check was billed as extra usage.
+      // Its verdict is logged (and priced) above; stop until the limit resets
+      // rather than pay for every check, unless config.json opts in. Nothing
+      // is being watched meanwhile, so the color comes back too.
+      if (overage && !c.cliAllowOverage) {
+        const until = typeof overage.resetsAt === 'number' && overage.resetsAt > ts ? overage.resetsAt : ts + OVERAGE_FALLBACK_MS;
+        s.backoffUntil = until;
+        s.errorKind = 'rate_limited';
+        s.holdLine = true;
+        s.strikeCount = 0;
+        await clearAlert(`Claude plan limit reached — checks paused until ${fmtWhen(until)} to avoid paid extra usage`);
+        return;
+      }
 
       // "I'm working" grace: keep judging and logging, but never fire.
       if (ts < s.graceUntil) {
@@ -401,9 +450,13 @@ function createLoop(deps) {
         const { kind } = classifyApiError(e);
         s.errorKind = kind;
         s.holdLine = false;   // the branches below that need it set it again
-        const { provider } = providers.resolve(c, d.secrets.getApiKey());
-        const who = providers.label(provider);
-        const hosted = provider === providers.HOSTED;
+        s.cliLogin = null;
+        // On the CLI engine neither the hosted service nor a stored model key
+        // is involved: never name their provider or follow their branches.
+        const cli = d.engine() === 'cli';
+        const provider = cli ? 'anthropic' : providers.resolve(c, d.secrets.getApiKey()).provider;
+        const who = cli ? 'Claude' : providers.label(provider);
+        const hosted = !cli && provider === providers.HOSTED;
         // Seconds the service asked us to wait (rate_limited, quota_exceeded).
         const retryAfterMs = e && Number.isFinite(e.retryAfter) && e.retryAfter > 0 ? Math.min(e.retryAfter, 86400) * 1000 : 0;
         if (hosted && SUBSCRIPTION_LINES[kind]) {
@@ -436,6 +489,16 @@ function createLoop(deps) {
           s.lastLine = kind === 'not_connected' ? NOT_CONNECTED_LINE : kind === 'secrets_locked' ? SECRETS_LOCKED_LINE : UNREGISTERED_LINE;
           s.backoffUntil = d.now() + SUBSCRIPTION_BACKOFF_MS;
           if (s.alerting) await clearAlert(s.lastLine);
+        } else if (kind === 'cli_auth') {
+          // The fix depends on the binary: a wrapper logs its accounts in its own way.
+          s.cliLogin = e && e.login && typeof e.login.text === 'string' ? e.login : CLI_LOGIN_DEFAULT;
+          s.holdLine = true;
+          s.lastLine = `Claude CLI is logged out — ${s.cliLogin.text}`;
+          s.backoffUntil = d.now() + 15 * 60000; // Check now retries at once after logging in
+        } else if (kind === 'cli_missing') {
+          s.holdLine = true;
+          s.lastLine = CLI_MISSING_LINE;
+          s.backoffUntil = d.now() + 15 * 60000;
         } else if (kind === 'key_rejected' || kind === 'no_key') {
           s.needsKey = true;
           s.lastLine = kind === 'no_key' ? 'API key needed — open Settings' : `${who} rejected the API key — fix in Settings`;
@@ -451,10 +514,26 @@ function createLoop(deps) {
           // not_configured here is the SERVICE missing a setting (503): like
           // a busy service, it counts as on-task and is tried again later.
           const step = BACKOFF_STEPS_MS[Math.min(s.backoffStep, BACKOFF_STEPS_MS.length - 1)];
-          const wait = Math.max(step, retryAfterMs);
           s.backoffStep++;
-          s.backoffUntil = d.now() + wait;
-          s.lastLine = `${kind === 'network' ? 'no connection' : `${who} busy`} — retrying at ${fmtTime(s.backoffUntil)}`;
+          if (cli) {
+            // A known reset sooner than the next step is the better time to
+            // retry. A later one is only reported, not waited for: a refused
+            // call costs no usage, and the login behind the CLI can change
+            // before a weekly reset (claude auth login to another account, or
+            // a failover wrapper that has recorded this limit and routes
+            // around it).
+            s.backoffUntil = d.now() + step;
+            const resets = e && typeof e.resetsAt === 'number' && e.resetsAt > d.now() ? e.resetsAt : null;
+            if (resets && resets < s.backoffUntil) s.backoffUntil = resets;
+            s.lastLine = e && e.limit
+              ? `Claude usage limit reached${resets ? ` (resets ${fmtWhen(resets)})` : ''} — retrying at ${fmtTime(s.backoffUntil)}`
+              : e && e.timeout
+                ? `Claude CLI timed out — retrying at ${fmtTime(s.backoffUntil)}`
+                : `${kind === 'network' ? 'no connection' : `${who} busy`} — retrying at ${fmtTime(s.backoffUntil)}`;
+          } else {
+            s.backoffUntil = d.now() + Math.max(step, retryAfterMs);
+            s.lastLine = `${kind === 'network' ? 'no connection' : `${who} busy`} — retrying at ${fmtTime(s.backoffUntil)}`;
+          }
         } else {
           s.lastLine = `error: ${msg.slice(0, 120)}`;
         }
@@ -601,10 +680,14 @@ function createLoop(deps) {
     return true;
   }
 
-  /** Plan facts for the tray and the windows; nulls when there is no account. */
+  /**
+   * Plan facts for the tray and the windows; nulls when there is no account,
+   * or on the CLI engine, where no plan is used and an old plan problem from
+   * the hosted service must not ask for a subscription.
+   */
   function accountLive() {
     let snap = null;
-    if (d.account && d.account.snapshot) { try { snap = d.account.snapshot(); } catch { snap = null; } }
+    if (d.account && d.account.snapshot && d.engine() !== 'cli') { try { snap = d.account.snapshot(); } catch { snap = null; } }
     if (!snap) {
       return { plan: null, status: null, checksUsed: null, checksIncluded: null, needsSubscription: s.needsSubscription };
     }
@@ -627,6 +710,7 @@ function createLoop(deps) {
       lastVerdictTs: s.lastVerdictTs, lastCheckAt: s.lastCheckAt,
       needsScreenPermission: s.needsScreenPermission || s.screenDenied, needsKey: s.needsKey, capHit: s.capHit,
       graceUntil: s.graceUntil, backoffUntil: s.backoffUntil, errorKind: s.errorKind, planHold: s.planHold,
+      cliLogin: s.cliLogin, configInvalid: !!d.configInvalid(),
       analyzing: s.analyzing, running: !!timer,
       grayscaleUsable: grayscaleUsable()
     };
@@ -652,6 +736,7 @@ function createLoop(deps) {
 }
 
 module.exports = {
-  createLoop, TICK_HARD_LIMIT_MS, BACKOFF_STEPS_MS, SUBSCRIPTION_LINES, SUBSCRIPTION_BACKOFF_MS,
+  createLoop, TICK_HARD_LIMIT_MS, BACKOFF_STEPS_MS, OVERAGE_FALLBACK_MS, CONFIG_INVALID_LINE, CLI_MISSING_LINE,
+  SUBSCRIPTION_LINES, SUBSCRIPTION_BACKOFF_MS,
   DAILY_BUDGET_LINE, QUOTA_RETRY_MS, NOT_CONNECTED_LINE, UNREGISTERED_LINE, SECRETS_LOCKED_LINE, isStickyPlanProblem
 };

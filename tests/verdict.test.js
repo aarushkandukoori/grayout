@@ -141,14 +141,17 @@ describe('classifyApiError', () => {
 });
 
 describe('engine and key guard', () => {
-  test('resolveEngine is api unless the maintainer opts into cli', t => {
+  test('resolveEngine: config engine "cli" selects the CLI; GRAYOUT_DEV_ENGINE=cli still works unpackaged', t => {
     const saved = process.env.GRAYOUT_DEV_ENGINE;
     t.after(() => { if (saved === undefined) delete process.env.GRAYOUT_DEV_ENGINE; else process.env.GRAYOUT_DEV_ENGINE = saved; });
     delete process.env.GRAYOUT_DEV_ENGINE;
-    assert.equal(resolveEngine({ engine: 'cli' }), 'api', 'config cannot select cli');
+    assert.equal(resolveEngine({ engine: 'cli' }), 'cli', 'config selects cli');
+    assert.equal(resolveEngine({ engine: 'cli' }, true), 'cli', 'in a packaged build too');
     assert.equal(resolveEngine({ engine: 'auto' }), 'api');
+    assert.equal(resolveEngine({ engine: 'api' }, true), 'api');
     process.env.GRAYOUT_DEV_ENGINE = 'cli';
     assert.equal(resolveEngine({ engine: 'api' }), 'cli', 'unpackaged + env var → cli');
+    assert.equal(resolveEngine({ engine: 'api' }, true), 'api', 'packaged ignores the env var');
     process.env.GRAYOUT_DEV_ENGINE = 'yes';
     assert.equal(resolveEngine({}), 'api');
   });

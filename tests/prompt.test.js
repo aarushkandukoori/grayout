@@ -112,12 +112,16 @@ describe('buildPromptText', () => {
     assert.equal(build().includes('Use the Read tool'), false);
   });
 
-  test('CLI mode lists screenshot paths instead', () => {
-    const p = build({ screenshotPaths: ['/tmp/a/screen-0.jpg', '/tmp/a/screen-1.jpg'], webcamPath: '/tmp/a/webcam.jpg' }, true);
-    assert.ok(p.includes('Use the Read tool to view these images, then answer:'));
-    assert.ok(p.includes('- Screenshot of display 1: /tmp/a/screen-0.jpg'));
-    assert.ok(p.includes('- Screenshot of display 2: /tmp/a/screen-1.jpg'));
-    assert.ok(p.includes('- Webcam photo of the person: /tmp/a/webcam.jpg'));
+  test('one prompt for every engine: the CLI gets images inline, never file paths or a Read tool', () => {
+    const p = build({ screenshotPaths: ['/tmp/a/screen-0.jpg'], webcamPath: '/tmp/a/webcam.jpg' }, true);
+    assert.equal(p, build());
+    assert.equal(p.includes('Read tool'), false);
+    assert.equal(p.includes('/tmp/a/'), false);
+  });
+
+  test('display count falls back to the frames passed in', () => {
+    assert.ok(buildPromptText({ screenshotsB64: ['a', 'b'] }).includes('You are given 2 screenshots (one per display).'));
+    assert.ok(buildPromptText({}).includes('You are given a screenshot of the screen.'));
   });
 
   test('non-array task inputs are tolerated', () => {

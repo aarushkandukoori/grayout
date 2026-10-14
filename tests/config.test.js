@@ -7,7 +7,7 @@ const helpers = require('./helpers');
 const dir = helpers.freshUserData('config');
 const paths = require('../src/paths');
 const config = require('../src/config');
-const { DEFAULT_CONFIG, NUMERIC_BOUNDS, coerce, loadConfig, saveConfig, writeConfig } = config;
+const { DEFAULT_CONFIG, NUMERIC_BOUNDS, coerce, loadConfig, saveConfig, writeConfig, reloadAction } = config;
 
 after(() => helpers.cleanup(dir));
 
@@ -130,9 +130,40 @@ describe('coerce', () => {
   test('engine falls back to api for unknown values', () => {
     assert.equal(coerce({ engine: 'foo' }).engine, 'api');
     assert.equal(coerce({ engine: 'api' }).engine, 'api');
-    // Accepted by coerce for the maintainer; resolveEngine() ignores config anyway.
     assert.equal(coerce({ engine: 'cli' }).engine, 'cli');
     assert.equal(coerce({ engine: 'auto' }).engine, 'auto');
+    assert.equal(coerce({ engine: 'CLI' }).engine, 'api', 'case-sensitive enum');
+    assert.equal(coerce({ engine: 1 }).engine, 'api');
+  });
+
+  test('cliPath: "" by default; any string is kept as written (trimmed), never blanked', () => {
+    const exe = `${dir}/claude-bin`;
+    const plain = `${dir}/claude-plain`;
+    fs.writeFileSync(exe, '#!/bin/sh\n', { mode: 0o755 });
+    fs.writeFileSync(plain, 'x', { mode: 0o644 });
+    assert.equal(DEFAULT_CONFIG.cliPath, '');
+    assert.equal(coerce({}).cliPath, '');
+    assert.equal(coerce({ cliPath: exe }).cliPath, exe);
+    assert.equal(coerce({ cliPath: `  ${exe}\n` }).cliPath, exe, 'trimmed');
+    // Blanking these would silently move checks to another binary and its login;
+    // claudecli.resolveBinary reports them as cli_missing instead.
+    for (const keep of [plain, dir, `${dir}/missing`, '~/Projects/claude-failover/bin/claude-failover', 'claude', './claude-bin']) {
+      assert.equal(coerce({ cliPath: keep }).cliPath, keep, keep);
+    }
+    for (const bad of [42, null, true, ['x'], { p: exe }]) assert.equal(coerce({ cliPath: bad }).cliPath, '', String(bad));
+  });
+
+  test('cliAllowOverage: false by default, booleans only', () => {
+    assert.equal(DEFAULT_CONFIG.cliAllowOverage, false);
+    assert.equal(coerce({ cliAllowOverage: true }).cliAllowOverage, true);
+    for (const bad of ['true', 1, null, {}]) assert.equal(coerce({ cliAllowOverage: bad }).cliAllowOverage, false, String(bad));
+  });
+
+  test('engine "cli" leaves the v2 defaults alone for everybody else', () => {
+    const c = coerce({ engine: 'cli', cliPath: '/opt/homebrew/bin/claude' });
+    for (const k of ['provider', 'apiBase', 'model', 'changeGating', 'forceCheckSec', 'checkIntervalSec']) assert.deepEqual(c[k], DEFAULT_CONFIG[k], k);
+    assert.equal(DEFAULT_CONFIG.engine, 'api');
+    assert.equal(DEFAULT_CONFIG.provider, 'auto');
   });
 
   test('workDescription is a string capped at 500 chars', () => {
@@ -238,6 +269,23 @@ describe('loadConfig', () => {
   });
 });
 
+describe('reloadAction (config.json changed while running)', () => {
+  test('a file that does not parse keeps the settings in use: engine cli never drops to the hosted defaults', t => {
+    t.mock.method(console, 'error', () => {});
+    const inUse = coerce({ engine: 'cli', model: 'claude-haiku-4-5' });
+    writeRaw('{"engine":"cli","model":"claude-haiku-4-5",}');
+    const next = loadConfig();
+    assert.equal(next.engine, 'api', 'precondition: loadConfig falls back to defaults');
+    assert.equal(next.provider, 'auto', 'precondition: the defaults are the hosted service');
+    assert.equal(reloadAction(inUse, next), 'invalid');
+    assert.equal(reloadAction(inUse, null), 'invalid');
+    assert.equal(reloadAction(inUse, coerce({ engine: 'cli', model: 'claude-haiku-4-5' })), 'same');
+    assert.equal(reloadAction(inUse, coerce({ engine: 'cli', strikes: 3 })), 'apply');
+    assert.equal(reloadAction({ ...coerce({}), _invalid: true }, coerce({})), 'apply', 'a fixed file replaces the launch-time defaults');
+    fs.unlinkSync(paths.CONFIG_PATH + '.invalid');
+  });
+});
+
 describe('saveConfig', () => {
   test('merges a partial into the on-disk config and validates', () => {
     writeConfig(coerce({}));
@@ -252,6 +300,66 @@ describe('saveConfig', () => {
     assert.equal(c2.canvas.baseUrl, 'https://x.edu', 'nested canvas lost');
     assert.deepEqual(readJson(), c2);
     assert.equal(helpers.fileMode(paths.CONFIG_PATH), 0o600);
+  });
+
+  test('a save that does not mention engine or cliPath keeps both', () => {
+    const exe = `${dir}/claude-save`;
+    fs.writeFileSync(exe, '#!/bin/sh\n', { mode: 0o755 });
+    writeConfig(coerce({ engine: 'cli', cliPath: exe }));
+    const c = saveConfig({ strikes: 3, workDescription: 'thesis' });
+    assert.equal(c.engine, 'cli');
+    assert.equal(c.cliPath, exe);
+    assert.equal(readJson().engine, 'cli');
+    assert.equal(readJson().cliPath, exe);
+    // A valid file is not rewritten on load.
+    const before = readRaw();
+    assert.equal(loadConfig().cliPath, exe);
+    assert.equal(readRaw(), before);
+  });
+
+  test('a ~/ or currently missing cliPath survives load and save untouched on disk', () => {
+    const raw = JSON.stringify({ ...coerce({}), engine: 'cli', cliPath: '~/Projects/claude-failover/bin/claude-failover' }, null, 2) + '\n';
+    writeRaw(raw);
+    const c = loadConfig();
+    assert.equal(c.cliPath, '~/Projects/claude-failover/bin/claude-failover');
+    assert.equal(readRaw(), raw, 'not rewritten to ""');
+    assert.equal(saveConfig({ strikes: 3 }).cliPath, '~/Projects/claude-failover/bin/claude-failover');
+    writeConfig({ ...coerce({}), engine: 'cli', cliPath: `${dir}/claude-failoverX` });
+    assert.equal(loadConfig().cliPath, `${dir}/claude-failoverX`);
+    assert.equal(readJson().cliPath, `${dir}/claude-failoverX`);
+  });
+
+  test('a save keeps cliAllowOverage from the file', () => {
+    writeConfig(coerce({ engine: 'cli', cliAllowOverage: true }));
+    assert.equal(saveConfig({ strikes: 2 }).cliAllowOverage, true);
+    assert.equal(readJson().cliAllowOverage, true);
+  });
+
+  test('a v2 config.json from before cliPath existed gains the new keys with defaults, nothing else changes', () => {
+    const old = { ...coerce({}), engine: 'cli', provider: 'grayout', checkIntervalSec: 60 };
+    delete old.cliPath;
+    delete old.cliAllowOverage;
+    writeRaw(JSON.stringify(old, null, 2) + '\n');
+    const c = loadConfig();
+    assert.equal(c.engine, 'cli');
+    assert.equal(c.provider, 'grayout');
+    assert.equal(c.checkIntervalSec, 60);
+    assert.equal(c.cliPath, '');
+    assert.equal(c.cliAllowOverage, false);
+  });
+
+  test('a malformed on-disk file with the config in use as fallback: built on that, not on defaults', () => {
+    writeRaw('{ "engine": "cli", oops');
+    const inUse = { ...coerce({ engine: 'cli', cliPath: '/opt/homebrew/bin/claude', checkIntervalSec: 90 }) };
+    const c = saveConfig({ strikes: 4 }, inUse);
+    assert.equal(c.engine, 'cli', 'defaults would switch to the hosted service');
+    assert.equal(c.cliPath, '/opt/homebrew/bin/claude');
+    assert.equal(c.checkIntervalSec, 90);
+    assert.equal(c.strikes, 4);
+    assert.deepEqual(readJson(), c);
+    assert.equal('_invalid' in c, false);
+    writeRaw('{ broken');
+    assert.equal(saveConfig({ strikes: 4 }, { ...coerce({}), _invalid: true }).engine, 'api', 'an invalid fallback is not a base');
   });
 
   test('a malformed on-disk file is replaced by partial-over-defaults', () => {

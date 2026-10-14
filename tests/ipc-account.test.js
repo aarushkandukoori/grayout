@@ -234,6 +234,26 @@ describe('the payload every window reads', () => {
     assert.equal(loopCalls.includes('reload'), false);
   });
 
+  test('on the CLI engine, or with config.json invalid, opening Settings never asks the service', async () => {
+    const saved = cfg;
+    try {
+      for (const c of [configMod.coerce({ engine: 'cli' }), { ...configMod.coerce({}), _invalid: true }]) {
+        cfg = c;
+        calls.length = 0;
+        const s = await invoke('settings:get');
+        await helpers.turns(5);
+        assert.deepEqual(calls.filter(x => x[0] === 'refresh'), [], JSON.stringify({ engine: c.engine, invalid: !!c._invalid }));
+        if (c.engine === 'cli') {
+          assert.equal(s.selfHosted, true, 'the plan panel is hidden');
+          assert.equal(s.estimates.engine, 'cli');
+        }
+      }
+    } finally { cfg = saved; }
+    const main = fs.readFileSync(path.join(paths.APP_ROOT, 'main.js'), 'utf8');
+    assert.match(main, /if \(!selfHosted\(\) && !config\._invalid\) \{\s*account\.refresh\(\{ force: true \}\)/, 'nor the launch refresh');
+    assert.match(main, /function selfHosted\(\) \{\s*try \{ return resolveEngine\(config\) === 'cli' \|\|/);
+  });
+
   test('a fresh "served" answer lifts the loop\'s plan wait; a cached or free answer does not', async () => {
     // Regression: a subscriber who fixed the card at link.com and opened
     // Settings saw "Subscribed" while the menu bar kept saying the

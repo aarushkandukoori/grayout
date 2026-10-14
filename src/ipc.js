@@ -11,8 +11,9 @@ const stats = require('./stats');
 const pricing = require('./pricing');
 const permissions = require('./permissions');
 const loginitem = require('./loginitem');
-const { testApiKey } = require('./analyzer');
+const { testApiKey, resolveEngine } = require('./analyzer');
 const providers = require('./providers');
+const claudecli = require('./claudecli');
 const log = require('./log');
 const { MESSAGES: ACCOUNT_MESSAGES, LINK_URL } = require('./account');
 
@@ -91,33 +92,46 @@ function afterAccountRefresh(loop, r) {
 function num(v, min, max, dflt) { const n = Number(v); return Number.isFinite(n) ? Math.min(max, Math.max(min, Math.round(n))) : dflt; }
 
 /**
+ * Who answers the checks: the Claude CLI (engine "cli"), or the provider
+ * providers.resolve picks for the API engine (the hosted service or a
+ * self-hosted model key).
+ */
+function activeProvider(cfg, key) {
+  if (resolveEngine(cfg) === 'cli') {
+    return { engine: 'cli', provider: 'claude-cli', providerLabel: 'Claude CLI', model: claudecli.cliModel(cfg), hosted: false };
+  }
+  const { provider, model } = providers.resolve(cfg, key === undefined ? secrets.getApiKey() : key);
+  return { engine: 'api', provider, providerLabel: providers.label(provider), model, hosted: provider === providers.HOSTED };
+}
+
+/**
  * What each interval means. On the hosted plan the dollar figures are null —
  * the subscription is the price, and printing a model bill there would be a
- * number nobody pays. The check counts apply either way (they are an upper
- * bound: change-gating removes roughly half of them).
+ * number nobody pays. On the CLI engine they are 0: a Claude subscription has
+ * no per-check charge (checks count toward its usage limits instead). The
+ * check counts apply either way (they are an upper bound: change-gating
+ * removes roughly half of them).
  */
 function estimates(cfg, key) {
-  const { provider, model } = providers.resolve(cfg, key === undefined ? secrets.getApiKey() : key);
-  const hosted = provider === providers.HOSTED;
+  const active = activeProvider(cfg, key);
+  const { model, hosted } = active;
+  const cli = active.engine === 'cli';
   const opts = { displays: 1, camera: !!cfg.camera, model };
   const out = {};
   for (const s of [30, 45, 60, 90, 120]) {
     const checks = Math.round(pricing.checksPerDay(s));
     out[s] = {
-      daily: hosted ? null : pricing.estimateDaily(s, opts),
-      monthly: hosted ? null : pricing.estimateMonthly(s, opts),
+      daily: cli ? 0 : hosted ? null : pricing.estimateDaily(s, opts),
+      monthly: cli ? 0 : hosted ? null : pricing.estimateMonthly(s, opts),
       checks,
       checksMonthly: checks * 22
     };
   }
   return {
     byInterval: out,
-    perCheck: hosted ? null : pricing.perCheckUsd(opts),
+    perCheck: cli ? 0 : hosted ? null : pricing.perCheckUsd(opts),
     priceDate: pricing.PRICE_DATE,
-    hosted,
-    provider,
-    providerLabel: providers.label(provider),
-    model
+    ...active
   };
 }
 
@@ -148,23 +162,25 @@ function registerIpc(ctx) {
   const { loop, getConfig, applyConfig, windows, updater } = ctx;
   const account = ctx.account || null;
 
-  // Self-hosting is the escape hatch, not the product: a model key is only ever
-  // needed when the provider is not the hosted service.
-  const selfHosted = () => providers.resolve(getConfig(), secrets.getApiKey()).provider !== providers.HOSTED;
+  // Self-hosting is the escape hatch, not the product: true when checks do
+  // not go through the hosted service (a model key, or the Claude CLI). A
+  // model key is only ever needed on the first of those.
+  const selfHosted = () => activeProvider(getConfig()).hosted === false;
+  const keyMissing = () => resolveEngine(getConfig()) === 'api' && !secrets.getApiKey();
   const liveWithExtras = () => {
     const l = loop.getLive();
     const self = selfHosted();
-    return { ...l, selfHosted: self, needsKey: self && (l.needsKey || !secrets.getApiKey()) };
+    return { ...l, selfHosted: self, engine: resolveEngine(getConfig()), needsKey: self && (l.needsKey || keyMissing()) };
   };
 
   ipcMain.handle('dash:get', (_e, day) => {
     const cfg = getConfig();
     const requested = typeof day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : undefined;
-    const active = providers.resolve(cfg, secrets.getApiKey());
+    const active = activeProvider(cfg);
     return {
       stats: stats.summarize(requested, { intervalSec: cfg.checkIntervalSec, strikes: cfg.strikes }),
       live: liveWithExtras(),
-      config: { checkIntervalSec: cfg.checkIntervalSec, strikes: cfg.strikes, model: active.model, provider: active.provider, providerLabel: providers.label(active.provider), camera: cfg.camera, grayscale: cfg.grayscale, redFlash: cfg.redFlash, historyDays: cfg.historyDays, disputeGraceMin: cfg.disputeGraceMin },
+      config: { checkIntervalSec: cfg.checkIntervalSec, strikes: cfg.strikes, engine: active.engine, model: active.model, provider: active.provider, providerLabel: active.providerLabel, camera: cfg.camera, grayscale: cfg.grayscale, redFlash: cfg.redFlash, historyDays: cfg.historyDays, disputeGraceMin: cfg.disputeGraceMin },
       version: app.getVersion(),
       account: accountPayload(account),
       ...PLANS_PAYLOAD,
@@ -203,13 +219,23 @@ function registerIpc(ctx) {
   });
 
   ipcMain.handle('settings:save', async (_e, partial) => {
+    // config.json did not parse at launch, so the settings in use are only
+    // defaults: writing them over the file would lose engine, cliPath and the
+    // rest. The dashboard shows the JSON error; fix the file first.
+    if (getConfig()._invalid) {
+      log.warn('settings', 'not saved: config.json has a JSON error');
+      return { error: 'config.json has a JSON error. Fix it first, then save again.' };
+    }
     const clean = sanitizeSettings(partial);
     let loginItem = loginitem.getStatus();
     if (clean.startAtLogin !== undefined) {
       loginItem = await loginitem.setStartAtLogin(clean.startAtLogin);
       if (loginItem.status === 'not-in-applications') clean.startAtLogin = false;
     }
-    const cfg = configMod.saveConfig(clean);
+    // engine, cliPath and cliAllowOverage are config.json only: sanitizeSettings
+    // drops them, and the merge keeps what the file (or, if it no longer
+    // parses, the config in use) says.
+    const cfg = configMod.saveConfig(clean, getConfig());
     applyConfig(cfg);
     log.info('settings', `saved: ${Object.keys(clean).join(',')}`);
     return { config: cfg, loginItem, estimates: estimates(cfg) };
@@ -312,7 +338,7 @@ function registerIpc(ctx) {
 
   let refreshing = false;
   function refreshAccountInBackground() {
-    if (!account || !account.refresh || selfHosted() || refreshing) return;
+    if (!account || !account.refresh || selfHosted() || getConfig()._invalid || refreshing) return;
     refreshing = true;
     Promise.resolve()
       .then(() => account.refresh())
@@ -382,6 +408,7 @@ function registerIpc(ctx) {
     return {
       step: st.onboarding.step || 1,
       completed: !!st.onboarding.completed,
+      engine: resolveEngine(cfg),
       inApplications: loginitem.inApplications(),
       screen: await permissions.screenStatus({ fresh: false }),
       cameraStatus: permissions.cameraStatus(),
@@ -427,4 +454,4 @@ function registerIpc(ctx) {
   ipcMain.on('camera-status', (_e, status) => { if (ctx.onCameraStatus) ctx.onCameraStatus(String(status)); });
 }
 
-module.exports = { registerIpc, sanitizeSettings, accountPayload, openPaymentUrl, afterAccountRefresh, estimates, ALLOWED_HOSTS, PAYMENT_HOSTS, INTERVAL_CHOICES, MANAGE_NOTE };
+module.exports = { registerIpc, sanitizeSettings, accountPayload, openPaymentUrl, afterAccountRefresh, estimates, activeProvider, ALLOWED_HOSTS, PAYMENT_HOSTS, INTERVAL_CHOICES, MANAGE_NOTE };

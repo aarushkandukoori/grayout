@@ -6,7 +6,10 @@ const assert = require('node:assert/strict');
 const helpers = require('./helpers');
 
 const dir = helpers.freshUserData('loop');
-const { createLoop, BACKOFF_STEPS_MS, TICK_HARD_LIMIT_MS, DAILY_BUDGET_LINE, NOT_CONNECTED_LINE, UNREGISTERED_LINE, SECRETS_LOCKED_LINE } = require('../src/loop');
+const {
+  createLoop, BACKOFF_STEPS_MS, TICK_HARD_LIMIT_MS, OVERAGE_FALLBACK_MS, CONFIG_INVALID_LINE, CLI_MISSING_LINE,
+  DAILY_BUDGET_LINE, NOT_CONNECTED_LINE, UNREGISTERED_LINE, SECRETS_LOCKED_LINE, SUBSCRIPTION_LINES
+} = require('../src/loop');
 const { DEFAULT_CONFIG } = require('../src/config');
 const { NoKeyError } = require('../src/analyzer');
 
@@ -595,6 +598,102 @@ describe('9. errors', () => {
     assert.equal(h.live().errorKind, null);
   });
 
+  test('CLI logged out: cli_auth line says claude auth login, no needsKey, no provider of the stored key, 15-min backoff', async t => {
+    t.mock.method(console, 'error', () => {});
+    const h = build({ deps: { engine: () => 'cli', requiresKey: () => false, secrets: { getApiKey: () => 'sk-proj-openai-key-stored', getCanvasToken: () => '' } } });
+    await h.step({ throw: Object.assign(new Error('Claude CLI is not logged in (Invalid API key · Please run /login). Run claude auth login in Terminal.'), { kind: 'cli_auth' }) });
+    const live = h.live();
+    assert.equal(live.errorKind, 'cli_auth');
+    assert.equal(live.lastLine, 'Claude CLI is logged out — run claude auth login in Terminal');
+    assert.equal(live.needsKey, false, 'never sends the person to API-key setup');
+    assert.equal(/API key|OpenAI|Anthropic|Grayout|subscri/.test(live.lastLine), false);
+    assert.equal(live.backoffUntil, T0 + 15 * MIN);
+    await h.step(ON());
+    assert.equal(h.calls.analyze.length, 1, 'no retry inside the backoff');
+    assert.equal(h.live().lastLine, 'Claude CLI is logged out — run claude auth login in Terminal', 'the line survives the backoff');
+    h.script.push(ON());
+    await h.loop.checkNow(); // after logging in, Check now retries at once
+    assert.equal(h.calls.analyze.length, 2);
+    assert.equal(h.live().errorKind, null);
+  });
+
+  test('CLI logged out behind a wrapper: the line and live.cliLogin carry the wrapper\'s advice', async t => {
+    t.mock.method(console, 'error', () => {});
+    const h = build({ deps: { engine: () => 'cli', requiresKey: () => false } });
+    const login = { command: 'claude-accounts status', text: 'run claude-accounts status in Terminal, then claude-accounts login <account>' };
+    await h.step({ throw: Object.assign(new Error('Claude CLI is not logged in (Not logged in).'), { kind: 'cli_auth', login }) });
+    assert.equal(h.live().lastLine, 'Claude CLI is logged out — run claude-accounts status in Terminal, then claude-accounts login <account>');
+    assert.deepEqual(h.live().cliLogin, login);
+    h.now = h.live().backoffUntil;
+    await h.step(ON());
+    assert.equal(h.live().cliLogin, null, 'cleared by the next good check');
+    await h.step({ throw: Object.assign(new Error('Claude CLI is not logged in'), { kind: 'cli_auth' }) });
+    assert.deepEqual(h.live().cliLogin, { command: 'claude auth login', text: 'run claude auth login in Terminal' }, 'no advice on the error: the plain claude one');
+  });
+
+  test('CLI timeout: stepped backoff with its own line, not an error retried every tick', async t => {
+    t.mock.method(console, 'error', () => {});
+    const h = build({ deps: { engine: () => 'cli', requiresKey: () => false } });
+    const timeout = () => ({ throw: Object.assign(new Error('claude CLI exceeded 90s — check abandoned'), { kind: 'network', timeout: true }) });
+    await h.step(timeout());
+    assert.equal(h.live().errorKind, 'network');
+    assert.equal(h.live().backoffUntil, T0 + BACKOFF_STEPS_MS[0]);
+    assert.match(h.live().lastLine, /^Claude CLI timed out — retrying at /);
+    h.now = T0 + 20000;
+    await h.loop.tick();
+    assert.equal(h.calls.analyze.length, 1, 'a tick inside the backoff waits instead of starting another 90 s CLI');
+    h.now = T0 + BACKOFF_STEPS_MS[0];
+    await h.step(timeout());
+    assert.equal(h.live().backoffUntil, T0 + BACKOFF_STEPS_MS[0] + BACKOFF_STEPS_MS[1], 'and the steps grow');
+  });
+
+  test('CLI not found: cli_missing line points at cliPath', async t => {
+    t.mock.method(console, 'error', () => {});
+    const h = build({ deps: { engine: () => 'cli', requiresKey: () => false } });
+    await h.step({ throw: Object.assign(new Error('Claude CLI not found'), { kind: 'cli_missing' }) });
+    assert.equal(h.live().errorKind, 'cli_missing');
+    assert.equal(h.live().lastLine, CLI_MISSING_LINE);
+    assert.equal(h.live().lastLine, 'Claude CLI not found — install Claude Code or set cliPath in config.json');
+    assert.equal(h.live().needsKey, false);
+    assert.equal(h.live().backoffUntil, T0 + 15 * MIN);
+    await h.step(ON());
+    assert.equal(h.live().lastLine, CLI_MISSING_LINE, 'the line survives the backoff');
+  });
+
+  test('CLI usage limit: stepped backoff, the reset time is reported, an earlier reset is honored', async t => {
+    t.mock.method(console, 'error', () => {});
+    const h = build({ deps: { engine: () => 'cli', requiresKey: () => false } });
+    // As classifyCliFailure builds it: resetsAt in epoch ms, retryAfter in seconds (the service's unit).
+    const limit = resetsAt => ({ throw: Object.assign(new Error("claude CLI: You've hit your limit"), {
+      kind: 'rate_limited', limit: true, resetsAt, retryAfter: resetsAt ? Math.ceil((resetsAt - h.now) / 1000) : null
+    }) });
+    await h.step(limit(T0 + 3 * 60 * MIN));
+    let live = h.live();
+    assert.equal(live.errorKind, 'rate_limited');
+    assert.equal(live.backoffUntil, T0 + BACKOFF_STEPS_MS[0], 'a later reset is not waited for: a refused call costs no usage and the login may change first');
+    assert.match(live.lastLine, /^Claude usage limit reached \(resets .+\) — retrying at /);
+    assert.equal(live.needsKey, false);
+
+    h.now = live.backoffUntil;
+    const soon = h.now + 10000;
+    await h.step(limit(soon));
+    assert.equal(h.live().backoffUntil, soon, 'a reset sooner than the next step is the retry time');
+
+    h.now = soon;
+    await h.step(limit(null));
+    assert.match(h.live().lastLine, /^Claude usage limit reached — retrying at /);
+  });
+
+  test('CLI errors never name the stored key\'s provider', async t => {
+    t.mock.method(console, 'error', () => {});
+    const h = build({ deps: { engine: () => 'cli', requiresKey: () => false, secrets: { getApiKey: () => 'sk-proj-openai-key-stored', getCanvasToken: () => '' } } });
+    await h.step({ throw: Object.assign(new Error('claude CLI: API Error: 529 Overloaded'), { kind: 'overloaded' }) });
+    assert.match(h.live().lastLine, /^Claude busy — retrying at /);
+    h.now = h.live().backoffUntil;
+    await h.step({ throw: Object.assign(new Error('claude CLI: issue with the selected model'), { kind: 'bad_model' }) });
+    assert.equal(h.live().lastLine, 'model not available on this Claude account — check config.json');
+  });
+
   test('requiresKey() false lets a keyless engine run (maintainer CLI path)', async () => {
     const h = build({ deps: { secrets: { getApiKey: () => null, getCanvasToken: () => '' }, requiresKey: () => false } });
     await h.step(ON());
@@ -840,16 +939,83 @@ describe('11. verdict log line', () => {
 
   test('cost is null without usage or with an unknown model; model falls back to config', async () => {
     const h = build();
-    await h.step(ok(v(false), { usage: null, engine: 'cli', model: undefined }));
+    await h.step(ok(v(false), { usage: null, model: undefined }));
     assert.equal(h.calls.log[0].cost, null);
     assert.equal(h.calls.log[0].usage, null);
-    assert.equal(h.calls.log[0].engine, 'cli');
+    assert.equal(h.calls.log[0].engine, 'api');
     assert.equal(h.calls.log[0].model, 'claude-haiku-4-5');
     await h.step(ok(v(false), { model: 'gpt-4o' }));
     assert.equal(h.calls.log[1].cost, null);
     assert.equal(h.calls.log[1].model, 'gpt-4o');
     await h.step(ok(v(false), { usage: { input_tokens: 1000000, output_tokens: 0 }, model: 'claude-haiku-4-5-20251001' }));
     assert.equal(h.calls.log[2].cost, 1);
+  });
+
+  test('a CLI check costs 0 (subscription), logs its tokens, engine and provider', async () => {
+    const h = build({ deps: { engine: () => 'cli' } });
+    await h.step(ok(v(false), { engine: 'cli', provider: 'claude-cli', usage: { input_tokens: 2086, output_tokens: 53 } }));
+    const row = h.calls.log[0];
+    assert.equal(row.cost, 0, 'no fake dollar figure for a flat-rate plan');
+    assert.equal(row.engine, 'cli');
+    assert.equal(row.provider, 'claude-cli');
+    assert.equal(row.model, 'claude-haiku-4-5');
+    assert.deepEqual(row.usage, { input_tokens: 2086, output_tokens: 53 });
+    await h.step(ok(v(false), { engine: 'cli', provider: 'claude-cli', usage: null }));
+    assert.equal(h.calls.log[1].cost, 0);
+  });
+
+  test('a CLI check billed as overage is priced like the API', async () => {
+    const h = build({ deps: { engine: () => 'cli' } });
+    await h.step(ok(v(false), { engine: 'cli', provider: 'claude-cli', usage: { input_tokens: 1000000, output_tokens: 0, overage: true } }));
+    assert.equal(h.calls.log[0].cost, 1);
+  });
+
+  test('overage: the paid check is logged, then checks stop until the plan limit resets and color returns', async () => {
+    const h = build({ deps: { engine: () => 'cli', requiresKey: () => false } });
+    const paid = (verdict, resetsAt) => ok(verdict, { engine: 'cli', provider: 'claude-cli', usage: { input_tokens: 1000000, output_tokens: 0, overage: true }, overage: { resetsAt } });
+    await h.step(ok(v(true), { engine: 'cli' }));
+    const resets = T0 + 3 * 60 * MIN;
+    await h.step(paid(v(true), resets)); // would have been strike 2
+    const live = h.live();
+    assert.equal(h.calls.log.length, 2);
+    assert.equal(h.calls.log[1].cost, 1, 'the one paid check shows its cost');
+    assert.equal(live.alerting, false, 'not grayed while nothing is being watched');
+    assert.equal(live.strikeCount, 0);
+    assert.equal(live.backoffUntil, resets, 'waits for the reset, not the 30 s step');
+    assert.equal(live.errorKind, 'rate_limited');
+    assert.match(live.lastLine, /^Claude plan limit reached — checks paused until .+ to avoid paid extra usage$/);
+    for (let i = 0; i < 10; i++) await h.step(ON());
+    assert.equal(h.calls.analyze.length, 2, 'no more paid checks');
+    assert.match(h.live().lastLine, /extra usage/, 'the line survives the wait');
+    h.now = resets;
+    await h.step(ON());
+    assert.equal(h.calls.analyze.length, 3, 'checks resume at the reset');
+    assert.equal(h.live().errorKind, null);
+  });
+
+  test('overage with no readable reset: waits OVERAGE_FALLBACK_MS', async () => {
+    const h = build({ deps: { engine: () => 'cli', requiresKey: () => false } });
+    await h.step(ok(v(false), { engine: 'cli', usage: { input_tokens: 10, output_tokens: 1, overage: true }, overage: { resetsAt: null } }));
+    assert.equal(h.live().backoffUntil, T0 + OVERAGE_FALLBACK_MS);
+    const h2 = build({ deps: { engine: () => 'cli', requiresKey: () => false } });
+    await h2.step(ok(v(false), { engine: 'cli', usage: { input_tokens: 10, output_tokens: 1, overage: true }, overage: { resetsAt: T0 - MIN } }));
+    assert.equal(h2.live().backoffUntil, T0 + OVERAGE_FALLBACK_MS, 'a reset in the past is not a reset');
+  });
+
+  test('overage with cliAllowOverage: checks keep running and keep being priced', async () => {
+    const h = build({ cfg: { cliAllowOverage: true }, deps: { engine: () => 'cli', requiresKey: () => false } });
+    const paid = () => ok(v(true), { engine: 'cli', usage: { input_tokens: 1000000, output_tokens: 0, overage: true }, overage: { resetsAt: T0 + 60 * MIN } });
+    await h.step(paid());
+    await h.step(paid());
+    assert.equal(h.live().alerting, true);
+    assert.equal(h.live().backoffUntil, 0);
+    assert.deepEqual(h.calls.log.map(r => r.cost), [1, 1]);
+  });
+
+  test('an API row logs the provider when the analyzer names it', async () => {
+    const h = build();
+    await h.step(ok(v(false), { provider: 'openai', model: 'gpt-5-mini' }));
+    assert.equal(h.calls.log[0].provider, 'openai');
   });
 
   test('a two-display capture logs displays: 2', async () => {
@@ -1322,6 +1488,78 @@ describe('13. the hosted plan', () => {
   });
 });
 
+describe('14. the CLI engine next to the hosted service', () => {
+  // A stand-in for src/account.js that must never be asked for anything a check needs.
+  function cliLoop({ cfg = {}, snapshot = null, connected = false, key = null } = {}) {
+    const account = {
+      configured: () => connected,
+      check: async () => { throw new Error('the CLI engine must never reach the service'); },
+      snapshot: () => snapshot,
+      noteCheck: () => { throw new Error('no plan facts on the CLI engine'); },
+      noteProblem: () => { throw new Error('no plan problems on the CLI engine'); }
+    };
+    return build({
+      cfg: { engine: 'cli', ...cfg },
+      deps: { engine: () => 'cli', requiresKey: () => false, account, secrets: { getApiKey: () => key, getCanvasToken: () => '' } }
+    });
+  }
+  const cliOk = (off = false) => ok(v(off), { engine: 'cli', provider: 'claude-cli', usage: { input_tokens: 2086, output_tokens: 53 } });
+
+  test('no key, provider auto, a build with no service address: checks still run through the CLI', async () => {
+    const h = cliLoop();
+    await h.step(cliOk());
+    assert.equal(h.calls.capture, 1);
+    assert.equal(h.calls.analyze.length, 1);
+    assert.notEqual(h.live().errorKind, 'not_connected');
+    assert.notEqual(h.live().lastLine, NOT_CONNECTED_LINE);
+    assert.equal(h.live().needsKey, false);
+    assert.equal(h.calls.log[0].cost, 0);
+  });
+
+  test('provider "grayout" in config.json does not route a CLI check to the service', async () => {
+    const h = cliLoop({ cfg: { provider: 'grayout' }, connected: true });
+    await h.step(cliOk(true));
+    await h.step(cliOk(true));
+    assert.equal(h.live().alerting, true, 'verdicts from the CLI drive the alert as usual');
+    assert.equal(h.calls.log.length, 2);
+  });
+
+  test('change-gating still skips unchanged frames on the CLI engine', async () => {
+    const h = build({ cfg: { engine: 'cli' }, deps: { engine: () => 'cli', requiresKey: () => false, hashFrames: () => ['00ff00ff00ff00ff'] } });
+    await h.step(cliOk());
+    await h.step();
+    assert.equal(h.calls.analyze.length, 1, 'an unchanged screen costs no CLI run either');
+    assert.match(h.live().lastLine, /^no change/);
+  });
+
+  test('an old plan problem from the service never asks a CLI user to subscribe', async () => {
+    const h = cliLoop({ connected: true, snapshot: { plan: 'free', status: 'free', usage: { checksUsed: 100, checksIncluded: 100 }, hasLicense: false, problem: 'free_exhausted', needsSubscription: true } });
+    await h.step(cliOk());
+    const live = h.live();
+    assert.equal(live.needsSubscription, false);
+    assert.equal(live.plan, null);
+    assert.equal(live.checksUsed, null);
+  });
+
+  test('CLI errors never take the hosted plan branches, even with provider "grayout"', async t => {
+    t.mock.method(console, 'error', () => {});
+    const h = cliLoop({ cfg: { provider: 'grayout' }, connected: true });
+    await h.step({ throw: Object.assign(new Error('claude CLI: API Error: 529'), { kind: 'overloaded' }) });
+    assert.match(h.live().lastLine, /^Claude busy — retrying at /, 'Claude, not "Grayout busy"');
+    assert.equal(h.live().needsSubscription, false);
+    for (const line of Object.values(SUBSCRIPTION_LINES)) assert.notEqual(h.live().lastLine, line);
+  });
+
+  test('a CLI usage limit days away is not waited out like the service\'s retryAfter', async t => {
+    t.mock.method(console, 'error', () => {});
+    const h = cliLoop();
+    const resetsAt = T0 + 3 * 24 * 60 * MIN; // a weekly limit
+    await h.step({ throw: Object.assign(new Error("claude CLI: You've hit your weekly limit"), { kind: 'rate_limited', limit: true, resetsAt, retryAfter: (resetsAt - T0) / 1000 }) });
+    assert.equal(h.live().backoffUntil, T0 + BACKOFF_STEPS_MS[0], 'a failover wrapper may route around it on the next check');
+    assert.match(h.live().lastLine, /^Claude usage limit reached \(resets .+\) — retrying at /);
+  });
+});
+
 describe('escape hatches', () => {
   test('previewGray shows the consequence, then proves the restore path', async () => {
     const h = build();
@@ -1398,13 +1636,42 @@ describe('timer, status and lifecycle', () => {
     assert.equal(h.calls.timers.length, 2, 'reload does not start a stopped loop');
   });
 
+  test('config.json invalid at launch: no capture, no check, color restored; resumes once it parses', async () => {
+    let invalid = false;
+    const h = build({ deps: { configInvalid: () => invalid } });
+    await h.fire();
+    invalid = true;
+    await h.step(OFF());
+    assert.equal(h.live().alerting, false);
+    assert.equal(h.live().configInvalid, true);
+    assert.equal(h.live().lastLine, CONFIG_INVALID_LINE);
+    assert.equal(h.calls.capture, 2);
+    assert.equal(h.calls.analyze.length, 2);
+    await h.step(OFF());
+    assert.equal(h.calls.capture, 2, 'still nothing captured or sent');
+    h.script.length = 0;
+    invalid = false;
+    await h.step(ON());
+    assert.equal(h.calls.analyze.length, 3);
+    assert.equal(h.live().configInvalid, false);
+  });
+
+  test('config.json invalid at launch on the hosted defaults: nothing reaches the service', async () => {
+    const account = { configured: () => true, snapshot: () => null, check: async () => { throw new Error('must not be called'); } };
+    const h = build({ cfg: { provider: 'auto' }, deps: { configInvalid: () => true, requiresKey: () => false, account, secrets: { getApiKey: () => null, getCanvasToken: () => '' } } });
+    await h.step(ON());
+    assert.equal(h.calls.capture, 0);
+    assert.equal(h.calls.analyze.length, 0);
+    assert.equal(h.live().lastLine, CONFIG_INVALID_LINE);
+  });
+
   test('onStatus fires with the live snapshot; getLive has the documented keys', async () => {
     const seen = [];
     const h = build({ deps: { onStatus: live => seen.push(live) } });
     await h.step(ON());
     assert.ok(seen.length >= 1);
     const keys = Object.keys(h.live()).sort();
-    for (const k of ['paused', 'pausedUntil', 'locked', 'alerting', 'alertSince', 'strikeCount', 'lastLine', 'lastActivity', 'lastApp', 'lastVerdictTs', 'lastCheckAt', 'needsScreenPermission', 'needsKey', 'capHit', 'graceUntil', 'backoffUntil', 'errorKind', 'analyzing', 'running']) {
+    for (const k of ['paused', 'pausedUntil', 'locked', 'alerting', 'alertSince', 'strikeCount', 'lastLine', 'lastActivity', 'lastApp', 'lastVerdictTs', 'lastCheckAt', 'needsScreenPermission', 'needsKey', 'capHit', 'graceUntil', 'backoffUntil', 'errorKind', 'cliLogin', 'configInvalid', 'analyzing', 'running']) {
       assert.ok(keys.includes(k), k);
     }
     assert.equal(h.live().lastCheckAt, T0);

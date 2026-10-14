@@ -39,6 +39,7 @@ let account = null;
 let trialReminder = null;
 let permState = { screen: 'not-determined', camera: 'not-determined' };
 let configWatchTimer = null;
+let configErrorNotified = false;
 
 /* ---------------- helpers ---------------- */
 
@@ -61,10 +62,17 @@ function notify(title, body, onClick) {
   } catch {}
 }
 
-// True only when this Mac runs checks on its own model key instead of the
-// hosted service. Self-hosting is documented in the README, never in the UI.
+// True when checks do not go through the hosted service: this Mac runs them
+// on its own model key, or through the local Claude CLI (engine "cli"), where
+// no plan and no key apply. Both are documented in the README, never in the UI.
 function selfHosted() {
-  try { return !providers.isHosted(config, secrets.getApiKey()); } catch { return false; }
+  try { return resolveEngine(config) === 'cli' || !providers.isHosted(config, secrets.getApiKey()); } catch { return false; }
+}
+
+// A missing model key matters only to a self-hosted API engine; the CLI uses
+// its own login.
+function keyMissing() {
+  return resolveEngine(config) === 'api' && !secrets.getApiKey();
 }
 
 function spentToday() {
@@ -84,7 +92,7 @@ function onStatus(live) {
     try {
       const live = loop.getLive();
       const self = selfHosted();
-      windows.pushLive({ ...live, selfHosted: self, needsKey: self && (live.needsKey || !secrets.getApiKey()) });
+      windows.pushLive({ ...live, selfHosted: self, engine: resolveEngine(config), needsKey: self && (live.needsKey || keyMissing()) });
     } catch {}
   }, 200);
 }
@@ -123,7 +131,18 @@ function watchConfigFile() {
       clearTimeout(configWatchTimer);
       configWatchTimer = setTimeout(() => {
         const next = loadConfigWithMigration();
-        if (JSON.stringify(next) !== JSON.stringify(config)) {
+        const action = configMod.reloadAction(config, next);
+        if (action === 'invalid') {
+          // Keep the settings in use; say so once per broken stretch.
+          if (!configErrorNotified) {
+            configErrorNotified = true;
+            log.warn('config', 'config.json has a JSON error — keeping the last good settings');
+            notify('config.json has an error', 'Grayout keeps using the last good settings until the file is fixed.');
+          }
+          return;
+        }
+        configErrorNotified = false;
+        if (action === 'apply') {
           log.info('config', 'config.json changed on disk — reloaded');
           applyConfig(next);
         }
@@ -201,8 +220,9 @@ if (!app.requestSingleInstanceLock()) {
 
     config = loadConfigWithMigration();
     state.get();
-    log.info('app', `Grayout ${app.getVersion()} starting (packaged=${app.isPackaged}, engine=${resolveEngine(config)}, provider=${providers.resolve(config, secrets.getApiKey()).provider})`);
-    if (config._invalid) log.warn('config', 'config.json is invalid — running on defaults');
+    const engine = resolveEngine(config);
+    log.info('app', `Grayout ${app.getVersion()} starting (packaged=${app.isPackaged}, engine=${engine}, provider=${engine === 'cli' ? 'claude-cli' : providers.resolve(config, secrets.getApiKey()).provider})`);
+    if (config._invalid) log.warn('config', 'config.json is invalid — checks paused until it is fixed');
 
     session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) => cb(permission === 'media'));
 
@@ -225,8 +245,11 @@ if (!app.requestSingleInstanceLock()) {
       overlays,
       secrets,
       // A model key is needed only when self-hosting; the hosted service is
-      // reached with a license key, or with nothing at all on the free taste.
+      // reached with a license key, or with nothing at all on the free taste,
+      // and the CLI engine with the CLI's own login.
       requiresKey: () => resolveEngine(config) === 'api' && selfHosted(),
+      engine: () => resolveEngine(config),
+      configInvalid: () => !!(config && config._invalid),
       logVerdict,
       displays: () => screen.getAllDisplays().length,
       notify,
@@ -294,7 +317,9 @@ if (!app.requestSingleInstanceLock()) {
     // address makes no request at all.
     // A fresh answer that the plan is served also lifts a plan refusal the
     // loop may already be waiting out (afterAccountRefresh in src/ipc.js).
-    if (!selfHosted()) {
+    // Not on the CLI engine (selfHosted), and not while config.json is
+    // invalid: its defaults say "hosted" whatever the file meant.
+    if (!selfHosted() && !config._invalid) {
       account.refresh({ force: true })
         .then(r => { afterAccountRefresh(loop, r); onStatus(); })
         .catch(() => {});

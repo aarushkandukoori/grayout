@@ -63,8 +63,11 @@
   function pillState(live) {
     if (!live) return { cls: '', text: 'starting' };
     if (live.needsScreenPermission) return { cls: 'pill-bad', text: 'blocked' };
+    if (live.configInvalid) return { cls: 'pill-bad', text: 'config error' };
     if (live.needsSubscription) return { cls: 'pill-warn', text: 'subscription' };
     if (live.needsKey) return { cls: 'pill-warn', text: 'key needed' };
+    if (live.errorKind === 'cli_auth') return { cls: 'pill-warn', text: 'CLI logged out' };
+    if (live.errorKind === 'cli_missing') return { cls: 'pill-bad', text: 'CLI not found' };
     if (live.paused) {
       return { cls: '', text: live.pausedUntil ? `paused until ${hhmm(live.pausedUntil)}` : 'paused' };
     }
@@ -99,7 +102,9 @@
     return {
       id: c.provider === 'grayout' ? 'grayout' : c.provider === 'openai' ? 'openai' : 'anthropic',
       label: (typeof c.providerLabel === 'string' && c.providerLabel) || 'The provider',
-      model: typeof c.model === 'string' ? c.model : ''
+      model: typeof c.model === 'string' ? c.model : '',
+      // engine "cli" in config.json: the local Claude CLI on its own login.
+      cli: c.engine === 'cli'
     };
   }
 
@@ -122,13 +127,31 @@
         h('span', { class: 'grow' }, live.lastLine || 'Grayout needs an active subscription to keep checking.'),
         h('button', { class: 'btn btn-primary', type: 'button', onclick: () => goToAccount() }, 'Open plan')));
     }
-    if (live.needsKey && !live.needsSubscription && !live.needsScreenPermission) {
+    if (live.needsKey && !live.needsSubscription && !live.needsScreenPermission && !live.configInvalid) {
       const rejected = live.errorKind === 'key_rejected';
       out.push(h('div', { class: 'banner banner-warn' },
         h('span', { class: 'grow' }, rejected
           ? `${who.label} rejected the saved model key. Checks are paused until you replace it.`
           : 'No model key for the self-hosted provider. Checks are paused until you add one.'),
         h('button', { class: 'btn btn-primary', type: 'button', onclick: () => goToSettings(true) }, 'Add key')));
+    }
+    if (live.configInvalid) {
+      out.push(h('div', { class: 'banner banner-bad' },
+        h('span', { class: 'grow' }, "config.json has a JSON error, so checks are paused and settings can't be saved. Fix the file; Grayout reloads it on its own."),
+        h('button', { class: 'btn', type: 'button', onclick: () => api.openConfigFile() }, 'Open config.json')));
+    }
+    if (live.errorKind === 'cli_auth' && !live.needsScreenPermission) {
+      // How to log back in depends on the binary: a wrapper has its own way.
+      const login = live.cliLogin && typeof live.cliLogin.text === 'string' ? live.cliLogin : { command: 'claude auth login', text: 'run claude auth login in Terminal' };
+      const fix = login.text.charAt(0).toUpperCase() + login.text.slice(1);
+      out.push(h('div', { class: 'banner banner-warn' },
+        h('span', { class: 'grow' }, `The Claude CLI is not logged in, so checks are paused. ${fix}, then press Check now.`),
+        ...(login.command ? [h('button', { class: 'btn', type: 'button', onclick: () => api.copyText(login.command) }, 'Copy command')] : [])));
+    }
+    if (live.errorKind === 'cli_missing' && !live.needsScreenPermission) {
+      out.push(h('div', { class: 'banner banner-bad' },
+        h('span', { class: 'grow' }, "Grayout can't find the Claude CLI, so checks are paused. Install Claude Code, or set cliPath in config.json to the full path of claude."),
+        h('button', { class: 'btn', type: 'button', onclick: () => api.openConfigFile() }, 'Open config.json')));
     }
     if (live.errorKind === 'no_credit') {
       out.push(h('div', { class: 'banner banner-bad' },
@@ -137,7 +160,9 @@
     }
     if (live.errorKind === 'bad_model') {
       out.push(h('div', { class: 'banner banner-bad' },
-        h('span', { class: 'grow' }, `This ${who.label} account can't use ${who.model || 'the configured model'}. Try a different key or set model in config.json.`),
+        h('span', { class: 'grow' }, who.cli
+          ? `Your Claude account can't use ${who.model || 'the configured model'} through the CLI. Set model in config.json.`
+          : `This ${who.label} account can't use ${who.model || 'the configured model'}. Try a different key or set model in config.json.`),
         h('button', { class: 'btn', type: 'button', onclick: () => api.openConfigFile() }, 'Open config.json')));
     }
     if (d.update && d.update.url) {
@@ -268,7 +293,13 @@
       h('div', { class: 'stat' }, h('div', { class: 'k' }, k), h('div', { class: 'v' }, String(v), h('small', null, u)))));
   }
 
-  /** true only while config.json pins a self-hosted provider. */
+  /** true while checks run through the Claude CLI (engine "cli" in config.json). */
+  function usesCli() {
+    if (lastData && lastData.config && typeof lastData.config.engine === 'string') return lastData.config.engine === 'cli';
+    return !!(settings && settings.estimates && settings.estimates.engine === 'cli');
+  }
+
+  /** true while checks do not go through the hosted service: a self-hosted key, or the Claude CLI. */
   function selfHosted() {
     if (lastData && typeof lastData.selfHosted === 'boolean') return lastData.selfHosted;
     if (settings && typeof settings.selfHosted === 'boolean') return settings.selfHosted;
@@ -311,6 +342,8 @@
     const when = s.isToday ? 'today' : 'that day';
     let line;
     if (!s.checks) line = '';
+    // On a Claude subscription a check costs nothing extra; only paid overage is priced.
+    else if (usesCli() && !s.costToday) line = `${s.checksToday} check${s.checksToday === 1 ? '' : 's'} ${when} through the Claude CLI on your Claude subscription, with no per-check charge.`;
     else if (!s.pricedChecks) line = `Spent ${when}: n/a. No price is known for this model, so nothing was counted.`;
     else {
       line = `Spent ${when}: ${spent(s.costToday)} over ${s.checksToday} check${s.checksToday === 1 ? '' : 's'}`;
@@ -435,11 +468,14 @@
     if (!list.includes(current)) list.push(current);
     list.sort((a, b) => a - b);
     const hosted = !selfHosted();
+    const cli = !!(estimates && estimates.engine === 'cli');
     replace(box, ...list.map(s => {
       const row = by[s];
-      const est = hosted
-        ? (row && Number.isFinite(row.checks) ? `about ${row.checks.toLocaleString('en-US')} checks a day` : '')
-        : (row && typeof row.daily === 'number' ? `about ${money(row.daily)} a day` : (INTERVALS.includes(s) ? 'price unknown for this model' : 'set in config.json'));
+      const est = cli
+        ? 'no per-check charge'
+        : hosted
+          ? (row && Number.isFinite(row.checks) ? `about ${row.checks.toLocaleString('en-US')} checks a day` : '')
+          : (row && typeof row.daily === 'number' ? `about ${money(row.daily)} a day` : (INTERVALS.includes(s) ? 'price unknown for this model' : 'set in config.json'));
       const input = h('input', { type: 'radio', name: 'interval', value: String(s), checked: s === current });
       return h('label', { class: 'radio-row' }, input,
         h('span', { class: 'radio-text' }, `Every ${s} seconds`),
@@ -458,6 +494,10 @@
       return;
     }
     const who = providerOf(estimates);
+    if (cli) {
+      $('interval-note').textContent = `Checks run through the Claude CLI (${who.model || cfg.model}) on your Claude subscription, so there is no per-check charge. Each check counts toward the plan's usage limits.`;
+      return;
+    }
     const pd = estimates && estimates.priceDate ? `, at prices on ${estimates.priceDate}` : '';
     $('interval-note').textContent = `Estimates for ${who.label} ${who.model || cfg.model || 'the configured model'} on one display${pd}. A second display roughly doubles it; the webcam adds about 15%.`;
   }
@@ -556,6 +596,12 @@
   // carry provider, providerLabel and model for the saved key.
   function renderKeyCurrent(hasKey, masked, active) {
     const who = providerOf(active);
+    if (who.cli) {
+      $('key-current').textContent = 'Checks run through the Claude CLI on your Claude subscription (engine "cli" in config.json), so no model key is used.' +
+        (hasKey ? ` The saved key (${masked || 'saved'}) stays unused unless engine goes back to "api".` : '');
+      show($('btn-key-remove'), !!hasKey);
+      return;
+    }
     const using = active && active.providerLabel ? ` Using ${who.label}${who.model ? `, ${who.model}` : ''}.` : '';
     $('key-current').textContent = hasKey
       ? `Current key: ${masked || 'saved'}.${using} Paste a new one to replace it.`
@@ -671,7 +717,7 @@
           statuses.forEach(s => flash(s, 'Saved'));
         }
       } else {
-        statuses.forEach(s => flash(s, 'Could not save', 3000, 'err'));
+        statuses.forEach(s => flash(s, (r && typeof r.error === 'string' && r.error) || 'Could not save', 6000, 'err'));
       }
     } catch (e) {
       console.error(e);

@@ -283,3 +283,22 @@ test.describe('the dashboard plan panel', () => {
     });
   }
 });
+
+test.describe('the CLI engine in the windows', () => {
+  const dash = read('ui/dashboard.js');
+  const onb = read('ui/onboarding.js');
+
+  test('the dashboard names a logged-out or missing CLI, never as an API-key problem', () => {
+    assert.match(dash, /live\.errorKind === 'cli_auth'\) return \{ cls: 'pill-warn', text: 'CLI logged out' \}/);
+    assert.match(dash, /live\.errorKind === 'cli_missing'\) return \{ cls: 'pill-bad', text: 'CLI not found' \}/);
+    const banner = dash.slice(dash.indexOf("live.errorKind === 'cli_auth' && !live.needsScreenPermission"), dash.indexOf("live.errorKind === 'cli_missing' && !live.needsScreenPermission"));
+    assert.match(banner, /api\.copyText\(login\.command\)/);
+    assert.equal(/goToSettings|API key|model key/.test(banner), false, 'the fix is the CLI login, not a key');
+  });
+
+  test('on the CLI engine the windows quote no price and need no plan to finish setup', () => {
+    assert.match(dash, /const est = cli\s+\? 'no per-check charge'/);
+    assert.match(onb, /setText\(\$\(`est-\$\{sec\}`\), 'no per-check charge'\)/);
+    assert.match(onb, /show\(\$\('btn-3-continue'\), cli \|\| has \|\| !connected\(\)\)/);
+  });
+});

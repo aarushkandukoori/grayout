@@ -97,7 +97,7 @@ describe('sanitizeSettings', () => {
 
   test('keys the UI may not change are dropped', () => {
     const out = sanitizeSettings({
-      model: 'claude-opus-5', engine: 'cli', canvas: { token: 'x' }, tasksFile: '/etc/passwd',
+      model: 'claude-opus-5', engine: 'cli', cliPath: '/bin/sh', cliAllowOverage: true, canvas: { token: 'x' }, tasksFile: '/etc/passwd',
       schemaVersion: 9, idleSkipSec: 1, heldAlertRecheckSec: 1, wakeGraceSec: 0,
       anthropicApiKey: 'sk-ant-nope', __proto__: { polluted: true }, constructor: 'x'
     });
@@ -243,7 +243,9 @@ describe('registerIpc with fakes', () => {
     assert.equal(r.update, null);
     assert.equal(r.stats.empty, true);
     assert.equal(r.live.lastLine, 'watching…');
-    assert.deepEqual(Object.keys(r.config).sort(), ['camera', 'checkIntervalSec', 'disputeGraceMin', 'grayscale', 'historyDays', 'model', 'provider', 'providerLabel', 'redFlash', 'strikes']);
+    assert.deepEqual(Object.keys(r.config).sort(), ['camera', 'checkIntervalSec', 'disputeGraceMin', 'engine', 'grayscale', 'historyDays', 'model', 'provider', 'providerLabel', 'redFlash', 'strikes']);
+    assert.equal(r.config.engine, 'api');
+    assert.equal(r.live.engine, 'api');
     assert.equal(r.config.provider, 'grayout', 'no model key → the hosted service');
     assert.equal(r.config.model, 'grayout');
     assert.equal(r.selfHosted, false);
@@ -313,5 +315,113 @@ describe('registerIpc with fakes', () => {
 
   test('updates:check with no updater', async () => {
     assert.deepEqual(await invoke('updates:check'), { checked: false });
+  });
+
+  test('engine "cli": a settings save keeps engine and cliPath, no key is not "key needed", the CLI is named, no plan is shown', async () => {
+    const cli = path.join(dir, 'fake-claude-bin');
+    fs.writeFileSync(cli, '#!/bin/sh\n', { mode: 0o755 });
+    const onDisk = () => JSON.parse(fs.readFileSync(paths.CONFIG_PATH, 'utf8'));
+    configMod.writeConfig({ ...onDisk(), engine: 'cli', cliPath: cli, model: 'claude-haiku-4-5' });
+    invoke('key:clear');
+
+    // A dashboard save sends only form fields; the disk values must survive it.
+    const r = await invoke('settings:save', { strikes: 3, checkIntervalSec: 60 });
+    assert.equal(r.config.engine, 'cli');
+    assert.equal(r.config.cliPath, cli);
+    assert.equal(onDisk().engine, 'cli');
+    assert.equal(onDisk().cliPath, cli);
+    assert.equal(r.estimates.engine, 'cli');
+    assert.equal(r.estimates.hosted, false);
+    assert.equal(r.estimates.provider, 'claude-cli');
+    assert.equal(r.estimates.providerLabel, 'Claude CLI');
+    assert.equal(r.estimates.perCheck, 0);
+    assert.equal(r.estimates.byInterval[45].daily, 0, 'no per-check charge on a subscription');
+    assert.equal(r.estimates.byInterval[45].checks, Math.round(require('../src/pricing').checksPerDay(45)));
+
+    const d = invoke('dash:get');
+    assert.equal(d.live.needsKey, false, 'no API key is fine on the CLI engine');
+    assert.equal(d.live.engine, 'cli');
+    assert.equal(d.selfHosted, true, 'not on the hosted service: the plan panel stays hidden');
+    assert.equal(d.hasKey, false);
+    assert.equal(d.config.engine, 'cli');
+    assert.equal(d.config.provider, 'claude-cli');
+    assert.equal(d.config.providerLabel, 'Claude CLI');
+    assert.equal(d.config.model, 'claude-haiku-4-5');
+    const onb = await invoke('onb:getState');
+    assert.equal(onb.engine, 'cli');
+    assert.equal(onb.selfHosted, true);
+    assert.equal((await invoke('settings:get')).selfHosted, true);
+
+    // The UI cannot switch the engine or the binary.
+    const r2 = await invoke('settings:save', { engine: 'api', cliPath: '/bin/sh', strikes: 2 });
+    assert.equal(r2.config.engine, 'cli');
+    assert.equal(r2.config.cliPath, cli);
+
+    // cliAllowOverage is config.json only, and a UI save keeps it.
+    configMod.writeConfig({ ...onDisk(), cliAllowOverage: true });
+    const r3 = await invoke('settings:save', { cliAllowOverage: false, strikes: 3 });
+    assert.equal(r3.config.cliAllowOverage, true);
+    assert.equal(onDisk().cliAllowOverage, true);
+
+    // A gpt-* model in config.json means nothing to the CLI: Haiku is named, and used.
+    configMod.writeConfig({ ...onDisk(), model: 'gpt-5-mini' });
+    const r4 = await invoke('settings:save', { strikes: 2 });
+    assert.equal(r4.estimates.model, 'claude-haiku-4-5');
+
+    // Back on the API engine with no key: the hosted service again (v2's default), no key needed.
+    configMod.writeConfig({ ...onDisk(), engine: 'api', cliPath: '', model: 'claude-haiku-4-5' });
+    const back = await invoke('settings:save', { strikes: 2 });
+    assert.equal(back.config.engine, 'api');
+    assert.equal(back.estimates.hosted, true);
+    assert.equal(invoke('dash:get').live.needsKey, false);
+    assert.equal(invoke('dash:get').selfHosted, false);
+    // ...and self-hosted on anthropic with no key: key needed, as before.
+    configMod.writeConfig({ ...onDisk(), provider: 'anthropic' });
+    await invoke('settings:save', { strikes: 2 });
+    assert.equal(invoke('dash:get').live.needsKey, true, 'self-hosted on the API engine, no key → needsKey');
+    configMod.writeConfig({ ...onDisk(), provider: 'auto' });
+    await invoke('settings:save', { strikes: 2 });
+  });
+
+  test('config.json broken on disk while the last good config (engine cli) is in use: a save builds on that', async () => {
+    const cli = path.join(dir, 'fake-claude-bin');
+    configMod.writeConfig({ ...configMod.coerce({}), engine: 'cli', cliPath: cli, checkIntervalSec: 90 });
+    await invoke('settings:save', { strikes: 2 }); // in-memory config = the good file
+    fs.writeFileSync(paths.CONFIG_PATH, '{ "engine": "cli", oops');
+    const r = await invoke('settings:save', { strikes: 3 });
+    assert.equal(r.config.engine, 'cli', 'defaults would move checks to the hosted service');
+    assert.equal(r.config.cliPath, cli);
+    assert.equal(r.config.checkIntervalSec, 90);
+    assert.equal(r.config.strikes, 3);
+    assert.equal(JSON.parse(fs.readFileSync(paths.CONFIG_PATH, 'utf8')).engine, 'cli');
+  });
+
+  test('config.json invalid at launch (in-memory config is defaults): settings:save refuses to write', async () => {
+    const broken = '{ "engine": "cli", oops';
+    fs.writeFileSync(paths.CONFIG_PATH, broken);
+    const before = applied.length;
+    cfg = { ...configMod.coerce({}), _invalid: true };
+    const r = await invoke('settings:save', { strikes: 4 });
+    assert.equal(r.config, undefined);
+    assert.match(r.error, /JSON error/);
+    assert.equal(fs.readFileSync(paths.CONFIG_PATH, 'utf8'), broken, 'the file is not replaced with defaults');
+    assert.equal(applied.length, before, 'nothing applied');
+    cfg = configMod.coerce({});
+    configMod.writeConfig(cfg);
+  });
+});
+
+describe('activeProvider and estimates', () => {
+  test('engine "cli" is named the same way everywhere; the API engine is unchanged', () => {
+    assert.deepEqual(ipc.activeProvider(configMod.coerce({ engine: 'cli' }), null),
+      { engine: 'cli', provider: 'claude-cli', providerLabel: 'Claude CLI', model: 'claude-haiku-4-5', hosted: false });
+    assert.deepEqual(ipc.activeProvider(configMod.coerce({ engine: 'cli', provider: 'grayout' }), 'sk-ant-api03-x').provider, 'claude-cli', 'neither provider nor key matter');
+    assert.deepEqual(ipc.activeProvider(configMod.coerce({}), null),
+      { engine: 'api', provider: 'grayout', providerLabel: 'Grayout', model: 'grayout', hosted: true });
+    assert.deepEqual(ipc.activeProvider(configMod.coerce({}), 'sk-proj-x'),
+      { engine: 'api', provider: 'openai', providerLabel: 'OpenAI', model: 'gpt-5-mini', hosted: false });
+    const e = ipc.estimates(configMod.coerce({}), null);
+    assert.equal(e.byInterval[45].daily, null, 'hosted estimates unchanged');
+    assert.equal(e.engine, 'api');
   });
 });

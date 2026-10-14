@@ -29,6 +29,8 @@ The prompt asks the model for three fields: whether you are off task, a short ac
 
 Screenshot files are written to a private temporary folder and deleted right after they are encoded. Webcam frames never touch the disk.
 
+With `engine: "cli"` in config.json (an advanced setting with no switch in the app), neither the Grayout service nor a model provider is contacted by Grayout for checks, and no license key or device token is sent with them. Instead Grayout starts the local `claude` CLI at each check and passes the frames, the work description, task titles and app name on its standard input (the frames are not written to disk for it); the CLI sends them to Anthropic under your own Claude subscription login. It runs with no tools, no MCP servers, no hooks, no auto-memory and no saved session, with only a short allowlist of environment variables (no API keys), and with Claude Code's non-essential traffic (telemetry, error reports, auto-update) turned off. An `@` in your task titles or work description is sent as `＠`, so the CLI never attaches a local file named there. Anthropic's terms for your Claude plan govern those requests.
+
 ## What the Grayout service stores
 
 This applies to Grayout Pro and the 100-check free taste, once the service opens. Not stored, anywhere in the service: screenshots, webcam frames, prompts, verdicts, activity phrases, your work description, task titles, names, email addresses, card details, IP addresses in clear, or license keys. They exist for the length of one request and are dropped.

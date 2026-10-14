@@ -27,6 +27,7 @@ Grayout becomes a subscription product. It used to ask every person for their ow
 - **Change-gating.** Before spending a check, the app compares an 8×8 average hash of each display against the previous one; if no display changed, the frontmost app is the same, and no alert is running, the call is skipped and the previous verdict stands. A real check is forced at least every `forceCheckSec` (180 by default) so a deliberately still screen is still caught. This roughly halves both the bill and the latency of an idle desk, and it is what makes $9.99 work. Turn it off with `"changeGating": false`.
 - New config keys: `changeGating`, `forceCheckSec`, `apiBase`, and a `grayout` value for `provider`. `provider` now defaults to `auto`: the service, unless a model key is saved on this Mac.
 - A billing issue template, and a license question path in the install template. Neither asks for anything secret.
+- **Checks can run on a Claude subscription through the local Claude CLI.** Set `"engine": "cli"` in config.json and each check goes through the `claude` CLI on its own login, in packaged builds too, with no Grayout plan and no model key. The Grayout service, `provider`, a saved key and a license are all ignored on this engine, and a CLI failure never falls back to any of them; change-gating still applies. `cliPath` points at the binary or a drop-in wrapper (`~/` allowed); empty searches `~/.local/bin`, `/opt/homebrew/bin` and `/usr/local/bin`. A bad `cliPath` stops checks with a clear message instead of switching binaries. Frames go over stdin, never to disk, and the CLI runs with no tools, no MCP servers, no hooks, no user settings, no auto-memory and no saved session, in an empty folder of its own, with only a short allowlist of environment variables. `@` in task titles and the work description is sent as `＠`, so the CLI cannot attach a local file named there. A logged-out CLI says how to log back in (a wrapper gets its own advice), a usage limit reports when it resets, an offline or hung CLI backs off instead of rerunning every tick, and the cost meter counts these checks as $0. A check billed as paid extra usage past the plan's limit is priced, and checks then pause until the limit resets unless `cliAllowOverage` is on.
 
 ### Changed
 
@@ -37,6 +38,10 @@ Grayout becomes a subscription product. It used to ask every person for their ow
 - `SECURITY.md` gains the service in its threat model: the shared model key in Worker secrets, license keys as bearer credentials, images in transit, webhook signature verification, and the rate limits.
 - The per-check cost meter is a self-hosting feature now. On the subscription the app shows checks used against the allowance, because the per-check price is ours to worry about, not yours.
 - `notes/hosted-plan.md` became the operator notes. It moved out of `docs/`, so GitHub Pages no longer publishes it. Parts of it still describe the v2 design (KV, `api.grayout.app`); `docs/API-CONTRACT.md` v3 is the authority.
+
+### Fixed
+
+- **An invalid config.json no longer switches settings.** While running, Grayout keeps the last good settings; at launch it pauses checks until the file parses, and Settings won't overwrite it with defaults. Running on the defaults would have sent checks to the Grayout service over one misplaced comma.
 
 ### Removed
 
