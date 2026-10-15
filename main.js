@@ -8,6 +8,8 @@ app.setName('Grayout');
 
 const paths = require('./src/paths');
 const log = require('./src/log');
+const channel = require('./src/channel');
+const consent = require('./src/consent');
 const configMod = require('./src/config');
 const secrets = require('./src/secrets');
 const state = require('./src/state');
@@ -65,6 +67,8 @@ function notify(title, body, onClick) {
 // True when checks do not go through the hosted service: this Mac runs them
 // on its own model key, or through the local Claude CLI (engine "cli"), where
 // no plan and no key apply. Both are documented in the README, never in the UI.
+// Never true in the Mac App Store edition (src/channel.js: no self-hosting,
+// no CLI engine; providers.resolve and resolveEngine already say so).
 function selfHosted() {
   try { return resolveEngine(config) === 'cli' || !providers.isHosted(config, secrets.getApiKey()); } catch { return false; }
 }
@@ -173,7 +177,22 @@ function hardResetDisplay() {
 
 /* ---------------- startup ---------------- */
 
+// Shown while the loop waits for the person's permission to send screenshots.
+const CONSENT_PAUSE_LINE = 'waiting for your permission to send screenshots';
+
+// Setup is done but there is no valid permission to send screenshots: an
+// install from before consent existed, a withdrawn permission, or a newer
+// CONSENT_VERSION. The welcome window then shows only the permission card.
+function waitForConsent() {
+  loop.pause(CONSENT_PAUSE_LINE);
+  windows.openOnboarding();
+  onStatus();
+}
+
 function startWatching() {
+  // Nothing is captured or sent before the person allows it (5.1.2(i)), in
+  // both editions. The loop checks this on every tick as well.
+  if (!consent.satisfied()) { waitForConsent(); return false; }
   if (config.camera) camera.create();
   loop.start();
   // resume() clears the "setup not finished" pause, bumps the epoch and checks
@@ -181,9 +200,17 @@ function startWatching() {
   // that is still paused and nothing would ever be checked.
   setTimeout(() => loop.resume(), 3000);
   onStatus();
+  return true;
 }
 
-if (!app.requestSingleInstanceLock()) {
+// Inside the App Sandbox, the first launch after a force-kill gets a stale
+// false from requestSingleInstanceLock; asking again in the same process
+// returns true (measured on a sandboxed build, 2 of 2). When another copy
+// really is running, the second answer is false too.
+let gotLock = app.requestSingleInstanceLock();
+if (!gotLock && process.mas) gotLock = app.requestSingleInstanceLock();
+
+if (!gotLock) {
   // Another copy is already watching. Leave the display alone and exit without
   // registering any handler that could touch it.
   app.exit(0);
@@ -206,7 +233,7 @@ if (!app.requestSingleInstanceLock()) {
   // Launching the app again (or double-clicking it) should show the dashboard
   // rather than appearing to do nothing.
   app.on('second-instance', () => {
-    if (!state.get().onboarding.completed) windows.openOnboarding();
+    if (!state.get().onboarding.completed || !consent.satisfied()) windows.openOnboarding();
     else windows.openDashboard();
   });
 
@@ -221,7 +248,7 @@ if (!app.requestSingleInstanceLock()) {
     config = loadConfigWithMigration();
     state.get();
     const engine = resolveEngine(config);
-    log.info('app', `Grayout ${app.getVersion()} starting (packaged=${app.isPackaged}, engine=${engine}, provider=${engine === 'cli' ? 'claude-cli' : providers.resolve(config, secrets.getApiKey()).provider})`);
+    log.info('app', `Grayout ${app.getVersion()} starting (channel=${channel.name()}, packaged=${app.isPackaged}, engine=${engine}, provider=${engine === 'cli' ? 'claude-cli' : providers.resolve(config, secrets.getApiKey()).provider}, consent=${consent.satisfied() ? 'yes' : 'no'})`);
     if (config._invalid) log.warn('config', 'config.json is invalid — checks paused until it is fixed');
 
     session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) => cb(permission === 'media'));
@@ -250,12 +277,16 @@ if (!app.requestSingleInstanceLock()) {
       requiresKey: () => resolveEngine(config) === 'api' && selfHosted(),
       engine: () => resolveEngine(config),
       configInvalid: () => !!(config && config._invalid),
+      // No capture and no request without the person's permission (src/consent.js).
+      hasConsent: () => consent.satisfied(),
       logVerdict,
       displays: () => screen.getAllDisplays().length,
       notify,
       onStatus
     });
 
+    // A stub that never touches the network in the Mac App Store edition
+    // (src/updates.js): the store updates the app.
     updater = createUpdater({
       currentVersion: app.getVersion(),
       isEnabled: () => !!config.checkForUpdates,
@@ -274,6 +305,7 @@ if (!app.requestSingleInstanceLock()) {
       permState: () => permState,
       spentToday,
       checkForUpdates: () => updater.check({ manual: true }),
+      // No sponsor link (the tray also drops it where channel.features says so).
       sponsorUrl: null
     });
 
@@ -287,10 +319,21 @@ if (!app.requestSingleInstanceLock()) {
       grayscaleAvailable: () => grayscale.available(),
       onCameraStatus: s => camera.setStatus(s),
       onOnboardingFinished: () => {
-        windows.closeOnboarding();
+        // The permission card comes first in the welcome window, so this is
+        // normally granted. If not, startWatching keeps the window open on it.
+        if (consent.satisfied()) windows.closeOnboarding();
         refreshPermState().then(onStatus);
         startWatching();
-      }
+      },
+      // Setup was already done and the person has just allowed screenshots
+      // (from the permission card, or the Settings switch): start watching,
+      // or pick up again if the loop was only paused.
+      onConsentGranted: () => {
+        refreshPermState().then(onStatus);
+        if (loop.getLive().running) loop.resume();
+        else startWatching();
+      },
+      forceGrayscaleOff: () => grayscale.forceOffSync()
     });
 
     overlays.recreate();
@@ -337,7 +380,9 @@ if (!app.requestSingleInstanceLock()) {
 
     // Registers the app in System Settings > Screen Recording and raises the
     // prompt if it hasn't been approved yet. Must happen before the first tick.
-    await permissions.primeScreenPermission();
+    // Not before the person has allowed screenshots: on a first run the
+    // consent card comes first, and consent:grant primes it (src/ipc.js).
+    if (consent.satisfied()) await permissions.primeScreenPermission();
     await refreshPermState();
     setInterval(() => refreshPermState().then(() => { if (tray) tray.refresh(); }), 60000).unref();
 
@@ -347,6 +392,8 @@ if (!app.requestSingleInstanceLock()) {
       onStatus();
       return;
     }
+    // Setup done but no valid permission: the welcome window shows only the
+    // permission card, and nothing is watched until the person answers.
     startWatching();
   });
 }

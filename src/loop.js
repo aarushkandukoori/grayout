@@ -54,6 +54,9 @@ const CONFIG_INVALID_LINE = 'config.json has a JSON error — checks paused unti
 const CLI_MISSING_LINE = 'Claude CLI not found — install Claude Code or set cliPath in config.json';
 const CLI_LOGIN_DEFAULT = { command: 'claude auth login', text: 'run claude auth login in Terminal' };
 const PERMISSION_RE = /screencapture|could not create image|Screen Recording|produced no file/i;
+// The person has not allowed screenshots to go to a third-party AI, or took
+// that back in Settings (src/consent.js). Nothing is captured or sent.
+const NO_CONSENT_LINE = 'checks are off until you allow sending screenshots';
 
 function createLoop(deps) {
   const d = {
@@ -75,6 +78,11 @@ function createLoop(deps) {
     engine: () => 'api',
     // True while config.json did not parse at launch (config() is then only defaults).
     configInvalid: () => false,
+    // True once the person has allowed screenshots to be sent for checks
+    // (src/consent.js satisfied()). False means no capture, no request, no
+    // webcam frame. main.js always wires the real answer; the default keeps a
+    // bare loop (tests) working.
+    hasConsent: () => true,
     // The hosted-service client (src/account.js). Absent in tests and on the
     // self-hosted path, where the loop behaves exactly as it did in v1.
     account: null,
@@ -124,6 +132,8 @@ function createLoop(deps) {
 
   const cfg = () => d.config();
   const status = () => { try { d.onStatus(getLive()); } catch {} };
+  // Anything but a clear yes is a no.
+  const consentGiven = () => { try { return d.hasConsent() === true; } catch { return false; } };
 
   /* ---------------- alert state ----------------
      Idempotent and re-asserted every tick. Deliberately NOT transition-guarded:
@@ -226,6 +236,15 @@ function createLoop(deps) {
         d.notify('Grayout restored color', `It had been gray for ${c.maxAlertMinutes} minutes. If that was wrong, open the dashboard.`);
       }
 
+      // No permission to send screenshots (5.1.2(i)): never capture, never ask
+      // the model. Checked before everything that could capture or send.
+      if (!consentGiven()) {
+        s.strikeCount = 0;
+        if (s.alerting) await clearAlert(NO_CONSENT_LINE);
+        else { s.lastLine = NO_CONSENT_LINE; status(); }
+        return;
+      }
+
       // macOS is not giving us the screen. Do not capture: depending on the
       // macOS version, screencapture either fails or silently returns a
       // desktop-picture-only image, and judging (and paying for) that would be
@@ -325,6 +344,8 @@ function createLoop(deps) {
         return;
       }
 
+      // Consent can be withdrawn while the awaits above run.
+      if (!consentGiven()) return;
       const capture = await d.capture(d.displays());
       if (stale()) return;
       s.needsScreenPermission = false; // we can see the screen again
@@ -361,7 +382,7 @@ function createLoop(deps) {
         c.camera ? d.captureWebcam() : Promise.resolve(null),
         d.gatherTasks(c, d.secrets.getCanvasToken ? d.secrets.getCanvasToken() : '')
       ]);
-      if (stale()) return;
+      if (stale() || !consentGiven()) return;
 
       const { verdict, engine, usage, model, provider, service, overage } = await d.analyze({
         screenshotsB64: capture.images,
@@ -710,7 +731,7 @@ function createLoop(deps) {
       lastVerdictTs: s.lastVerdictTs, lastCheckAt: s.lastCheckAt,
       needsScreenPermission: s.needsScreenPermission || s.screenDenied, needsKey: s.needsKey, capHit: s.capHit,
       graceUntil: s.graceUntil, backoffUntil: s.backoffUntil, errorKind: s.errorKind, planHold: s.planHold,
-      cliLogin: s.cliLogin, configInvalid: !!d.configInvalid(),
+      cliLogin: s.cliLogin, configInvalid: !!d.configInvalid(), needsConsent: !consentGiven(),
       analyzing: s.analyzing, running: !!timer,
       grayscaleUsable: grayscaleUsable()
     };
@@ -737,6 +758,6 @@ function createLoop(deps) {
 
 module.exports = {
   createLoop, TICK_HARD_LIMIT_MS, BACKOFF_STEPS_MS, OVERAGE_FALLBACK_MS, CONFIG_INVALID_LINE, CLI_MISSING_LINE,
-  SUBSCRIPTION_LINES, SUBSCRIPTION_BACKOFF_MS,
+  SUBSCRIPTION_LINES, SUBSCRIPTION_BACKOFF_MS, NO_CONSENT_LINE,
   DAILY_BUDGET_LINE, QUOTA_RETRY_MS, NOT_CONNECTED_LINE, UNREGISTERED_LINE, SECRETS_LOCKED_LINE, isStickyPlanProblem
 };

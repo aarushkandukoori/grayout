@@ -1699,3 +1699,85 @@ describe('timer, status and lifecycle', () => {
     assert.equal(loop.getLive().needsKey, true, 'default secrets have no key');
   });
 });
+
+describe('consent (5.1.2(i)): never capture or send without the person\'s permission', () => {
+  const { NO_CONSENT_LINE } = require('../src/loop');
+
+  test('without consent a tick captures nothing, asks nothing, takes no webcam frame and reads no tasks', async () => {
+    const h = build({ cfg: { camera: true }, deps: { hasConsent: () => false } });
+    await h.loop.tick();
+    await h.loop.checkNow();
+    await h.loop.resume();
+    assert.equal(h.calls.capture, 0);
+    assert.equal(h.calls.analyze.length, 0);
+    assert.equal(h.calls.webcam, 0);
+    assert.equal(h.calls.tasks.length, 0);
+    assert.equal(h.calls.log.length, 0);
+    assert.equal(h.checksToday(), 0);
+    assert.equal(h.live().lastLine, NO_CONSENT_LINE);
+    assert.equal(h.live().needsConsent, true);
+  });
+
+  test('anything but a clear yes counts as no, including a throwing answer', async () => {
+    for (const hasConsent of [() => undefined, () => 'yes', () => 1, () => { throw new Error('state unreadable'); }]) {
+      const h = build({ deps: { hasConsent } });
+      await h.loop.tick();
+      assert.equal(h.calls.capture, 0, String(hasConsent));
+      assert.equal(h.live().needsConsent, true);
+    }
+  });
+
+  test('withdrawn while gray: the color comes back and checks stop', async () => {
+    let allowed = true;
+    const h = build({ deps: { hasConsent: () => allowed } });
+    await h.fire();
+    allowed = false;
+    const captures = h.calls.capture;
+    await h.step();
+    assert.equal(h.live().alerting, false);
+    assert.equal(h.calls.gray.at(-1), false);
+    assert.equal(h.calls.paint.at(-1), false);
+    assert.equal(h.calls.capture, captures, 'no new capture');
+    assert.equal(h.live().lastLine, NO_CONSENT_LINE);
+  });
+
+  test('withdrawn during the awaits before capture or before the request: nothing more is captured or sent', async () => {
+    let allowed = true;
+    const h = build({ deps: { hasConsent: () => allowed, getFrontmostApp: async () => { allowed = false; return 'Code'; } } });
+    await h.loop.tick();
+    assert.equal(h.calls.capture, 0, 'checked again right before capture');
+
+    let allowed2 = true;
+    const h2 = build({ deps: { hasConsent: () => allowed2, gatherTasks: async () => { allowed2 = false; return { canvas: [], file: [] }; } } });
+    await h2.loop.tick();
+    assert.equal(h2.calls.capture, 1);
+    assert.equal(h2.calls.analyze.length, 0, 'checked again right before the request');
+  });
+
+  test('granted again: the next tick checks as usual', async () => {
+    let allowed = false;
+    const h = build({ deps: { hasConsent: () => allowed } });
+    await h.step();
+    assert.equal(h.calls.capture, 0);
+    allowed = true;
+    await h.step(ON());
+    assert.equal(h.calls.capture, 1);
+    assert.equal(h.calls.analyze.length, 1);
+    assert.equal(h.live().needsConsent, false);
+  });
+
+  test('a loop built without hasConsent behaves exactly as before (main.js always passes it)', async () => {
+    const h = build();
+    await h.step(ON());
+    assert.equal(h.calls.capture, 1);
+    assert.equal(h.live().needsConsent, false);
+  });
+
+  test('"could not create image from display" (screencapture denied, also inside the App Sandbox) still reads as Screen Recording', async () => {
+    const h = build();
+    h.setCapture(async () => { throw new Error('screencapture exited 1: could not create image from display'); });
+    await h.step();
+    assert.equal(h.live().needsScreenPermission, true);
+    assert.equal(h.live().lastLine, 'needs Screen Recording permission');
+  });
+});
