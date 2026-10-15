@@ -3,6 +3,7 @@
 // enum) before it touches config, secrets, or the loop.
 const { ipcMain, shell, clipboard, dialog, app } = require('electron');
 const fs = require('fs');
+const path = require('path');
 const paths = require('./paths');
 const configMod = require('./config');
 const secrets = require('./secrets');
@@ -11,10 +12,12 @@ const stats = require('./stats');
 const pricing = require('./pricing');
 const permissions = require('./permissions');
 const loginitem = require('./loginitem');
-const { testApiKey, resolveEngine } = require('./analyzer');
+const { testApiKey, resolveEngine, UNAVAILABLE_KEY_MESSAGE } = require('./analyzer');
 const providers = require('./providers');
 const claudecli = require('./claudecli');
 const log = require('./log');
+const channel = require('./channel');
+const consent = require('./consent');
 const { MESSAGES: ACCOUNT_MESSAGES, LINK_URL } = require('./account');
 
 const MANAGE_NOTE = ACCOUNT_MESSAGES.manageElsewhere;
@@ -30,6 +33,38 @@ const PAYMENT_HOSTS = new Set(['checkout.stripe.com', 'billing.stripe.com', 'pay
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1']);
 const PLANS_PAYLOAD = { plans: pricing.PLANS, freeChecks: pricing.FREE_CHECKS, includedChecks: pricing.INCLUDED_CHECKS };
 const NO_ACCOUNT = { ok: false, kind: 'unknown', message: 'The Grayout service is not available in this build.' };
+// What every key:* handler answers in a build without self-hosting (Mac App Store).
+const KEY_UNAVAILABLE = Object.freeze({ ok: false, kind: 'unavailable', message: UNAVAILABLE_KEY_MESSAGE });
+
+/** Which edition this is and what it may do; the windows hide what it cannot. */
+function channelPayload() {
+  return { name: channel.name(), isMAS: channel.isMAS(), features: { ...channel.features() } };
+}
+
+/**
+ * "Erase this Mac's Grayout data": Grayout's own files in its data folder,
+ * which is everything that says what this Mac did or who it is (check history,
+ * the stats built from it, state with the device id and onboarding, settings,
+ * and secrets.bin with the license key and device token), plus the logs.
+ * Chromium's caches beside them are Electron's, not Grayout data, and are left.
+ * Returns the names removed.
+ */
+function eraseLocalData() {
+  const files = [
+    paths.VERDICT_LOG, paths.VERDICT_LOG + '.tmp',
+    paths.STATE_PATH, paths.STATE_PATH + '.tmp',
+    paths.CONFIG_PATH, paths.CONFIG_PATH + '.tmp', paths.CONFIG_PATH + '.invalid',
+    paths.SECRETS_PATH, paths.SECRETS_PATH + '.tmp', paths.SECRETS_PATH + '.unreadable'
+  ];
+  const removed = [];
+  for (const f of files) {
+    try { if (fs.existsSync(f)) { fs.rmSync(f, { force: true }); removed.push(path.basename(f)); } } catch {}
+  }
+  try {
+    if (fs.existsSync(paths.LOG_DIR)) { fs.rmSync(paths.LOG_DIR, { recursive: true, force: true }); removed.push(path.basename(paths.LOG_DIR)); }
+  } catch {}
+  return removed;
+}
 
 function str(v, max = 500) { return typeof v === 'string' ? v.slice(0, max) : ''; }
 
@@ -156,7 +191,10 @@ function sanitizeSettings(p) {
 }
 
 /**
- * ctx: { loop, getConfig, applyConfig(newCfg), windows, updater, onboarding: {...} }
+ * ctx: { loop, account, getConfig, applyConfig(newCfg), windows, updater,
+ *        grayscaleAvailable(), onCameraStatus(s), onOnboardingFinished(),
+ *        onConsentGranted() (setup was done: start or resume watching),
+ *        forceGrayscaleOff() (data:erase) }
  */
 function registerIpc(ctx) {
   const { loop, getConfig, applyConfig, windows, updater } = ctx;
@@ -166,6 +204,8 @@ function registerIpc(ctx) {
   // not go through the hosted service (a model key, or the Claude CLI). A
   // model key is only ever needed on the first of those.
   const selfHosted = () => activeProvider(getConfig()).hosted === false;
+  const selfHostingOff = () => !channel.features().selfHosting;
+  const consentPayload = () => consent.payload(getConfig());
   const keyMissing = () => resolveEngine(getConfig()) === 'api' && !secrets.getApiKey();
   const liveWithExtras = () => {
     const l = loop.getLive();
@@ -188,7 +228,9 @@ function registerIpc(ctx) {
       hasKey: !!secrets.getApiKey(),
       keyMasked: secrets.maskKey(secrets.getApiKey()),
       update: updater ? updater.getAvailable() : null,
-      dataDir: paths.USER_DATA
+      dataDir: paths.USER_DATA,
+      channel: channelPayload(),
+      consent: consentPayload()
     };
   });
 
@@ -212,9 +254,11 @@ function registerIpc(ctx) {
       estimates: estimates(cfg),
       permissions: { screen: await permissions.screenStatus({ fresh: false }), camera: permissions.cameraStatus() },
       paths: { userData: paths.USER_DATA, config: paths.CONFIG_PATH, verdicts: paths.VERDICT_LOG, helper: paths.HELPER_BIN },
-      tccResetCmd: permissions.TCC_RESET_CMD,
+      tccResetCmd: permissions.tccResetCmd(),
       version: app.getVersion(),
-      isPackaged: app.isPackaged
+      isPackaged: app.isPackaged,
+      channel: channelPayload(),
+      consent: consentPayload()
     };
   });
 
@@ -253,7 +297,7 @@ function registerIpc(ctx) {
     screen: await permissions.screenStatus(),
     camera: permissions.cameraStatus(),
     loginItem: loginitem.getStatus(),
-    tccResetCmd: permissions.TCC_RESET_CMD
+    tccResetCmd: permissions.tccResetCmd()
   }));
   ipcMain.handle('perm:openScreen', () => permissions.openScreenSettings());
   ipcMain.handle('perm:openCamera', () => permissions.openCameraSettings());
@@ -264,7 +308,10 @@ function registerIpc(ctx) {
   });
   ipcMain.handle('perm:recheck', () => loop.recheckPermission());
 
+  // No own model key in the Mac App Store edition: every key:* handler says
+  // so before touching secrets or the network.
   ipcMain.handle('key:test', async (_e, key, frameB64) => {
+    if (selfHostingOff()) return { ...KEY_UNAVAILABLE };
     const k = str(key, 400).trim();
     if (!k) return { ok: false, kind: 'no_key', message: 'Paste a key first.' };
     const frame = typeof frameB64 === 'string' && frameB64.length < 4_000_000 ? frameB64 : null;
@@ -274,6 +321,7 @@ function registerIpc(ctx) {
     return r;
   });
   ipcMain.handle('key:set', (_e, key) => {
+    if (selfHostingOff()) return { ...KEY_UNAVAILABLE };
     try {
       secrets.setApiKey(str(key, 400).trim());
       loop.reload();
@@ -285,10 +333,14 @@ function registerIpc(ctx) {
     }
   });
   ipcMain.handle('key:session', (_e, key) => {
+    if (selfHostingOff()) return { ...KEY_UNAVAILABLE };
     try { secrets.useSessionKey(str(key, 400)); loop.reload(); return { ok: true }; }
     catch (e) { return { ok: false, message: e.message }; }
   });
-  ipcMain.handle('key:clear', () => { secrets.clearApiKey(); loop.reload(); return { ok: true }; });
+  ipcMain.handle('key:clear', () => {
+    if (selfHostingOff()) return { ...KEY_UNAVAILABLE };
+    secrets.clearApiKey(); loop.reload(); return { ok: true };
+  });
 
   ipcMain.handle('data:clearHistory', async e => {
     const r = await dialog.showMessageBox({
@@ -299,6 +351,29 @@ function registerIpc(ctx) {
     if (r.response !== 0) return { ok: false };
     stats.clearHistory();
     return { ok: true };
+  });
+  // Everything Grayout keeps about this Mac, gone, then a fresh start (App
+  // Review 5.1.1(v)). The color comes back first, so a gray screen can never
+  // outlive the data that made it.
+  ipcMain.handle('data:erase', async () => {
+    const r = await dialog.showMessageBox({
+      type: 'warning', buttons: ['Erase and Restart', 'Cancel'], defaultId: 1, cancelId: 1,
+      message: "Erase this Mac's Grayout data?",
+      detail: "This deletes Grayout's check history, settings, saved license key and this Mac's device identity, then restarts Grayout as if it were new. " +
+        'A subscription stays active: to use it here again, connect it with your license key. This cannot be undone.'
+    });
+    if (r.response !== 0) return { ok: false };
+    log.info('data', "erasing this Mac's Grayout data, then restarting");
+    try { loop.pause('erasing Grayout data'); } catch {}
+    try { loop.restoreColor(); } catch {}
+    try { if (ctx.forceGrayscaleOff) ctx.forceGrayscaleOff(); } catch {}
+    const removed = eraseLocalData();
+    // Nothing still in memory may write the old state or keys back.
+    state._reset();
+    secrets.forget();
+    app.relaunch();
+    app.exit(0);
+    return { ok: true, removed };
   });
   ipcMain.handle('data:reveal', () => { shell.showItemInFolder(paths.VERDICT_LOG); return true; });
   ipcMain.handle('data:openConfig', () => {
@@ -321,8 +396,11 @@ function registerIpc(ctx) {
   });
   ipcMain.handle('clipboard:copy', (_e, text) => { clipboard.writeText(str(text, 2000)); return true; });
   ipcMain.handle('updates:check', async () => {
+    // Mac App Store: the store updates the app; no check, no dialog.
+    if (!channel.features().updates) return { checked: false, disabled: true };
     if (!updater) return { checked: false };
     const r = await updater.check({ manual: true });
+    if (r && r.disabled) return r;
     if (r.checked && !r.newer) {
       dialog.showMessageBox({ type: 'info', message: `You're on the latest version (${app.getVersion()}).`, buttons: ['OK'] });
     } else if (!r.checked) {
@@ -422,7 +500,9 @@ function registerIpc(ctx) {
       version: app.getVersion(),
       isPackaged: app.isPackaged,
       grayscaleAvailable: ctx.grayscaleAvailable ? ctx.grayscaleAvailable() : true,
-      tccResetCmd: permissions.TCC_RESET_CMD
+      tccResetCmd: permissions.tccResetCmd(),
+      channel: channelPayload(),
+      consent: consentPayload()
     };
   });
   ipcMain.handle('onb:setStep', (_e, n) => {
@@ -430,6 +510,9 @@ function registerIpc(ctx) {
     return true;
   });
   ipcMain.handle('onb:moveToApplications', () => {
+    // The store installs the app itself, and Electron's move can ask for an
+    // admin password (2.4.5(v)): never in the Mac App Store edition.
+    if (!channel.features().moveToApplications) return false;
     try {
       state.update(s => { s.onboarding.step = 1; });
       return app.moveToApplicationsFolder({ conflictHandler: () => true });
@@ -450,8 +533,39 @@ function registerIpc(ctx) {
     return true;
   });
 
+  /* ---------------- consent (src/consent.js) ----------------
+     Nothing is captured or sent until the person allows it, and the Settings
+     switch takes it back. The loop checks consent itself on every tick too. */
+
+  ipcMain.handle('consent:grant', () => {
+    consent.grant();
+    log.info('consent', 'screenshots for checks allowed');
+    // An install that finished setup before consent existed (or withdrew it)
+    // was shown only the permission card: close it and start watching.
+    if (state.get().onboarding.completed) {
+      try { if (windows && windows.closeOnboarding) windows.closeOnboarding(); } catch {}
+      if (ctx.onConsentGranted) ctx.onConsentGranted();
+      else loop.resume();
+    }
+    // Touching the capturer is what lists Grayout under Screen Recording in
+    // System Settings and raises the prompt. It waits for this answer; the
+    // Screen Recording step comes next.
+    Promise.resolve().then(() => permissions.primeScreenPermission()).catch(() => {});
+    return { ok: true, consent: consentPayload() };
+  });
+
+  ipcMain.handle('consent:revoke', async () => {
+    consent.revoke();
+    log.info('consent', 'screenshots for checks withdrawn');
+    try { await loop.pause('consent withdrawn'); } catch {}
+    return { ok: true, consent: consentPayload() };
+  });
+
   // Camera renderer → main
   ipcMain.on('camera-status', (_e, status) => { if (ctx.onCameraStatus) ctx.onCameraStatus(String(status)); });
 }
 
-module.exports = { registerIpc, sanitizeSettings, accountPayload, openPaymentUrl, afterAccountRefresh, estimates, activeProvider, ALLOWED_HOSTS, PAYMENT_HOSTS, INTERVAL_CHOICES, MANAGE_NOTE };
+module.exports = {
+  registerIpc, sanitizeSettings, accountPayload, openPaymentUrl, afterAccountRefresh, estimates, activeProvider,
+  channelPayload, eraseLocalData, ALLOWED_HOSTS, PAYMENT_HOSTS, INTERVAL_CHOICES, MANAGE_NOTE, KEY_UNAVAILABLE
+};

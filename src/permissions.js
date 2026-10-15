@@ -3,11 +3,23 @@
 // (required) and Camera (optional). It never asks for Automation,
 // Accessibility, or Full Disk Access.
 const { systemPreferences, desktopCapturer, shell } = require('electron');
+const channel = require('./channel');
 
 const SCREEN_SETTINGS_URL = 'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture';
 const CAMERA_SETTINGS_URL = 'x-apple.systempreferences:com.apple.preference.security?Privacy_Camera';
 const LOGIN_ITEMS_URL = 'x-apple.systempreferences:com.apple.LoginItems-Settings.extension';
 const TCC_RESET_CMD = 'tccutil reset ScreenCapture com.aarushkandukoori.grayout';
+
+/**
+ * The Terminal command that clears a stale Screen Recording grant, or null in
+ * the Mac App Store edition. A stale grant comes from ad-hoc signing; a
+ * store-signed app keeps one identity, and telling store customers to run
+ * Terminal commands is not something App Review accepts. Payloads and the tray
+ * read this, never TCC_RESET_CMD directly.
+ */
+function tccResetCmd() {
+  return channel.features().tccResetHint ? TCC_RESET_CMD : null;
+}
 
 /**
  * Touch desktopCapturer once: this is what registers the app in
@@ -63,5 +75,5 @@ const openLoginItems = () => shell.openExternal(LOGIN_ITEMS_URL);
 module.exports = {
   primeScreenPermission, screenStatus, screenStatusCached, cameraStatus, requestCamera,
   openScreenSettings, openCameraSettings, openLoginItems,
-  SCREEN_SETTINGS_URL, CAMERA_SETTINGS_URL, LOGIN_ITEMS_URL, TCC_RESET_CMD
+  tccResetCmd, SCREEN_SETTINGS_URL, CAMERA_SETTINGS_URL, LOGIN_ITEMS_URL, TCC_RESET_CMD
 };

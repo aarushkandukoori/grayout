@@ -1,6 +1,7 @@
 'use strict';
 // Small persisted app state (not user settings): onboarding progress, the
-// daily check counter, update-check bookkeeping.
+// daily check counter, update-check bookkeeping, and the person's answer to
+// "may Grayout send screenshots to a third-party AI?" (src/consent.js).
 const fs = require('fs');
 const paths = require('./paths');
 
@@ -13,7 +14,10 @@ const DEFAULT_STATE = {
   lastPrune: 0,
   // True while this app has the system Color Filters switch turned on, so a
   // crash can be told apart from a switch the user set themselves.
-  grayscaleOwned: false
+  grayscaleOwned: false,
+  // Permission to send screenshots for checks (App Review 5.1.2(i)). Nothing
+  // is captured or sent until granted is true for the current CONSENT_VERSION.
+  consent: { granted: false, at: null, version: null }
 };
 
 let state = null;
@@ -32,7 +36,8 @@ function load() {
     ...DEFAULT_STATE,
     ...parsed,
     onboarding: { ...DEFAULT_STATE.onboarding, ...(parsed.onboarding || {}) },
-    dayCounter: { ...DEFAULT_STATE.dayCounter, ...(parsed.dayCounter || {}) }
+    dayCounter: { ...DEFAULT_STATE.dayCounter, ...(parsed.dayCounter || {}) },
+    consent: { ...DEFAULT_STATE.consent, ...(parsed.consent && typeof parsed.consent === 'object' && !Array.isArray(parsed.consent) ? parsed.consent : {}) }
   };
   if (!state.firstRunAt) { state.firstRunAt = Date.now(); save(); }
   return state;

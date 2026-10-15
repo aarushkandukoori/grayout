@@ -409,6 +409,94 @@ describe('registerIpc with fakes', () => {
     cfg = configMod.coerce({});
     configMod.writeConfig(cfg);
   });
+
+  /* ---------------- editions and consent ---------------- */
+  const channel = require('../src/channel');
+  const secretsMod = require('../src/secrets');
+  const { TCC_RESET_CMD } = require('../src/permissions');
+
+  test('dash:get, settings:get and onb:getState carry the edition and the consent answer', async () => {
+    channel._setForTests(null);
+    const payloads = [invoke('dash:get'), await invoke('settings:get'), await invoke('onb:getState')];
+    for (const p of payloads) {
+      assert.equal(p.channel.name, 'direct');
+      assert.equal(p.channel.isMAS, false);
+      assert.equal(p.channel.features.updates, true);
+      assert.equal(p.channel.features.grayscaleBackend, 'colorFilters');
+      assert.equal(p.channel.features.aiConsentRequired, true);
+      assert.deepEqual(p.consent, { granted: false, at: null, version: null, processor: { name: 'OpenAI', via: 'the Grayout service' } });
+    }
+    assert.equal(payloads[1].tccResetCmd, TCC_RESET_CMD, 'the direct edition keeps the Terminal fix');
+    assert.equal(payloads[2].tccResetCmd, TCC_RESET_CMD);
+    assert.equal((await invoke('perm:get')).tccResetCmd, TCC_RESET_CMD);
+  });
+
+  test('Mac App Store: payloads say mas, no Terminal command, the hosted service even with a key or another provider', async t => {
+    t.after(() => { channel._setForTests(null); invoke('key:clear'); cfg = configMod.coerce({}); });
+    channel._setForTests(null);
+    invoke('key:session', 'sk-ant-api03-held-in-memory');
+    cfg = { ...configMod.coerce({}), provider: 'anthropic' };
+    channel._setForTests('mas');
+    const d = invoke('dash:get');
+    const st = await invoke('settings:get');
+    const onb = await invoke('onb:getState');
+    for (const p of [d, st, onb]) {
+      assert.equal(p.channel.name, 'mas');
+      assert.equal(p.channel.isMAS, true);
+      assert.equal(p.channel.features.updates, false);
+      assert.equal(p.channel.features.grayscaleBackend, 'blend');
+      assert.equal(p.selfHosted, false);
+      assert.deepEqual(p.consent.processor, { name: 'OpenAI', via: 'the Grayout service' });
+    }
+    assert.equal(st.tccResetCmd, null);
+    assert.equal(onb.tccResetCmd, null);
+    assert.equal((await invoke('perm:get')).tccResetCmd, null);
+    assert.equal(d.hasKey, false);
+    assert.equal(d.keyMasked, '');
+    assert.equal(d.config.provider, 'grayout');
+    assert.equal(st.estimates.hosted, true);
+    assert.equal(onb.engine, 'api');
+  });
+
+  test('Mac App Store: every key:* handler answers unavailable and touches nothing', async t => {
+    t.after(() => channel._setForTests(null));
+    channel._setForTests('mas');
+    const reloads = calls.filter(c => c.name === 'reload').length;
+    assert.deepEqual(await invoke('key:test', 'sk-ant-api03-x', 'AAAA'), { ok: false, kind: 'unavailable', message: ipc.KEY_UNAVAILABLE.message });
+    assert.deepEqual(invoke('key:set', 'sk-ant-api03-x'), { ...ipc.KEY_UNAVAILABLE });
+    assert.deepEqual(invoke('key:session', 'sk-ant-api03-x'), { ...ipc.KEY_UNAVAILABLE });
+    assert.deepEqual(invoke('key:clear'), { ...ipc.KEY_UNAVAILABLE });
+    assert.match(ipc.KEY_UNAVAILABLE.message, /Mac App Store/);
+    assert.equal(secretsMod.getApiKey(), null);
+    assert.equal(fs.existsSync(paths.SECRETS_PATH), false);
+    assert.equal(calls.filter(c => c.name === 'reload').length, reloads, 'the loop is not reloaded');
+  });
+
+  test('Mac App Store: updates:check is disabled with no dialog and no request', async t => {
+    const dialogs = [];
+    const savedBox = electron.dialog.showMessageBox;
+    electron.dialog.showMessageBox = async o => { dialogs.push(o); return { response: 1 }; };
+    t.after(() => { channel._setForTests(null); electron.dialog.showMessageBox = savedBox; });
+    channel._setForTests('mas');
+    assert.deepEqual(await invoke('updates:check'), { checked: false, disabled: true });
+    assert.equal(dialogs.length, 0);
+  });
+
+  test('Mac App Store: onb:moveToApplications returns false without calling app.moveToApplicationsFolder', async t => {
+    let moved = 0;
+    electron.app.moveToApplicationsFolder = () => { moved++; return true; };
+    t.after(() => { channel._setForTests(null); delete electron.app.moveToApplicationsFolder; });
+    channel._setForTests('mas');
+    assert.equal(invoke('onb:moveToApplications'), false);
+    assert.equal(moved, 0);
+    channel._setForTests('direct');
+    assert.equal(invoke('onb:moveToApplications'), true, 'the direct edition still moves itself');
+    assert.equal(moved, 1);
+  });
+
+  test('the new channels are bridged: consent:grant, consent:revoke and data:erase have handlers', () => {
+    for (const ch of ['consent:grant', 'consent:revoke', 'data:erase']) assert.equal(handlers.has(ch), true, ch);
+  });
 });
 
 describe('activeProvider and estimates', () => {

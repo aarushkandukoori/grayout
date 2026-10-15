@@ -1219,3 +1219,22 @@ describe('saved keys the Keychain will not unlock (secrets.bin)', () => {
     assert.equal(state.get().secretsLockedSince, undefined, 'the clock is cleared once a new store exists');
   });
 });
+
+describe('Mac App Store edition: only the service address built into the app', () => {
+  const channel = require('../src/channel');
+  after(() => { channel._setForTests(null); delete process.env.GRAYOUT_API_BASE; });
+
+  test('config.apiBase and GRAYOUT_API_BASE are ignored; the built-in address is the only one', () => {
+    channel._setForTests('mas');
+    process.env.GRAYOUT_API_BASE = 'http://localhost:8787';
+    assert.equal(apiBaseFrom({ apiBase: 'https://somebody-else.example' }, BASE + '/'), BASE);
+    assert.equal(apiBaseFrom({ apiBase: 'https://somebody-else.example' }, '__GRAYOUT_API_BASE__'), null, 'unfilled build: not connected, never the override');
+    const a = createAccount({ getConfig: () => ({ apiBase: 'https://somebody-else.example' }), builtInBase: BASE });
+    assert.equal(a.apiBase(), BASE);
+    assert.equal(a.configured(), true);
+    channel._setForTests(null);
+    assert.equal(apiBaseFrom({ apiBase: 'https://somebody-else.example' }, BASE), 'http://localhost:8787', 'the direct edition keeps its overrides');
+    delete process.env.GRAYOUT_API_BASE;
+    assert.equal(apiBaseFrom({ apiBase: 'https://somebody-else.example' }, BASE), 'https://somebody-else.example');
+  });
+});

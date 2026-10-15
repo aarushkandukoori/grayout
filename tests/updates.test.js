@@ -229,3 +229,55 @@ describe('state module (used by the updater and the daily cap)', () => {
     assert.deepEqual(state.get().dayCounter, { day: '', checks: 0 });
   });
 });
+
+describe('Mac App Store edition: updates come from the store only (2.4.5(vii))', () => {
+  const channel = require('../src/channel');
+  after(() => channel._setForTests(null));
+
+  test('createUpdater returns a disabled stub: no request, no state write, start/stop do nothing', async t => {
+    channel._setForTests('mas');
+    t.mock.timers.enable({ apis: ['setTimeout', 'setInterval'] });
+    state._reset();
+    try { fs.unlinkSync(paths.STATE_PATH); } catch {}
+    const f = fakeFetch(okJson({ tag_name: 'v9.9.9' }));
+    const seen = [];
+    const u = createUpdater({ currentVersion: '1.0.0', isEnabled: () => true, state, onAvailable: i => seen.push(i), fetchImpl: f });
+    assert.equal(u.disabled, true);
+    assert.deepEqual(await u.check(), { checked: false, disabled: true });
+    assert.deepEqual(await u.check({ manual: true }), { checked: false, disabled: true }, 'not even a manual check');
+    u.start();
+    t.mock.timers.tick(72 * 3600 * 1000);
+    u.stop();
+    u.dismiss();
+    assert.equal(f.calls.length, 0);
+    assert.equal(seen.length, 0);
+    assert.equal(u.getAvailable(), null);
+    assert.equal(state.get().lastUpdateCheck, 0);
+  });
+
+  test('fetchLatest refuses without a request', async () => {
+    channel._setForTests('mas');
+    const f = fakeFetch(okJson({ tag_name: 'v9.9.9' }));
+    assert.equal(await fetchLatest({ fetchImpl: f }), null);
+    assert.equal(f.calls.length, 0);
+  });
+
+  test('an updater made in the direct edition stops checking if the edition reads as mas', async () => {
+    channel._setForTests(null);
+    const f = fakeFetch(okJson({ tag_name: 'v9.9.9' }));
+    const u = createUpdater({ currentVersion: '1.0.0', isEnabled: () => true, state: null, onAvailable: () => {}, fetchImpl: f });
+    channel._setForTests('mas');
+    assert.deepEqual(await u.check({ manual: true }), { checked: false, disabled: true });
+    assert.equal(f.calls.length, 0);
+  });
+
+  test('the direct edition is unchanged', async () => {
+    channel._setForTests('direct');
+    const f = fakeFetch(okJson({ tag_name: 'v9.9.9' }));
+    const u = createUpdater({ currentVersion: '1.0.0', isEnabled: () => true, state: null, onAvailable: () => {}, fetchImpl: f });
+    assert.equal(u.disabled, undefined);
+    const r = await u.check();
+    assert.equal(r.checked, true);
+    assert.equal(f.calls.length, 1);
+  });
+});

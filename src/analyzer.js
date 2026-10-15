@@ -4,6 +4,7 @@ const { spawn } = require('child_process');
 const paths = require('./paths');
 const providers = require('./providers');
 const claudecli = require('./claudecli');
+const channel = require('./channel');
 const { SERVICE_ERROR_KINDS, MESSAGES: ACCOUNT_MESSAGES } = require('./account');
 
 const API_TIMEOUT_MS = 60000;
@@ -12,6 +13,7 @@ const CLI_MAX_OUTPUT = 10 * 1024 * 1024;
 const MAX_OUTPUT_TOKENS = 200; // the verdict is ~40 tokens
 const MAX_SERVICE_DISPLAYS = 3;
 const MAX_SERVICE_TASKS = 20;
+const UNAVAILABLE_KEY_MESSAGE = 'Your own API key is not available in the Mac App Store edition.';
 
 const VERDICT_SCHEMA = {
   type: 'object',
@@ -384,6 +386,11 @@ function readCliResult(stdout, stderr, code, model, bin) {
  * opts.timeoutMs exists for tests.
  */
 function analyzeViaCli(ctx, config, opts = {}) {
+  // The Mac App Store edition never runs code outside its bundle (2.5.2).
+  // resolveEngine already says 'api' there; this is the backstop.
+  if (!channel.features().cliEngine) {
+    return Promise.reject(claudecli.cliError('cli_missing', 'the Claude CLI engine is not available in the Mac App Store edition'));
+  }
   const timeoutMs = opts.timeoutMs || CLI_TIMEOUT_MS;
   let bin;
   try { bin = claudecli.resolveBinary(config); } catch (e) { return Promise.reject(e); }
@@ -459,11 +466,13 @@ function isPackaged() {
   try { return !!require('electron').app.isPackaged; } catch { return false; }
 }
 
-// config.engine 'cli' selects the local `claude` CLI in any build. The
-// GRAYOUT_DEV_ENGINE=cli override still works for an unpackaged run only.
+// config.engine 'cli' selects the local `claude` CLI in any build that has the
+// CLI engine (not the Mac App Store edition). The GRAYOUT_DEV_ENGINE=cli
+// override still works for an unpackaged run only.
 // Anything else ('api', 'auto') is the API engine: the hosted service, or the
 // provider a self-hosted model key belongs to (providers.resolve).
 function resolveEngine(config, packaged = isPackaged()) {
+  if (!channel.features().cliEngine) return 'api';
   if (config && config.engine === 'cli') return 'cli';
   if (!packaged && process.env.GRAYOUT_DEV_ENGINE === 'cli') return 'cli';
   return 'api';
@@ -495,6 +504,10 @@ async function analyze(ctx, config) {
  * { ok:true, verdict, usage, costUsd, model } or { ok:false, kind, message }.
  */
 async function testApiKey(apiKey, syntheticFrameB64, model, provider) {
+  // No own key in a build without self-hosting: refuse before any network.
+  if (!channel.features().selfHosting) {
+    return { ok: false, kind: 'unavailable', message: UNAVAILABLE_KEY_MESSAGE };
+  }
   const { costUsd } = require('./pricing');
   // This tests a self-hosted model key, so never take the hosted path even when
   // config.provider says 'grayout': the key itself decides.
@@ -517,5 +530,5 @@ module.exports = {
   analyze, analyzeViaApi, analyzeViaAnthropic, analyzeViaOpenAI, analyzeViaGrayout, serviceContext,
   analyzeViaCli, readCliResult, classifyCliFailure,
   testApiKey, resolveEngine, buildPromptText, buildApiContent, fenced, extractJson,
-  coerceVerdict, classifyApiError, VERDICT_SCHEMA, NoKeyError, API_TIMEOUT_MS, CLI_TIMEOUT_MS
+  coerceVerdict, classifyApiError, VERDICT_SCHEMA, NoKeyError, API_TIMEOUT_MS, CLI_TIMEOUT_MS, UNAVAILABLE_KEY_MESSAGE
 };

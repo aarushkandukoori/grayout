@@ -18,6 +18,7 @@ const paths = require('./paths');
 const log = require('./log');
 const { DEFAULT_API_BASE, normalizeBase, LOCAL_HOSTS } = require('./config');
 const { PLANS, FREE_CHECKS, INCLUDED_CHECKS } = require('./pricing');
+const channel = require('./channel');
 
 const TIMEOUT_MS = 10000;          // every account call
 const CHECK_TIMEOUT_MS = 60000;    // /v1/check carries screenshots and waits on the model
@@ -108,8 +109,12 @@ function isPackaged() {
  * Order: GRAYOUT_API_BASE (unpackaged builds only), then `apiBase` in
  * config.json, then the address the deploy step built in (DEFAULT_API_BASE).
  * null means "not connected": no request is ever made.
+ * The Mac App Store edition has no override (2.3.1, 5.1.2): only the address
+ * built in, so a config file or an environment variable can never send
+ * screenshots anywhere else.
  */
 function apiBaseFrom(config, builtIn = DEFAULT_API_BASE) {
+  if (!channel.features().apiBaseOverride) return normalizeBase(builtIn) || null;
   if (!isPackaged() && process.env.GRAYOUT_API_BASE) {
     const env = normalizeBase(process.env.GRAYOUT_API_BASE);
     if (env) return env;

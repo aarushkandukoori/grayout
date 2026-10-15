@@ -5,8 +5,8 @@ const invoke = (ch, ...args) => ipcRenderer.invoke(ch, ...args);
 
 contextBridge.exposeInMainWorld('grayout', {
   // data
-  get: day => invoke('dash:get', day || null),            // { stats, live, config, version, account, plans, freeChecks, includedChecks, selfHosted, keyMasked, hasKey, update, dataDir }
-  getSettings: () => invoke('settings:get'),               // { config, account, plans, freeChecks, includedChecks, selfHosted, keyMasked, hasKey, secureStorage, loginItem, estimates, permissions, paths, tccResetCmd, version, isPackaged }
+  get: day => invoke('dash:get', day || null),            // { stats, live, config, version, account, plans, freeChecks, includedChecks, selfHosted, keyMasked, hasKey, update, dataDir, channel, consent }
+  getSettings: () => invoke('settings:get'),               // { config, account, plans, freeChecks, includedChecks, selfHosted, keyMasked, hasKey, secureStorage, loginItem, estimates, permissions, paths, tccResetCmd, version, isPackaged, channel, consent }
   saveSettings: partial => invoke('settings:save', partial), // { config, loginItem, estimates }
   // loop control
   pause: () => invoke('loop:pause'),
@@ -34,7 +34,11 @@ contextBridge.exposeInMainWorld('grayout', {
   setApiKey: key => invoke('key:set', key),
   testApiKey: (key, frameB64) => invoke('key:test', key, frameB64),
   clearApiKey: () => invoke('key:clear'),
+  // "Send screenshots for checks" in Settings: on allows, off withdraws and pauses checks
+  grantConsent: () => invoke('consent:grant'),             // { ok, consent: { granted, at, version, processor } }
+  revokeConsent: () => invoke('consent:revoke'),           // { ok, consent }
   // data management
+  eraseData: () => invoke('data:erase'),                   // asks first; on yes deletes Grayout's data and restarts, else { ok:false }
   clearHistory: () => invoke('data:clearHistory'),
   revealData: () => invoke('data:reveal'),
   openConfigFile: () => invoke('data:openConfig'),

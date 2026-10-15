@@ -1,7 +1,12 @@
 'use strict';
 // Optional context: Canvas LMS to-do items and a markdown task file. Both are
 // third-party text and are fenced as untrusted data by the analyzer.
+//
+// Neither exists in the Mac App Store edition (channel.features): a task file
+// can be any path, which the App Sandbox does not allow, and both are set in
+// config.json only, with nothing in the app saying their titles are sent.
 const fs = require('fs');
+const channel = require('./channel');
 
 let canvasCache = { at: 0, items: [], error: null };
 const CANVAS_TTL_MS = 10 * 60 * 1000;
@@ -68,12 +73,16 @@ function readTasksFile(tasksFile) {
 
 // Returns {canvas: [...], file: [...], canvasError}
 async function gatherTasks(config, canvasToken) {
-  const canvas = await fetchCanvasTasks(config.canvas, canvasToken);
+  const f = channel.features();
+  const cfg = config || {};
+  const canvas = f.canvas ? await fetchCanvasTasks(cfg.canvas, canvasToken) : { items: [], error: null };
   return {
     canvas: canvas.items,
     canvasError: canvas.error,
-    file: readTasksFile(config.tasksFile)
+    file: f.tasksFile ? readTasksFile(cfg.tasksFile) : []
   };
 }
 
-module.exports = { gatherTasks, readTasksFile };
+function _resetCanvasCache() { canvasCache = { at: 0, items: [], error: null }; }
+
+module.exports = { gatherTasks, readTasksFile, _resetCanvasCache };

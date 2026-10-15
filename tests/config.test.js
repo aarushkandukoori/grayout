@@ -421,3 +421,54 @@ describe('v2 keys', () => {
     assert.equal(readJson().forceCheckSec, 240);
   });
 });
+
+describe('Mac App Store edition: config.json cannot switch on what the edition lacks', () => {
+  const channel = require('../src/channel');
+  after(() => channel._setForTests(null));
+
+  const handEdited = {
+    checkForUpdates: true, provider: 'anthropic', engine: 'cli', cliPath: '/opt/homebrew/bin/claude', cliAllowOverage: true,
+    apiBase: 'https://somebody-else.example', tasksFile: '/Users/me/todo.md', model: 'claude-haiku-4-5', strikes: 3
+  };
+
+  test('coerce forces the update check off, the hosted provider, the API engine, no override base and no task file', () => {
+    channel._setForTests('mas');
+    const out = coerce(handEdited);
+    assert.equal(out.checkForUpdates, false);
+    assert.equal(out.provider, 'grayout');
+    assert.equal(out.engine, 'api');
+    assert.equal(out.cliPath, '');
+    assert.equal(out.cliAllowOverage, false);
+    assert.equal(out.apiBase, '');
+    assert.equal(out.tasksFile, '');
+    assert.equal(out.strikes, 3, 'ordinary settings are untouched');
+    assert.equal(coerce({}).checkForUpdates, false, 'the default is off too');
+    assert.equal(coerce({}).provider, 'grayout');
+  });
+
+  test('loadConfig rewrites a hand-edited file to what the edition can do; saveConfig cannot turn it back', () => {
+    channel._setForTests('mas');
+    writeRaw(JSON.stringify(handEdited));
+    const loaded = loadConfig();
+    assert.equal(loaded.engine, 'api');
+    assert.equal(readJson().provider, 'grayout');
+    const saved = saveConfig({ checkForUpdates: true, strikes: 4 });
+    assert.equal(saved.checkForUpdates, false);
+    assert.equal(saved.strikes, 4);
+    assert.equal(readJson().checkForUpdates, false);
+  });
+
+  test('the direct edition keeps every hand-edited value as before', () => {
+    channel._setForTests('direct');
+    const out = coerce(handEdited);
+    assert.equal(out.checkForUpdates, true);
+    assert.equal(out.provider, 'anthropic');
+    assert.equal(out.engine, 'cli');
+    assert.equal(out.cliPath, '/opt/homebrew/bin/claude');
+    assert.equal(out.cliAllowOverage, true);
+    assert.equal(out.apiBase, 'https://somebody-else.example');
+    assert.equal(out.tasksFile, '/Users/me/todo.md');
+    assert.equal(coerce({}).checkForUpdates, true);
+    assert.equal(coerce({}).provider, 'auto');
+  });
+});

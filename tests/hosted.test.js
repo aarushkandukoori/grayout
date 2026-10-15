@@ -260,3 +260,35 @@ describe('dispatch', () => {
     assert.equal(providers.resolve({ provider: 'auto' }, 'sk-ant-key').provider, 'anthropic');
   });
 });
+
+describe('Mac App Store edition: every check goes through the Grayout service', () => {
+  const channel = require('../src/channel');
+  after(() => channel._setForTests(null));
+
+  test('providers.resolve is always the hosted service, whatever config.json or a key says', () => {
+    channel._setForTests('mas');
+    for (const [cfg, key] of [[{ provider: 'anthropic' }, null], [{ provider: 'openai', model: 'gpt-5-mini' }, 'sk-proj-x'], [{ provider: 'auto' }, 'sk-ant-key'], [{}, null]]) {
+      assert.deepEqual(providers.resolve(cfg, key), { provider: 'grayout', model: 'grayout' }, JSON.stringify(cfg));
+      assert.equal(providers.isHosted(cfg, key), true);
+    }
+  });
+
+  test('analyze() with an explicit provider and a key still posts to the service, never to a model provider', async () => {
+    channel._setForTests('mas');
+    const calls = stubFetch({ body: { verdict: VERDICT, usage: USAGE, plan: 'active', service: true } });
+    // The store edition reaches only the address built into the app.
+    const r = await analyze(ctx({ apiKey: 'sk-ant-api03-not-used', account: account({ builtInBase: BASE }) }), { provider: 'anthropic', engine: 'cli', model: 'claude-haiku-4-5' });
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, `${BASE}/v1/check`);
+    assert.equal(r.engine, 'api');
+    assert.equal(r.provider, 'grayout');
+  });
+
+  test('testApiKey refuses without any network', async () => {
+    channel._setForTests('mas');
+    const calls = stubFetch({ body: {} });
+    const r = await analyzer.testApiKey('sk-ant-api03-x', 'AAAA', 'claude-haiku-4-5', 'anthropic');
+    assert.deepEqual(r, { ok: false, kind: 'unavailable', message: analyzer.UNAVAILABLE_KEY_MESSAGE });
+    assert.equal(calls.length, 0);
+  });
+});

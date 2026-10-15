@@ -7,8 +7,11 @@ const invoke = (ch, ...args) => ipcRenderer.invoke(ch, ...args);
 contextBridge.exposeInMainWorld('grayout', {
   // { step, completed, inApplications, screen, cameraStatus, account, plans,
   //   freeChecks, includedChecks, selfHosted, secureStorage, loginItem, config,
-  //   estimates, version, isPackaged, grayscaleAvailable, tccResetCmd }
+  //   estimates, version, isPackaged, grayscaleAvailable, tccResetCmd,
+  //   channel: { name, isMAS, features }, consent: { granted, at, version, processor: { name, via } } }
   getState: () => invoke('onb:getState'),
+  // "Allow and continue": nothing is captured or sent before this.
+  grantConsent: () => invoke('consent:grant'),          // { ok, consent }
   setStep: n => invoke('onb:setStep', n),
   moveToApplications: () => invoke('onb:moveToApplications'),
   openScreenSettings: () => invoke('perm:openScreen'),
