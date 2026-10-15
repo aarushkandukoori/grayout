@@ -8,15 +8,43 @@
 # It never launches the app. The installer signature is checked only when a
 # .pkg path is given (a mas-dev build has none).
 set -euo pipefail
-APP="${1:?usage: verify-mas.sh path/to/Grayout.app [path/to/Grayout-x.y.z-mas.pkg]}"
-PKG="${2:-}"
-[ -d "$APP/Contents" ] || { echo "FAIL: $APP is not an app bundle" >&2; exit 1; }
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 plist() { /usr/libexec/PlistBuddy -c "Print :$1" "$APP/Contents/Info.plist" 2>/dev/null || true; }
 has_key() { /usr/libexec/PlistBuddy -c "Print :$1" "$APP/Contents/Info.plist" >/dev/null 2>&1; }
 ents() { codesign -d --entitlements - --xml "$1" 2>/dev/null | plutil -convert xml1 -o - - 2>/dev/null || true; }
 is_macho() { file -b "$1" | grep -q 'Mach-O'; }
+# One value (a PlistBuddy path, so dots in keys are fine) from the plist on stdin.
+pval() { /usr/libexec/PlistBuddy -c "Print :$1" /dev/stdin 2>/dev/null || true; }
+
+# Prints the first file or link under $1 that carries com.apple.quarantine.
+# Not `xattr -lr | grep -q`: under pipefail grep's early exit killed xattr with
+# SIGPIPE and a fully quarantined bundle passed, and xattr follows symlinks, so
+# it never saw the attribute on a link itself.
+quarantined() { find "$1" -xattrname com.apple.quarantine -print -quit 2>/dev/null || true; }
+
+# App Store Connect matches the profile's application-identifier against
+# <ElectronTeamID>.<CFBundleIdentifier>. osx-sign signs that pair from
+# Info.plist and embeds whatever profile it is given, and codesign compares
+# neither, so a leftover MAS_APP_ID would otherwise only fail at upload.
+#   check_app_id TEAM BID MAIN_ENTITLEMENTS_XML [DECODED_PROFILE_XML]
+check_app_id() {
+  local want="$1.$2" got
+  got=$(printf '%s' "$3" | pval com.apple.application-identifier)
+  [ -z "$got" ] || [ "$got" = "$want" ] || fail "signed application-identifier $got != $want"
+  [ -n "${4:-}" ] || return 0
+  got=$(printf '%s' "$4" | pval TeamIdentifier:0)
+  [ "$got" = "$1" ] || fail "profile team $got != ElectronTeamID $1"
+  got=$(printf '%s' "$4" | pval Entitlements:com.apple.application-identifier)
+  [ "$got" = "$want" ] || fail "profile application-identifier ${got:-missing} != $want (is MAS_APP_ID set?)"
+}
+
+# Sourced by tests/build-config.test.js to call the checks above: stop here.
+if (return 0 2>/dev/null); then return 0; fi
+
+APP="${1:?usage: verify-mas.sh path/to/Grayout.app [path/to/Grayout-x.y.z-mas.pkg]}"
+PKG="${2:-}"
+[ -d "$APP/Contents" ] || fail "$APP is not an app bundle"
 
 BID=$(plist CFBundleIdentifier)
 TEAM=$(plist ElectronTeamID)
@@ -42,7 +70,8 @@ done
 [ -x "$HELPER" ] || fail "helper/grayout-overlay missing"
 [ ! -e "$APP/Contents/Resources/helper/grayscale" ] || fail "the private-API grayscale helper is in the bundle"
 [ ! -e "$APP/Contents/Resources/app-update.yml" ] || fail "app-update.yml present (set publish: null)"
-if xattr -lr "$APP" 2>/dev/null | grep -q com.apple.quarantine; then fail "com.apple.quarantine xattr present"; fi
+Q=$(quarantined "$APP")
+[ -z "$Q" ] || fail "com.apple.quarantine xattr present on ${Q#"$APP"/}"
 # No Mach-O may even contain the private Color Filters symbol names (2.5.1).
 while IFS= read -r -d '' f; do
   is_macho "$f" || continue
@@ -74,10 +103,12 @@ for lh in "$APP"/Contents/Library/LoginItems/*.app; do
   echo "$e" | grep -q "com.apple.security.app-sandbox" || fail "login helper not sandboxed"
   if echo "$e" | grep -q "com.apple.security.inherit"; then fail "login helper must not use inherit"; fi
 done
+PROFILE=""
 if [ -f "$APP/Contents/embedded.provisionprofile" ]; then
-  PT=$(security cms -D -i "$APP/Contents/embedded.provisionprofile" | plutil -extract TeamIdentifier.0 raw -o - -)
-  [ "$PT" = "$TEAM" ] || fail "profile team $PT != ElectronTeamID $TEAM"
+  PROFILE=$(security cms -D -i "$APP/Contents/embedded.provisionprofile") || fail "cannot decode embedded.provisionprofile"
+  [ -n "$PROFILE" ] || fail "embedded.provisionprofile decodes to nothing"
 fi
+check_app_id "$TEAM" "$BID" "$MAIN" "$PROFILE"
 if [ -n "$PKG" ]; then
   [ -f "$PKG" ] || fail "no installer at $PKG"
   pkgutil --check-signature "$PKG" | grep -q "3rd Party Mac Developer Installer" || fail "pkg not signed with the Mac Installer Distribution certificate"

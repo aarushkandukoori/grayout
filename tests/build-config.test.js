@@ -38,6 +38,12 @@ function loadMas(env = {}) {
   }
 }
 
+/** Requires the MAS config in a fresh node whose argv carries these electron-builder arguments. */
+function loadMasWithArgv(args, env = {}) {
+  const clean = Object.fromEntries(Object.entries(process.env).filter(([k]) => !ENV_KEYS.includes(k)));
+  return spawnSync(process.execPath, ['-e', `require(${JSON.stringify(CONFIG)})`, '--', ...args], { env: { ...clean, ...env }, encoding: 'utf8' });
+}
+
 /** The top-level keys of a flat entitlements plist: { key: true | [strings] }. */
 function entitlements(file) {
   const src = fs.readFileSync(path.isAbsolute(file) ? file : path.join(ROOT, file), 'utf8').replace(/<!--[\s\S]*?-->/g, '');
@@ -46,6 +52,16 @@ function entitlements(file) {
     out[m[1]] = m[2] === '<true/>' ? true : m[2] === '<false/>' ? false : [...m[3].matchAll(/<string>([^<]*)<\/string>/g)].map(s => s[1]);
   }
   return out;
+}
+
+/** A plist document from strings, booleans, arrays and objects. */
+function plistXml(value) {
+  const v = x => (x === true ? '<true/>' : x === false ? '<false/>'
+    : Array.isArray(x) ? `<array>${x.map(v).join('')}</array>`
+    : typeof x === 'object' ? `<dict>${Object.entries(x).map(([k, y]) => `<key>${k}</key>${v(y)}`).join('')}</dict>`
+    : `<string>${String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;')}</string>`);
+  return '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n' +
+    `<plist version="1.0">${v(value)}</plist>\n`;
 }
 
 /** Every extraResources entry electron-builder could merge into a MAS build. */
@@ -131,6 +147,27 @@ test.describe('electron-builder.mas.cjs', () => {
     assert.throws(() => loadMas({ MAS_APP_ID: 'grayout' }), /MAS_APP_ID/);
     assert.throws(() => loadMas({ MAS_BUILD: '2.0.0.1' }), /MAS_BUILD/, 'macOS allows at most three integers');
     assert.throws(() => loadMas({ MAS_DEV_IDENTITY: 'Apple Development' }), /MAS_DEV_IDENTITY/);
+  });
+
+  test('MAS_APP_ID stops the store build (mas) and still works for mas-dev', () => {
+    // A test id left exported would otherwise sign a store pkg for the wrong
+    // bundle id with the real profile, rejected only at upload.
+    const TEST_ID = { MAS_APP_ID: 'com.aarushkandukoori.grayout.mastest' };
+    const cli = (...targets) => ['--config', 'electron-builder.mas.cjs', '--mac', ...targets, '--arm64', '--publish', 'never'];
+    for (const args of [cli('mas'), cli('mas', 'mas-dev'), cli('mas:arm64'), ['--config', 'electron-builder.mas.cjs', '--mac=mas']]) {
+      const r = loadMasWithArgv(args, TEST_ID);
+      assert.notEqual(r.status, 0, `${args.join(' ')} with MAS_APP_ID must stop`);
+      assert.match(r.stderr, /MAS_APP_ID=com\.aarushkandukoori\.grayout\.mastest is for mas-dev test builds only; the store build \(mas\) must use com\.aarushkandukoori\.grayout/);
+    }
+    for (const [args, env, why] of [
+      [cli('mas-dev'), TEST_ID, 'mas-dev keeps the override'],
+      [cli('mas'), {}, 'the store build with the default id'],
+      [cli('mas'), { MAS_APP_ID: pkg.build.appId }, 'the default id set explicitly'],
+      [cli('mas'), { MAS_TEAM_ID: 'ABCDE12345', MAS_BUILD: '7' }, 'the other MAS_* variables']
+    ]) {
+      const r = loadMasWithArgv(args, env);
+      assert.equal(r.status, 0, `${why}: ${r.stderr}`);
+    }
   });
 
   test('exports nothing electron-builder does not know (its schema rejects unknown keys)', () => {
@@ -263,5 +300,94 @@ test.describe('scripts/verify-mas.sh', () => {
     const r = spawnSync('bash', [path.join(ROOT, 'scripts', 'verify-mas.sh'), os.tmpdir()], { encoding: 'utf8' });
     assert.notEqual(r.status, 0);
     assert.match(r.stderr, /FAIL/);
+  });
+
+  const VERIFY = path.join(ROOT, 'scripts', 'verify-mas.sh');
+  const darwinOnly = { skip: process.platform !== 'darwin' && 'xattr, find -xattrname and PlistBuddy are macOS only' };
+  const verify = app => spawnSync('bash', [VERIFY, app], { encoding: 'utf8' });
+  const QUARANTINE = ['com.apple.quarantine', '0083;00000000;Safari;'];
+  const xattr = (...args) => { const r = spawnSync('xattr', args, { encoding: 'utf8' }); assert.equal(r.status, 0, r.stderr); };
+
+  /**
+   * An unsigned stand-in for a mas-dev bundle whose Info.plist and contents
+   * pass every check before the signature: verify-mas.sh gets as far as
+   * codesign --verify unless something earlier fails first.
+   */
+  function fakeApp(t, padFiles = 0) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'grayout-verify-'));
+    t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+    const app = path.join(dir, 'Grayout.app');
+    const info = pkg.build.mac.extendInfo;
+    fs.mkdirSync(path.join(app, 'Contents', 'MacOS'), { recursive: true });
+    fs.mkdirSync(path.join(app, 'Contents', 'Resources', 'helper'), { recursive: true });
+    fs.writeFileSync(path.join(app, 'Contents', 'Info.plist'), plistXml({
+      CFBundleIdentifier: 'com.aarushkandukoori.grayout.mastest', CFBundleExecutable: 'Grayout', ElectronTeamID: 'JQ8RG44463',
+      LSUIElement: true, ITSAppUsesNonExemptEncryption: false, LSMinimumSystemVersion: '13.0',
+      NSScreenCaptureUsageDescription: info.NSScreenCaptureUsageDescription, NSCameraUsageDescription: info.NSCameraUsageDescription
+    }));
+    fs.writeFileSync(path.join(app, 'Contents', 'MacOS', 'Grayout'), '#!/bin/sh\n', { mode: 0o755 });
+    fs.writeFileSync(path.join(app, 'Contents', 'Resources', 'helper', 'grayout-overlay'), '#!/bin/sh\n', { mode: 0o755 });
+    if (padFiles) {
+      fs.mkdirSync(path.join(app, 'Contents', 'Resources', 'pad'));
+      for (let i = 0; i < padFiles; i++) fs.writeFileSync(path.join(app, 'Contents', 'Resources', 'pad', `${i}.js`), '');
+    }
+    return app;
+  }
+
+  test('a quarantined file anywhere in the bundle fails it', darwinOnly, t => {
+    const clean = verify(fakeApp(t));
+    assert.match(clean.stderr, /FAIL: codesign --verify/, `the clean stand-in reaches the signature check: ${clean.stderr}`);
+    assert.doesNotMatch(clean.stderr, /quarantine/);
+
+    const nested = fakeApp(t);
+    xattr('-w', ...QUARANTINE, path.join(nested, 'Contents', 'Resources', 'helper', 'grayout-overlay'));
+    assert.match(verify(nested).stderr, /FAIL: com\.apple\.quarantine xattr present on Contents\/Resources\/helper\/grayout-overlay/);
+
+    // xattr -lr follows symlinks and never shows an attribute on the link itself.
+    const link = fakeApp(t);
+    fs.symlinkSync('helper/grayout-overlay', path.join(link, 'Contents', 'Resources', 'overlay-link'));
+    xattr('-s', '-w', ...QUARANTINE, path.join(link, 'Contents', 'Resources', 'overlay-link'));
+    assert.match(verify(link).stderr, /FAIL: com\.apple\.quarantine xattr present on Contents\/Resources\/overlay-link/);
+  });
+
+  test('a fully quarantined bundle (an unzipped download) fails it', darwinOnly, t => {
+    // Hundreds of KB of `xattr -lr` output, more than a pipe holds: the old
+    // `xattr -lr | grep -q` under pipefail died of SIGPIPE here and passed.
+    const app = fakeApp(t, 2000);
+    xattr('-r', '-w', ...QUARANTINE, app);
+    const r = verify(app);
+    assert.notEqual(r.status, 0);
+    assert.match(r.stderr, /FAIL: com\.apple\.quarantine xattr present on /);
+  });
+
+  test('check_app_id: signature and profile must name exactly <ElectronTeamID>.<CFBundleIdentifier>', darwinOnly, () => {
+    const TEAM = 'ABCDE12345';
+    const BID = 'com.aarushkandukoori.grayout';
+    const ents = id => plistXml({ 'com.apple.security.app-sandbox': true, ...(id ? { 'com.apple.application-identifier': id } : {}) });
+    const profile = (team, id) => plistXml({
+      TeamIdentifier: [team],
+      Entitlements: { ...(id ? { 'com.apple.application-identifier': id } : {}), 'com.apple.developer.team-identifier': team }
+    });
+    // Sourcing defines the checks and stops before the bundle checks run.
+    const check = (bid, main, prof = '') =>
+      spawnSync('bash', ['-c', 'source "$1"; shift; check_app_id "$@"', 'verify-test', VERIFY, TEAM, bid, main, prof], { encoding: 'utf8' });
+    const ok = (r, why) => assert.equal(r.status, 0, `${why}: ${r.stderr}`);
+    const bad = (r, re) => { assert.notEqual(r.status, 0); assert.match(r.stderr, re); };
+
+    ok(check(BID, ents(`${TEAM}.${BID}`), profile(TEAM, `${TEAM}.${BID}`)), 'the store build');
+    ok(check(`${BID}.mastest`, ents(null)), 'mas-dev: no profile and no application-identifier');
+    // MAS_APP_ID left set for `npm run mas`: osx-sign signs TEAM.<override>, the profile is the store one.
+    bad(check(`${BID}.mastest`, ents(`${TEAM}.${BID}.mastest`), profile(TEAM, `${TEAM}.${BID}`)),
+      /FAIL: profile application-identifier ABCDE12345\.com\.aarushkandukoori\.grayout != ABCDE12345\.com\.aarushkandukoori\.grayout\.mastest/);
+    bad(check(BID, ents(`${TEAM}.com.example.other`), profile(TEAM, `${TEAM}.${BID}`)),
+      /FAIL: signed application-identifier ABCDE12345\.com\.example\.other != ABCDE12345\.com\.aarushkandukoori\.grayout/);
+    bad(check(BID, ents(`${TEAM}.com.example.other`)), /FAIL: signed application-identifier/);
+    bad(check(BID, ents(`${TEAM}.${BID}`), profile('ZZZZZ99999', `ZZZZZ99999.${BID}`)), /FAIL: profile team ZZZZZ99999 != ElectronTeamID ABCDE12345/);
+    bad(check(BID, ents(`${TEAM}.${BID}`), profile(TEAM, null)), /FAIL: profile application-identifier missing/);
+  });
+
+  test('runs check_app_id on the built app with the decoded profile', () => {
+    assert.match(src, /PROFILE=\$\(security cms -D -i "\$APP\/Contents\/embedded\.provisionprofile"\)/);
+    assert.match(src, /^check_app_id "\$TEAM" "\$BID" "\$MAIN" "\$PROFILE"$/m);
   });
 });

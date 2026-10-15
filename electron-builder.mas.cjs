@@ -12,10 +12,11 @@
 //   MAS_TEAM_ID       Apple team ID, 10 characters. Default JQ8RG44463, the free
 //                     personal team, which is enough for local mas-dev builds.
 //                     Set the paid team's ID for the store build.
-//   MAS_APP_ID        Overrides the bundle id, for example
+//   MAS_APP_ID        Overrides the bundle id of a mas-dev build, for example
 //                     com.aarushkandukoori.grayout.mastest for local sandbox
 //                     tests, so they never touch the installed app's Screen
-//                     Recording grant, data container or keychain item.
+//                     Recording grant, data container or keychain item. The
+//                     store build (mas) refuses any other id than the default.
 //   MAS_BUILD         CFBundleVersion, up to three integers. Bump on every upload.
 //   MAS_DEV_IDENTITY  mas-dev signing identity: "-" (ad-hoc, the default) or the
 //                     SHA-1 of an Apple Development certificate of MAS_TEAM_ID,
@@ -42,6 +43,24 @@ const TEAM_ID = fromEnv('MAS_TEAM_ID', DEFAULT_TEAM_ID, /^[A-Z0-9]{10}$/, 'a 10-
 const APP_ID = fromEnv('MAS_APP_ID', base.appId, /^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+){2,}$/, 'a reverse-DNS bundle id');
 const BUILD = fromEnv('MAS_BUILD', '1', /^\d{1,9}(\.\d{1,9}){0,2}$/, 'a CFBundleVersion of up to three integers');
 const DEV_IDENTITY = fromEnv('MAS_DEV_IDENTITY', '-', /^(-|[0-9A-Fa-f]{40})$/, '"-" or a 40-character certificate SHA-1');
+
+/**
+ * True when electron-builder was asked for the store target. It loads this
+ * file in its own CLI process, so the targets are in process.argv: a `mas`
+ * argument (also as `--mac=mas` or `mas:arm64`) is the store build, even next
+ * to `mas-dev`; `mas-dev` alone is not.
+ */
+function buildsStoreTarget(argv = process.argv) {
+  return argv.some(arg => arg.split(/[=,]/).some(t => t.split(':')[0] === 'mas'));
+}
+
+// The store profile is for the default id, and neither osx-sign nor codesign
+// compares it with the bundle id, so a MAS_APP_ID left set from a sandbox test
+// would sign a store pkg that Apple only rejects at upload.
+if (APP_ID !== base.appId && buildsStoreTarget()) {
+  throw new Error(`electron-builder.mas.cjs: MAS_APP_ID=${APP_ID} is for mas-dev test builds only; ` +
+    `the store build (mas) must use ${base.appId}. Unset MAS_APP_ID and build again.`);
+}
 
 /**
  * The app's entitlements, with application-groups set to <team>.<bundle id>.
