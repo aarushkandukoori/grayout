@@ -362,7 +362,8 @@ function registerIpc(ctx) {
       detail: "This deletes Grayout's check history, settings, saved license key and this Mac's device identity, then restarts Grayout as if it were new. " +
         'A subscription stays active: to use it here again, connect it with your license key. This cannot be undone.'
     });
-    if (r.response !== 0) return { ok: false };
+    // Cancel is not a failure: the dashboard says "Nothing was erased."
+    if (r.response !== 0) return { ok: false, cancelled: true };
     log.info('data', "erasing this Mac's Grayout data, then restarting");
     try { loop.pause('erasing Grayout data'); } catch {}
     try { loop.restoreColor(); } catch {}

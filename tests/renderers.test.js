@@ -757,6 +757,7 @@ test.describe('the dashboard, run', () => {
   });
 
   test('erase goes through the main process, which asks first', async () => {
+    // { ok:false, cancelled:true } is what data:erase answers on Cancel (tests/consent.test.js).
     const b = fakeBridge(PRELOAD, { get: () => dashData(), getSettings: () => dashSettings(), eraseData: () => ({ ok: false, cancelled: true }) });
     const { $ } = await runWindow('dashboard', b.api);
     assert.equal($('btn-erase').textContent, "Erase this Mac's Grayout data");
@@ -764,6 +765,19 @@ test.describe('the dashboard, run', () => {
     await settle();
     assert.equal(b.called('eraseData').length, 1);
     assert.equal($('erase-status').textContent, 'Nothing was erased.');
+    assert.equal($('erase-status').classList.contains('status-bad'), false, 'a cancel is not an error');
+  });
+
+  test('a real erase failure still says so', async () => {
+    for (const fail of [() => ({ ok: false }), () => false, () => { throw new Error('EPERM'); }]) {
+      const b = fakeBridge(PRELOAD, { get: () => dashData(), getSettings: () => dashSettings(), eraseData: fail });
+      const { $ } = await runWindow('dashboard', b.api);
+      $('btn-erase').click();
+      await settle();
+      assert.match($('erase-status').textContent, /could not finish erasing/, String(fail));
+      assert.equal($('erase-status').classList.contains('status-bad'), true);
+      assert.equal($('btn-erase').disabled, false, 'the button comes back for another try');
+    }
   });
 
   test('Mac App Store: no update toggle or banner, no key panel, no Terminal fix, license under "Connect an existing subscription"', async () => {

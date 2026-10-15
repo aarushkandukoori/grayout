@@ -239,7 +239,7 @@ describe('data:erase', () => {
     seed();
     dialogs.length = 0; appCalls.length = 0; loopCalls.length = 0;
     dialogAnswer = 1;
-    assert.deepEqual(await invoke('data:erase'), { ok: false });
+    assert.deepEqual(await invoke('data:erase'), { ok: false, cancelled: true }, 'a cancel, which the dashboard reports as "Nothing was erased."');
     assert.equal(dialogs.length, 1);
     assert.equal(dialogs[0].message, "Erase this Mac's Grayout data?");
     assert.deepEqual(dialogs[0].buttons, ['Erase and Restart', 'Cancel']);
