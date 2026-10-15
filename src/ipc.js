@@ -194,7 +194,7 @@ function sanitizeSettings(p) {
  * ctx: { loop, account, getConfig, applyConfig(newCfg), windows, updater,
  *        grayscaleAvailable(), onCameraStatus(s), onOnboardingFinished(),
  *        onConsentGranted() (setup was done: start or resume watching),
- *        forceGrayscaleOff() (data:erase) }
+ *        onConsentRevoked() (close the webcam), forceGrayscaleOff() (data:erase) }
  */
 function registerIpc(ctx) {
   const { loop, getConfig, applyConfig, windows, updater } = ctx;
@@ -557,6 +557,8 @@ function registerIpc(ctx) {
   ipcMain.handle('consent:revoke', async () => {
     consent.revoke();
     log.info('consent', 'screenshots for checks withdrawn');
+    // main.js closes the webcam: no device stays open once consent is gone.
+    try { if (ctx.onConsentRevoked) ctx.onConsentRevoked(); } catch {}
     try { await loop.pause('consent withdrawn'); } catch {}
     return { ok: true, consent: consentPayload() };
   });

@@ -86,6 +86,21 @@ function spentToday() {
   } catch { return { cost: 0, checks: 0 }; }
 }
 
+// The webcam is open only while a check could use it (src/camera.js
+// shouldRun): never before consent, never while paused (setup and the
+// consent wait included), and closed as soon as consent is withdrawn.
+// Cheap and idempotent: create() keeps a window that is already open.
+// `live` is loop.getLive() when the caller already has it.
+function syncCamera(live) {
+  let l = live || null;
+  if (!l) { try { l = loop ? loop.getLive() : null; } catch { l = null; } }
+  let allowed = false;
+  try { allowed = consent.satisfied(); } catch {}
+  try {
+    camera.sync({ camera: !!config && config.camera === true, consent: allowed, running: !!l && l.running === true, paused: !l || l.paused !== false });
+  } catch (e) { log.error('camera', e.message); }
+}
+
 let statusTimer = null;
 function onStatus(live) {
   // Coalesce bursts: the loop reports status several times per tick.
@@ -93,8 +108,11 @@ function onStatus(live) {
   statusTimer = setTimeout(() => {
     statusTimer = null;
     try { if (tray) tray.refresh(); } catch (e) { log.error('tray', e.message); }
+    let live = null;
+    try { live = loop.getLive(); } catch {}
+    // Pause, resume and a timed pause running out all report status here.
+    syncCamera(live);
     try {
-      const live = loop.getLive();
       const self = selfHosted();
       windows.pushLive({ ...live, selfHosted: self, engine: resolveEngine(config), needsKey: self && (live.needsKey || keyMissing()) });
     } catch {}
@@ -123,7 +141,7 @@ function loadConfigWithMigration() {
 
 function applyConfig(next) {
   config = next;
-  if (config.camera) camera.create(); else camera.destroy();
+  syncCamera();
   loop.reload();
   if (updater) { if (config.checkForUpdates) updater.start(); else updater.stop(); }
   onStatus();
@@ -185,6 +203,7 @@ const CONSENT_PAUSE_LINE = 'waiting for your permission to send screenshots';
 // CONSENT_VERSION. The welcome window then shows only the permission card.
 function waitForConsent() {
   loop.pause(CONSENT_PAUSE_LINE);
+  syncCamera();
   windows.openOnboarding();
   onStatus();
 }
@@ -193,8 +212,10 @@ function startWatching() {
   // Nothing is captured or sent before the person allows it (5.1.2(i)), in
   // both editions. The loop checks this on every tick as well.
   if (!consent.satisfied()) { waitForConsent(); return false; }
-  if (config.camera) camera.create();
   loop.start();
+  // Opens the camera now if the loop is not paused; after setup it opens
+  // when resume() below reports status.
+  syncCamera();
   // resume() clears the "setup not finished" pause, bumps the epoch and checks
   // immediately. Without it, finishing onboarding would arm the timer on a loop
   // that is still paused and nothing would ever be checked.
@@ -332,7 +353,10 @@ if (!gotLock) {
         refreshPermState().then(onStatus);
         if (loop.getLive().running) loop.resume();
         else startWatching();
+        syncCamera();
       },
+      // Withdrawn from Settings: close the camera now, not on the next status.
+      onConsentRevoked: () => syncCamera(),
       forceGrayscaleOff: () => grayscale.forceOffSync()
     });
 

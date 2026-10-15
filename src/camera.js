@@ -25,6 +25,23 @@ function destroy() {
   cameraStatus = 'off';
 }
 
+/**
+ * Should the webcam be open right now? Only while a check could use a frame:
+ * the camera option is on, the person has allowed screenshots (src/consent.js)
+ * and the loop is watching, meaning started and not paused for any reason
+ * ('setup not finished' and the consent wait are pauses too).
+ */
+function shouldRun({ camera, consent, running, paused } = {}) {
+  return camera === true && consent === true && running === true && paused === false;
+}
+
+/** Open or close the camera to match shouldRun. Idempotent: create() keeps an open window. */
+function sync(conditions) {
+  const want = shouldRun(conditions);
+  if (want) create(); else destroy();
+  return want;
+}
+
 function setStatus(status) { cameraStatus = status === 'ok' ? 'ok' : status; }
 function getStatus() { return cameraStatus; }
 
@@ -45,4 +62,4 @@ function captureWebcam() {
   });
 }
 
-module.exports = { create, destroy, captureWebcam, setStatus, getStatus };
+module.exports = { create, destroy, shouldRun, sync, captureWebcam, setStatus, getStatus };
