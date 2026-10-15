@@ -1,5 +1,5 @@
 'use strict';
-const { execFile } = require('child_process');
+const childProcess = require('child_process');
 const channel = require('./channel');
 const paths = require('./paths');
 
@@ -10,13 +10,19 @@ const paths = require('./paths');
 //   helper     Mac App Store: `grayout-overlay front`, a one-shot run that
 //              prints {"bundleId","name"} from NSWorkspace (public API)
 // Both report "loginwindow" while the screen is locked; src/loop.js relies on
-// that. Disables itself after repeated failures so we don't spam a broken tool
-// every tick.
+// that. After FAILURE_LIMIT failures in a row it stops asking for RETRY_MS, so
+// a broken tool is not run every tick, then tries again; one success resets
+// it. It never gives up for good, and while it answers null src/loop.js skips
+// any check that a "Never capture" app could be in.
+const FAILURE_LIMIT = 3;
+const RETRY_MS = 60000;
 let failures = 0;
+let retryAt = 0;
+let now = () => Date.now();
 
 function run(file, args) {
   return new Promise((resolve, reject) => {
-    execFile(file, args, { timeout: 5000 }, (err, stdout) => {
+    childProcess.execFile(file, args, { timeout: 5000 }, (err, stdout) => {
       if (err) return reject(err);
       resolve(String(stdout));
     });
@@ -41,17 +47,21 @@ async function viaHelper() {
 }
 
 async function getFrontmostApp() {
-  if (failures >= 3) return null;
+  if (failures >= FAILURE_LIMIT && now() < retryAt) return null;
   try {
     const name = channel.features().frontmostBackend === 'helper' ? await viaHelper() : await viaLsappinfo();
     failures = 0;
+    retryAt = 0;
     return name;
   } catch {
     failures++;
+    // Still failing after a wait counts too: wait again rather than retry every tick.
+    if (failures >= FAILURE_LIMIT) retryAt = now() + RETRY_MS;
     return null;
   }
 }
 
-function _resetFailures() { failures = 0; }
+function _resetFailures() { failures = 0; retryAt = 0; }
+function _setClockForTests(fn) { now = typeof fn === 'function' ? fn : () => Date.now(); }
 
-module.exports = { getFrontmostApp, _resetFailures };
+module.exports = { getFrontmostApp, FAILURE_LIMIT, RETRY_MS, _resetFailures, _setClockForTests };

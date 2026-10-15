@@ -52,8 +52,8 @@
      neither: that reads as the direct build with consent not given yet.
      Elements a build does not use are hidden, never removed. */
 
-  const DIRECT_FEATURES = { updates: true, selfHosting: true, cliEngine: true, tccResetHint: true, manualLicenseEntry: true };
-  const MAS_FEATURES = { updates: false, selfHosting: false, cliEngine: false, tccResetHint: false, manualLicenseEntry: true };
+  const DIRECT_FEATURES = { updates: true, selfHosting: true, cliEngine: true, tccResetHint: true, manualLicenseEntry: true, canvas: true, tasksFile: true };
+  const MAS_FEATURES = { updates: false, selfHosting: false, cliEngine: false, tccResetHint: false, manualLicenseEntry: true, canvas: false, tasksFile: false };
   function channelOf() {
     for (const src of [lastData, settings]) {
       if (src && src.channel && typeof src.channel === 'object') return src.channel;
@@ -659,24 +659,30 @@
 
   /* ---------------- privacy: consent and erase ---------------- */
 
-  const SENT = 'a screenshot of each display (resized), the name of the app in front, your work description and task titles, and one webcam frame if the camera is on';
+  // Task titles come only from Canvas or a tasks file. A build with neither
+  // (the App Store edition) never sends any, so the note never lists them.
+  function sentList() {
+    const work = feature('canvas') || feature('tasksFile') ? 'your work description and task titles' : 'your work description';
+    return `a screenshot of each display (resized), the name of the app in front, ${work}, and one webcam frame if the camera is on`;
+  }
 
   function consentNoteText(p) {
+    const sent = sentList();
     if (p.via === HOSTED.via) {
       // Only OpenAI's API terms are known here: no training on API data, and
       // abuse-monitoring logs kept for up to 30 days.
       const terms = p.name === 'OpenAI'
         ? ' OpenAI does not use them to train its models and may keep them for up to 30 days to check for abuse.'
         : ` ${p.name} handles them under its terms for API data.`;
-      return `Each check sends ${SENT} to the Grayout service. It uses ${p.name}, a third-party AI provider, to decide and keeps none of them.${terms}`;
+      return `Each check sends ${sent} to the Grayout service. It uses ${p.name}, a third-party AI provider, to decide and keeps none of them.${terms}`;
     }
     if (p.via === 'your own API key') {
-      return `Each check sends ${SENT} straight to ${p.name}, a third-party AI provider, with your own API key and under ${p.name}'s terms for API data. None of it goes through the Grayout service.`;
+      return `Each check sends ${sent} straight to ${p.name}, a third-party AI provider, with your own API key and under ${p.name}'s terms for API data. None of it goes through the Grayout service.`;
     }
     if (p.via === 'your Claude CLI login') {
-      return `Each check hands ${SENT} to the Claude CLI, which sends them to ${p.name}, a third-party AI provider, under your Claude CLI login. None of it goes through the Grayout service.`;
+      return `Each check hands ${sent} to the Claude CLI, which sends them to ${p.name}, a third-party AI provider, under your Claude CLI login. None of it goes through the Grayout service.`;
     }
-    return `Each check sends ${SENT} to ${p.name}, a third-party AI provider, through ${p.via}, under ${p.name}'s terms.`;
+    return `Each check sends ${sent} to ${p.name}, a third-party AI provider, through ${p.via}, under ${p.name}'s terms.`;
   }
 
   let consentBusy = false;

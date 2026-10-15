@@ -38,7 +38,7 @@ contextBridge.exposeInMainWorld('grayout', {
   grantConsent: () => invoke('consent:grant'),             // { ok, consent: { granted, at, version, processor } }
   revokeConsent: () => invoke('consent:revoke'),           // { ok, consent }
   // data management
-  eraseData: () => invoke('data:erase'),                   // asks first; on yes deletes Grayout's data and restarts, else { ok:false }
+  eraseData: () => invoke('data:erase'),                   // asks first; on yes deletes Grayout's data and restarts, on Cancel { ok:false, cancelled:true }
   clearHistory: () => invoke('data:clearHistory'),
   revealData: () => invoke('data:reveal'),
   openConfigFile: () => invoke('data:openConfig'),

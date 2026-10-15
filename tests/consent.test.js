@@ -179,6 +179,29 @@ describe('consent:grant / consent:revoke', () => {
     assert.equal(JSON.parse(fs.readFileSync(paths.STATE_PATH, 'utf8')).consent.granted, false);
   });
 
+  test('revoke tells main.js at once (onConsentRevoked closes the webcam), consent already gone', async t => {
+    const seen = [];
+    register({ onConsentRevoked: () => { seen.push({ satisfied: consent.satisfied(), loopCalls: loopCalls.length }); } });
+    t.after(() => register());
+    consent.grant();
+    loopCalls.length = 0;
+    const r = await invoke('consent:revoke');
+    assert.equal(r.ok, true);
+    assert.deepEqual(seen, [{ satisfied: false, loopCalls: 0 }], 'called once, after consent is cleared and before the pause');
+    assert.deepEqual(loopCalls, [{ name: 'pause', args: ['consent withdrawn'] }]);
+  });
+
+  test('a throwing onConsentRevoked never stops the withdrawal', async t => {
+    register({ onConsentRevoked: () => { throw new Error('boom'); } });
+    t.after(() => register());
+    consent.grant();
+    loopCalls.length = 0;
+    const r = await invoke('consent:revoke');
+    assert.equal(r.ok, true);
+    assert.equal(consent.satisfied(), false);
+    assert.deepEqual(loopCalls.map(c => c.name), ['pause']);
+  });
+
   test('the payloads follow along', async () => {
     consent.grant();
     assert.equal(invoke('dash:get').consent.granted, true);
@@ -216,7 +239,7 @@ describe('data:erase', () => {
     seed();
     dialogs.length = 0; appCalls.length = 0; loopCalls.length = 0;
     dialogAnswer = 1;
-    assert.deepEqual(await invoke('data:erase'), { ok: false });
+    assert.deepEqual(await invoke('data:erase'), { ok: false, cancelled: true }, 'a cancel, which the dashboard reports as "Nothing was erased."');
     assert.equal(dialogs.length, 1);
     assert.equal(dialogs[0].message, "Erase this Mac's Grayout data?");
     assert.deepEqual(dialogs[0].buttons, ['Erase and Restart', 'Cancel']);

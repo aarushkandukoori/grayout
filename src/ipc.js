@@ -194,7 +194,7 @@ function sanitizeSettings(p) {
  * ctx: { loop, account, getConfig, applyConfig(newCfg), windows, updater,
  *        grayscaleAvailable(), onCameraStatus(s), onOnboardingFinished(),
  *        onConsentGranted() (setup was done: start or resume watching),
- *        forceGrayscaleOff() (data:erase) }
+ *        onConsentRevoked() (close the webcam), forceGrayscaleOff() (data:erase) }
  */
 function registerIpc(ctx) {
   const { loop, getConfig, applyConfig, windows, updater } = ctx;
@@ -362,7 +362,8 @@ function registerIpc(ctx) {
       detail: "This deletes Grayout's check history, settings, saved license key and this Mac's device identity, then restarts Grayout as if it were new. " +
         'A subscription stays active: to use it here again, connect it with your license key. This cannot be undone.'
     });
-    if (r.response !== 0) return { ok: false };
+    // Cancel is not a failure: the dashboard says "Nothing was erased."
+    if (r.response !== 0) return { ok: false, cancelled: true };
     log.info('data', "erasing this Mac's Grayout data, then restarting");
     try { loop.pause('erasing Grayout data'); } catch {}
     try { loop.restoreColor(); } catch {}
@@ -557,6 +558,8 @@ function registerIpc(ctx) {
   ipcMain.handle('consent:revoke', async () => {
     consent.revoke();
     log.info('consent', 'screenshots for checks withdrawn');
+    // main.js closes the webcam: no device stays open once consent is gone.
+    try { if (ctx.onConsentRevoked) ctx.onConsentRevoked(); } catch {}
     try { await loop.pause('consent withdrawn'); } catch {}
     return { ok: true, consent: consentPayload() };
   });
