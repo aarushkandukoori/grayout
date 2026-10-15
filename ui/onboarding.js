@@ -25,16 +25,52 @@
   let grantedAtBoot = null;
   let loginNoticeShown = false;
   let finishing = false;
+  // Set once at boot: setup was already finished and only consent is missing
+  // or stale (an install from before the consent step, or consent withdrawn).
+  // Then the window is just the consent card.
+  let consentOnlyMode = false;
 
   const show = (el, on) => { el.hidden = !on; };
   const setText = (el, text) => { el.textContent = text == null ? '' : String(text); };
   const money = n => (typeof n === 'number' && Number.isFinite(n)) ? `$${n.toFixed(2)}` : null;
   const swallow = p => Promise.resolve(p).catch(() => undefined);
 
+  /* ---------------- edition + consent ----------------
+     onb:getState carries channel: { name, isMAS, features } (src/channel.js)
+     and consent: { granted, at, version, processor: { name, via } }
+     (src/consent.js). A main process from before either existed sends
+     neither: that reads as the direct build with consent not given yet. */
+
+  const DIRECT_FEATURES = { moveToApplications: true, tccResetHint: true, licenseInOnboarding: true, manualLicenseEntry: true };
+  const MAS_FEATURES = { moveToApplications: false, tccResetHint: false, licenseInOnboarding: false, manualLicenseEntry: true };
+  const isMAS = () => !!(S && S.channel && S.channel.isMAS === true);
+  function feature(name) {
+    const f = S && S.channel && S.channel.features;
+    if (f && typeof f[name] === 'boolean') return f[name];
+    return (isMAS() ? MAS_FEATURES : DIRECT_FEATURES)[name] === true;
+  }
+
+  // Who receives the screenshots for the engine and provider in use. The
+  // hosted service (OpenAI, behind the Grayout service) is the product, so it
+  // is also what an older payload without a processor means.
+  const HOSTED = { name: 'OpenAI', via: 'the Grayout service' };
+  // True only when the main process has no consent bridge at all (older than
+  // the consent step): it then has nothing to record and nothing to gate.
+  let consentLocal = false;
+  function processorOf() {
+    const p = S && S.consent && S.consent.processor;
+    const ok = v => typeof v === 'string' && v.trim().length > 0;
+    return p && ok(p.name) && ok(p.via) ? { name: p.name.trim().slice(0, 40), via: p.via.trim().slice(0, 80) } : HOSTED;
+  }
+  const consentGranted = () => consentLocal || !!(S && S.consent && S.consent.granted === true);
+
   /* ---------------- navigation ---------------- */
 
   function go(n, opts = {}) {
-    const next = Math.min(STEPS, Math.max(1, Number(n) || 1));
+    let next = Math.min(STEPS, Math.max(1, Number(n) || 1));
+    // The consent card comes before everything that could capture anything:
+    // no later step opens until it is given (App Review 5.1.2(i)).
+    if (consentOnlyMode || (next > 1 && !consentGranted())) next = 1;
     if (next !== 2) stopScreenPoll();
     if (next !== 3 && claiming) cancelCheckout();
     step = next;
@@ -56,8 +92,11 @@
   }
 
   function focusPrimary(n) {
+    // Allow and continue never gets the focus by default: consent is a click,
+    // not a stray Return.
     const target = {
-      1: '#btn-1-continue', 2: '#btn-2-continue', 3: '#btn-subscribe', 4: '#work', 5: '#btn-preview'
+      1: consentGranted() && !consentOnlyMode ? '#btn-1-continue' : null,
+      2: '#btn-2-continue', 3: isMAS() ? '#btn-free' : '#btn-subscribe', 4: '#work', 5: '#btn-preview'
     }[n];
     const el = target && document.querySelector(target);
     if (el && !el.disabled) setTimeout(() => el.focus({ preventScroll: true }), 0);
@@ -66,10 +105,126 @@
   /* ---------------- screen 1 ---------------- */
 
   function renderScreen1() {
+    const only = consentOnlyMode;
+    const granted = consentGranted();
     // Running from source has no Applications concept; only a packaged build
-    // that lives outside /Applications gets the bar.
-    const needsMove = !!(S && S.isPackaged && !S.inApplications);
+    // that lives outside /Applications gets the bar. The App Store installs
+    // the app itself, so its build never shows it.
+    const needsMove = !only && feature('moveToApplications') && !!(S && S.isPackaged && !S.inApplications);
     show($('move-bar'), needsMove);
+    show($('intro'), !only);
+    show($('intro-tail'), !only);
+    show($('consent-only-lede'), only);
+    setText($('h1-1'), only ? 'Before Grayout keeps watching' : 'How Grayout works');
+    setText($('consent-title'), only ? 'What leaves your Mac.' : 'Before Grayout starts.');
+    if (only) setText($('progress'), '');
+    renderConsentCopy();
+    const done = granted && !only;
+    show($('consent-granted'), done);
+    setText($('consent-granted'), done ? grantedLine() : '');
+    show($('consent-when'), !done);
+    show($('btn-consent-later'), !granted);
+    show($('btn-consent-allow'), !granted);
+    show($('btn-1-continue'), done);
+  }
+
+  /** The consent sentences for whoever receives the screenshots. */
+  function consentCopy(p) {
+    const name = p.name;
+    if (p.via === HOSTED.via) {
+      // Only OpenAI's API terms are known here: no training on API data, and
+      // abuse-monitoring logs kept for up to 30 days.
+      const terms = name === 'OpenAI'
+        ? 'OpenAI does not use them to train its models and may keep them for up to 30 days to check for abuse.'
+        : `${name} handles them under its terms for API data.`;
+      return {
+        lede: 'To decide whether you are on task, Grayout sends these to the Grayout service at each check:',
+        who: `The Grayout service sends them to ${name}, a third-party AI provider, gets back a one-line verdict, and keeps none of them. ${terms}`
+      };
+    }
+    if (p.via === 'your own API key') {
+      return {
+        lede: `To decide whether you are on task, Grayout sends these straight to ${name}, a third-party AI provider, at each check:`,
+        who: `They go with your own API key, under your account and ${name}'s terms for API data, and never through the Grayout service.`
+      };
+    }
+    if (p.via === 'your Claude CLI login') {
+      return {
+        lede: `To decide whether you are on task, Grayout hands these to the Claude CLI at each check, which sends them to ${name}, a third-party AI provider:`,
+        who: `They go under your Claude CLI login and ${name}'s terms for it, and never through the Grayout service.`
+      };
+    }
+    return {
+      lede: `To decide whether you are on task, Grayout sends these to ${name}, a third-party AI provider, at each check:`,
+      who: `They go through ${p.via}, under ${name}'s terms.`
+    };
+  }
+
+  function renderConsentCopy() {
+    const c = consentCopy(processorOf());
+    setText($('consent-lede'), c.lede);
+    setText($('consent-who'), c.who);
+  }
+
+  function grantedLine() {
+    const t = Date.parse((S && S.consent && S.consent.at) || '');
+    const when = Number.isFinite(t)
+      ? ` on ${new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}`
+      : '';
+    return `You allowed this${when}. You can withdraw it any time in Settings.`;
+  }
+
+  function consentStatus(text, cls) {
+    const el = $('consent-status');
+    el.classList.remove('status-good', 'status-bad');
+    setText(el, text);
+    if (cls) el.classList.add(cls === 'ok' ? 'status-good' : 'status-bad');
+  }
+
+  let consentBusy = false;
+
+  async function allowConsent() {
+    if (consentBusy || consentGranted()) return;
+    consentBusy = true;
+    $('btn-consent-allow').disabled = true;
+    $('btn-consent-later').disabled = true;
+    consentStatus('');
+    let r;
+    if (typeof api.grantConsent === 'function') {
+      try { r = await api.grantConsent(); } catch (e) { r = { ok: false, message: e && e.message }; }
+    } else {
+      consentLocal = true;
+      r = { ok: true };
+    }
+    if (r !== false && !(r && r.ok === false)) {
+      await refreshState();
+      if (!consentGranted()) {
+        // A main process that reports consent but did not record it: say so
+        // rather than walking on as if it had.
+        if (S && S.consent && typeof S.consent === 'object') r = { ok: false };
+        else consentLocal = true;
+      }
+    }
+    consentBusy = false;
+    $('btn-consent-allow').disabled = false;
+    $('btn-consent-later').disabled = false;
+    if (r === false || (r && r.ok === false)) {
+      consentStatus('Grayout could not save your choice, so nothing will be sent. Try again.', 'err');
+      return;
+    }
+    if (consentOnlyMode) {
+      // The main process closes this window and resumes watching.
+      renderScreen1();
+      consentStatus('Thanks. Grayout is watching again.', 'ok');
+      return;
+    }
+    go(2);
+  }
+
+  function declineConsent() {
+    consentStatus(consentOnlyMode
+      ? 'Nothing is captured or sent. Grayout stays paused until you allow this, here or in Settings under Send screenshots for checks.'
+      : 'Nothing is captured or sent. Setup cannot finish without this, because checking your screen is all Grayout does. You can quit Grayout from the menu bar.');
   }
 
   async function moveToApplications() {
@@ -105,6 +260,14 @@
     show($('btn-relaunch'), needsRelaunch);
     show($('relaunch-note'), needsRelaunch);
     show($('stale-box'), stale);
+    // The Terminal fix is for the ad-hoc signed download, whose identity can
+    // change with an update. Store signing keeps the grant, so the App Store
+    // build only says to toggle it.
+    const tcc = feature('tccResetHint');
+    show($('tcc-row'), tcc);
+    show($('tcc-or'), tcc);
+    show($('stale-why'), tcc);
+    show($('tcc-end'), !tcc);
     $('btn-2-continue').disabled = !granted || needsRelaunch;
     $('btn-2-continue').classList.toggle('btn-primary', !needsRelaunch);
     $('btn-2-continue').classList.toggle('btn-secondary', needsRelaunch);
@@ -225,6 +388,17 @@
         ? `This Mac already has a license key${acct.licenseMasked ? ` (${acct.licenseMasked})` : ''}. Continue to use it.`
         : '');
     show($('plan-unavailable'), !cli && !connected());
+    // Mac App Store: the free checks lead and Subscribe follows, so the first
+    // run never reads as a paywall (App Review 2.4.5(vi)), and there is no
+    // license box on this screen at all.
+    const mas = isMAS();
+    $('btn-free').classList.toggle('btn-primary', mas);
+    $('btn-subscribe').classList.toggle('btn-primary', !mas);
+    $('btn-subscribe').classList.toggle('btn-secondary', mas);
+    if (mas) $('plan-group').before($('free-card'));
+    const licenseHere = feature('licenseInOnboarding');
+    show($('license-block'), licenseHere);
+    if (!licenseHere) { show($('license-row'), false); $('license').value = ''; }
     // Without a service there is nothing to choose here, so setup goes on.
     show($('btn-3-continue'), cli || has || !connected());
 
@@ -278,7 +452,9 @@
     if (kind === 'code_expired') return 'That checkout link has expired. If you finished paying, your key arrives by itself the next time you open Settings. If not, press Subscribe to start again.';
     if (kind === 'payment_failed') return 'The payment did not go through, so nothing was charged. Press Subscribe to try again.';
     if (kind === 'checkout_expired') return 'That checkout expired before it was finished. Press Subscribe to start again.';
-    if (kind === 'network') return 'Grayout lost its connection while waiting. If you finished paying, your key arrives by itself the next time you open Settings, or paste it below.';
+    if (kind === 'network') {
+      return `Grayout lost its connection while waiting. If you finished paying, your key arrives by itself the next time you open Settings${feature('licenseInOnboarding') ? ', or paste it below' : ''}.`;
+    }
     const common = commonMessage(r);
     if (common) return common;
     const detail = detailOf(r);
@@ -327,7 +503,11 @@
     if (!r || !r.ok) { syncPlanButtons(); subStatus(checkoutMessage(r), 'err'); return; }
     if (r.opened === false) {
       syncPlanButtons();
-      subStatus('Grayout could not open your browser. Subscribe on the Grayout site instead, then paste the license key below.', 'err');
+      subStatus(feature('licenseInOnboarding')
+        ? 'Grayout could not open your browser. Subscribe on the Grayout site instead, then paste the license key below.'
+        : feature('manualLicenseEntry')
+          ? 'Grayout could not open your browser. Subscribe on the Grayout site instead, then use Connect an existing subscription in Settings under Your plan.'
+          : 'Grayout could not open your browser. Check that macOS has a default browser, then press Subscribe again.', 'err');
       return;
     }
 
@@ -575,6 +755,12 @@
 
   async function finish() {
     if (finishing) return;
+    if (!consentGranted()) {
+      // Never finish setup without the consent card's answer.
+      go(1);
+      consentStatus('Allow Grayout to send screenshots for checks first. Nothing is captured until you do.', 'err');
+      return;
+    }
     finishing = true;
     const btn = $('btn-finish');
     btn.disabled = true;
@@ -594,7 +780,9 @@
   }
 
   $('btn-move').addEventListener('click', moveToApplications);
-  $('btn-1-continue').addEventListener('click', () => go(2));
+  $('btn-consent-allow').addEventListener('click', allowConsent);
+  $('btn-consent-later').addEventListener('click', declineConsent);
+  $('btn-1-continue').addEventListener('click', () => { if (consentGranted()) go(2); });
 
   $('btn-open-screen').addEventListener('click', () => swallow(api.openScreenSettings()));
   $('btn-relaunch').addEventListener('click', relaunch);
@@ -631,12 +819,14 @@
     const tag = t && t.tagName;
     if (tag === 'BUTTON' || tag === 'A' || tag === 'TEXTAREA') return;
     let handled = true;
-    if (step === 1) go(2);
+    // Return never gives consent; it only moves on once consent is given.
+    if (step === 1) { if (consentGranted() && !consentOnlyMode) go(2); else handled = false; }
     else if (step === 2) { if (!$('btn-2-continue').disabled) go(3); else handled = false; }
     else if (step === 3) {
       if (claiming || busy) handled = false;
       else if (!connected()) go(4);
-      else if ($('license').value.trim()) activateLicense();
+      else if (feature('licenseInOnboarding') && $('license').value.trim()) activateLicense();
+      else if (isMAS()) startFree();
       else subscribe();
     }
     else if (step === 4) saveSetup();
@@ -691,7 +881,8 @@
     if (S.tccResetCmd) setText($('tcc-cmd'), S.tccResetCmd);
     $('loading').hidden = true;
     $('screens').hidden = false;
+    consentOnlyMode = S.completed === true && !consentGranted();
     const resume = Number.isInteger(S.step) ? S.step : 1;
-    go(resume, { silent: true });
+    go(consentOnlyMode ? 1 : resume, { silent: true });
   })();
 })();

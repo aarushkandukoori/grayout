@@ -135,6 +135,9 @@
   .hidden { display: none !important; }
   .plan-pick { margin: 0 0 14px; max-width: 520px; }
   #buy-note { margin: 12px 0 0; }
+  #connect-block { margin-top: 12px; }
+  #connect-block .hint { margin: 4px 0 8px; }
+  #privacy-panel .toggle { margin-bottom: 4px; }
   @media (max-width: 640px) {
     .srow, .perm { grid-template-columns: 1fr; }
     .verdict { grid-template-columns: 1fr; gap: 12px; }
@@ -256,7 +259,7 @@
         <div class="label">Webcam</div>
         <div>
           <label class="toggle"><input type="checkbox" id="f-camera"><span class="toggle-track"></span><span class="toggle-text">Also use the webcam to notice a phone in your hand</span></label>
-          <div class="hint">Adds about 15% to the cost. Frames go with the screenshot to the same API, under your key, and are never saved.</div>
+          <div class="hint" id="camera-hint">A frame goes with the screenshot to the Grayout service in the same check. Grayout never saves it.</div>
           <div class="hint" id="camera-note"></div>
         </div>
       </div>
@@ -272,8 +275,11 @@
       <div class="srow">
         <div class="label">Housekeeping</div>
         <div>
-          <label class="toggle"><input type="checkbox" id="f-checkForUpdates"><span class="toggle-track"></span><span class="toggle-text">Check GitHub for a new version once a day</span></label>
-          <div class="hint">Nothing identifying is sent. Updates are never installed on their own.</div>
+          <!-- Hidden, never removed, in the App Store build: BOOL_KEYS reads f-checkForUpdates. -->
+          <div id="row-updates">
+            <label class="toggle"><input type="checkbox" id="f-checkForUpdates"><span class="toggle-track"></span><span class="toggle-text">Check GitHub for a new version once a day</span></label>
+            <div class="hint">Nothing identifying is sent. Updates are never installed on their own.</div>
+          </div>
           <label class="toggle"><input type="checkbox" id="f-pauseWhenLocked"><span class="toggle-track"></span><span class="toggle-text">Pause while the screen is locked</span></label>
         </div>
       </div>
@@ -309,6 +315,22 @@
       </div>
     </form>
 
+    <!-- Consent for the third-party AI (App Review 5.1.2(i) and 5.1.1(ii)):
+         acts at once, not on Save, and is never part of the form. -->
+    <div class="panel" id="privacy-panel">
+      <h2>Privacy</h2>
+      <p class="note" id="consent-note">Each check sends a screenshot of each display (resized), the name of the app in front, your work description and task titles, and one webcam frame if the camera is on, to the Grayout service. It uses OpenAI to decide and keeps none of them. OpenAI does not use them to train its models and may keep them for up to 30 days to check for abuse.</p>
+      <label class="toggle"><input type="checkbox" id="f-consent"><span class="toggle-track"></span><span class="toggle-text">Send screenshots for checks
+        <div class="hint" id="consent-hint">Off means nothing is captured or sent, and Grayout stays paused until you turn it back on.</div></span></label>
+      <div class="status" id="consent-msg" role="status" aria-live="polite"></div>
+      <div class="actions">
+        <button type="button" id="btn-erase" class="btn">Erase this Mac's Grayout data</button>
+        <span id="erase-status" class="status" role="status" aria-live="polite"></span>
+      </div>
+      <p class="hint" id="erase-note">Deletes the history, stats, settings, and the license key and device identity saved on this Mac, then restarts Grayout. Grayout asks before it erases anything. It does not cancel a subscription: to stop paying, use Manage subscription first.</p>
+      <button type="button" class="link" id="btn-privacy-page">Read the full privacy page</button>
+    </div>
+
     <div class="panel" id="account-panel">
       <h2>Your plan</h2>
       <p class="note" id="account-line">Loading</p>
@@ -332,6 +354,13 @@
         <button type="button" id="btn-restore-key" class="link">Restore my key</button>
         <button type="button" id="btn-cancel-claim" class="link hidden">Cancel</button>
         <span id="account-msg" class="status"></span>
+      </div>
+      <!-- App Store build only: the license field, optional and collapsed
+           (App Review 3.1.1, 2.4.5(vi)). Hidden entirely when
+           features.manualLicenseEntry is false. -->
+      <div class="hidden" id="connect-block">
+        <button type="button" id="btn-connect-sub" class="link" aria-expanded="false" aria-controls="license-row">Connect an existing subscription</button>
+        <p class="hint" id="connect-note">Optional. Already subscribed on the website or on another Mac? Paste the key from your purchase page and this Mac uses that subscription, so you never pay twice.</p>
       </div>
       <p class="note hidden" id="buy-note">Bought Grayout on the website? Paste the key from the purchase page below instead of subscribing again, so you are only charged once.</p>
       <div class="field-row" id="license-row">
@@ -376,7 +405,7 @@
         <div class="label">Login item</div>
         <div class="val"><span id="perm-login" class="pill">checking</span><button type="button" id="btn-perm-login" class="link">Open Login Items settings</button></div>
       </div>
-      <div class="cmd">
+      <div class="cmd" id="tcc-row">
         <span class="muted">Captures look blank after an update? Paste this in Terminal, then allow Grayout again:</span>
         <code id="tcc-cmd"></code>
         <button type="button" id="btn-tcc-copy" class="btn btn-sm">Copy</button>
@@ -385,7 +414,7 @@
 
     <div class="panel" id="adv-panel">
       <h2>Advanced</h2>
-      <p class="note">Everything else lives in config.json: the model, Canvas, a tasks file, the daily cap, timing. Grayout reloads it a couple of seconds after you save the file.</p>
+      <p class="note" id="adv-note">Everything else lives in config.json: the model, Canvas, a tasks file, the daily cap, timing. Grayout reloads it a couple of seconds after you save the file.</p>
       <div class="actions" style="padding-top:0">
         <button type="button" id="btn-open-config" class="btn">Open config.json</button>
         <button type="button" id="btn-reveal" class="btn">Reveal data folder</button>

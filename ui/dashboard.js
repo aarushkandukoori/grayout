@@ -45,6 +45,46 @@
   }
   function show(el, on) { el.classList.toggle('hidden', !on); }
 
+  /* ---------------- edition + consent ----------------
+     dash:get and settings:get carry channel: { name, isMAS, features }
+     (src/channel.js) and consent: { granted, at, version, processor }
+     (src/consent.js). A main process from before either existed sends
+     neither: that reads as the direct build with consent not given yet.
+     Elements a build does not use are hidden, never removed. */
+
+  const DIRECT_FEATURES = { updates: true, selfHosting: true, cliEngine: true, tccResetHint: true, manualLicenseEntry: true };
+  const MAS_FEATURES = { updates: false, selfHosting: false, cliEngine: false, tccResetHint: false, manualLicenseEntry: true };
+  function channelOf() {
+    for (const src of [lastData, settings]) {
+      if (src && src.channel && typeof src.channel === 'object') return src.channel;
+    }
+    return null;
+  }
+  const isMAS = () => { const c = channelOf(); return !!(c && c.isMAS === true); };
+  function feature(name) {
+    const c = channelOf();
+    const f = c && c.features;
+    if (f && typeof f[name] === 'boolean') return f[name];
+    return (isMAS() ? MAS_FEATURES : DIRECT_FEATURES)[name] === true;
+  }
+
+  /** The consent record, or null when the main process sends none. */
+  function consentOf() {
+    for (const src of [lastData, settings]) {
+      if (src && src.consent && typeof src.consent === 'object') return src.consent;
+    }
+    return null;
+  }
+  // Who receives the screenshots for the engine and provider in use. The
+  // hosted service (OpenAI, behind the Grayout service) is the product.
+  const HOSTED = { name: 'OpenAI', via: 'the Grayout service' };
+  function processorOf() {
+    const c = consentOf();
+    const p = c && c.processor;
+    const ok = v => typeof v === 'string' && v.trim().length > 0;
+    return p && ok(p.name) && ok(p.via) ? { name: p.name.trim().slice(0, 40), via: p.via.trim().slice(0, 80) } : HOSTED;
+  }
+
   const hhmm = ts => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
   const dur = m => m < 90 ? `${m} min` : `${Math.floor(m / 60)}h ${m % 60}m`;
   const money = (v, digits = 2) => (typeof v === 'number' && Number.isFinite(v)) ? `$${v.toFixed(digits)}` : 'n/a';
@@ -113,7 +153,17 @@
     const live = d.live || {};
     const who = providerOf(d.config);
     const out = [];
+    // The App Store build has no model key and no Claude CLI, so none of
+    // their banners can apply there.
+    const ownModel = feature('selfHosting') || feature('cliEngine');
 
+    // Consent comes first: without it nothing else on this page can happen.
+    const consent = d.consent && typeof d.consent === 'object' ? d.consent : null;
+    if (consent && consent.granted !== true) {
+      out.push(h('div', { class: 'banner banner-warn' },
+        h('span', { class: 'grow' }, 'Grayout is not sending screenshots, so nothing is being checked. Turn on Send screenshots for checks under Privacy to start again.'),
+        h('button', { class: 'btn btn-primary', type: 'button', onclick: () => goToPrivacy() }, 'Review')));
+    }
     if (live.needsScreenPermission) {
       out.push(h('div', { class: 'banner banner-bad' },
         h('span', { class: 'grow' }, "Grayout can't see your screen, so nothing is being checked and nothing is being spent. Allow Screen Recording for Grayout, then recheck. If recheck does not clear this, quit and reopen Grayout: macOS applies the permission only on a fresh launch."),
@@ -127,7 +177,7 @@
         h('span', { class: 'grow' }, live.lastLine || 'Grayout needs an active subscription to keep checking.'),
         h('button', { class: 'btn btn-primary', type: 'button', onclick: () => goToAccount() }, 'Open plan')));
     }
-    if (live.needsKey && !live.needsSubscription && !live.needsScreenPermission && !live.configInvalid) {
+    if (feature('selfHosting') && live.needsKey && !live.needsSubscription && !live.needsScreenPermission && !live.configInvalid) {
       const rejected = live.errorKind === 'key_rejected';
       out.push(h('div', { class: 'banner banner-warn' },
         h('span', { class: 'grow' }, rejected
@@ -140,7 +190,7 @@
         h('span', { class: 'grow' }, "config.json has a JSON error, so checks are paused and settings can't be saved. Fix the file; Grayout reloads it on its own."),
         h('button', { class: 'btn', type: 'button', onclick: () => api.openConfigFile() }, 'Open config.json')));
     }
-    if (live.errorKind === 'cli_auth' && !live.needsScreenPermission) {
+    if (feature('cliEngine') && live.errorKind === 'cli_auth' && !live.needsScreenPermission) {
       // How to log back in depends on the binary: a wrapper has its own way.
       const login = live.cliLogin && typeof live.cliLogin.text === 'string' ? live.cliLogin : { command: 'claude auth login', text: 'run claude auth login in Terminal' };
       const fix = login.text.charAt(0).toUpperCase() + login.text.slice(1);
@@ -148,24 +198,25 @@
         h('span', { class: 'grow' }, `The Claude CLI is not logged in, so checks are paused. ${fix}, then press Check now.`),
         ...(login.command ? [h('button', { class: 'btn', type: 'button', onclick: () => api.copyText(login.command) }, 'Copy command')] : [])));
     }
-    if (live.errorKind === 'cli_missing' && !live.needsScreenPermission) {
+    if (feature('cliEngine') && live.errorKind === 'cli_missing' && !live.needsScreenPermission) {
       out.push(h('div', { class: 'banner banner-bad' },
         h('span', { class: 'grow' }, "Grayout can't find the Claude CLI, so checks are paused. Install Claude Code, or set cliPath in config.json to the full path of claude."),
         h('button', { class: 'btn', type: 'button', onclick: () => api.openConfigFile() }, 'Open config.json')));
     }
-    if (live.errorKind === 'no_credit') {
+    if (ownModel && live.errorKind === 'no_credit') {
       out.push(h('div', { class: 'banner banner-bad' },
         h('span', { class: 'grow' }, `Your ${who.label} account has no credit, so checks are paused.`),
         h('button', { class: 'btn', type: 'button', onclick: () => api.openExternal(BILLING_URL[who.id]) }, `Open ${who.label} billing`)));
     }
-    if (live.errorKind === 'bad_model') {
+    if (ownModel && live.errorKind === 'bad_model') {
       out.push(h('div', { class: 'banner banner-bad' },
         h('span', { class: 'grow' }, who.cli
           ? `Your Claude account can't use ${who.model || 'the configured model'} through the CLI. Set model in config.json.`
           : `This ${who.label} account can't use ${who.model || 'the configured model'}. Try a different key or set model in config.json.`),
         h('button', { class: 'btn', type: 'button', onclick: () => api.openConfigFile() }, 'Open config.json')));
     }
-    if (d.update && d.update.url) {
+    // App Store updates come from the App Store only (App Review 2.4.5(vii)).
+    if (feature('updates') && d.update && d.update.url) {
       const v = d.update.version || d.update.tag || '';
       out.push(h('div', { class: 'banner' },
         h('span', { class: 'grow' }, `Grayout ${v ? 'v' + String(v).replace(/^v/, '') : 'update'} is available.`),
@@ -375,11 +426,15 @@
     $('footer-kept').textContent = cfg.historyDays ? `(kept ${cfg.historyDays} days).` : '';
     if (d.version) $('version-line').textContent = `Grayout ${d.version}`;
     renderAccount(d);
+    renderPrivacy();
     if (!keyEditing()) renderKeyCurrent(d.hasKey, d.keyMasked, d.config);
 
     if (s.empty || !s.checks) {
+      const consent = d.consent && typeof d.consent === 'object' ? d.consent : null;
       $('pct').textContent = '–';
-      $('headline').textContent = d.live && d.live.needsSubscription
+      $('headline').textContent = consent && consent.granted !== true
+        ? 'No checks while screenshots are off. Turn them on under Privacy below.'
+        : d.live && d.live.needsSubscription
         ? 'No checks yet. Sort out the plan below to start.'
         : d.live && d.live.needsKey
           ? 'No checks yet. Add a model key below to start.'
@@ -574,6 +629,9 @@
       $('perm-login').className = permClass('login', li.status);
     }
     if (tcc) $('tcc-cmd').textContent = tcc;
+    // The Terminal fix is for the ad-hoc signed download. Store signing keeps
+    // the grant across updates, so the App Store build never shows it.
+    show($('tcc-row'), feature('tccResetHint') && !!$('tcc-cmd').textContent);
   }
 
   function renderCameraNote(status) {
@@ -588,6 +646,100 @@
     } else {
       n.textContent = '';
     }
+  }
+
+  /** Where the optional webcam frame goes, for the engine in use. */
+  function renderCameraHint() {
+    $('camera-hint').textContent = !selfHosted()
+      ? 'A frame goes with the screenshot to the Grayout service in the same check. Grayout never saves it.'
+      : usesCli()
+        ? 'A frame goes with the screenshot through the Claude CLI in the same check. Grayout never saves it.'
+        : 'Adds about 15% to the cost. A frame goes with the screenshot to the same API, under your key. Grayout never saves it.';
+  }
+
+  /* ---------------- privacy: consent and erase ---------------- */
+
+  const SENT = 'a screenshot of each display (resized), the name of the app in front, your work description and task titles, and one webcam frame if the camera is on';
+
+  function consentNoteText(p) {
+    if (p.via === HOSTED.via) {
+      // Only OpenAI's API terms are known here: no training on API data, and
+      // abuse-monitoring logs kept for up to 30 days.
+      const terms = p.name === 'OpenAI'
+        ? ' OpenAI does not use them to train its models and may keep them for up to 30 days to check for abuse.'
+        : ` ${p.name} handles them under its terms for API data.`;
+      return `Each check sends ${SENT} to the Grayout service. It uses ${p.name}, a third-party AI provider, to decide and keeps none of them.${terms}`;
+    }
+    if (p.via === 'your own API key') {
+      return `Each check sends ${SENT} straight to ${p.name}, a third-party AI provider, with your own API key and under ${p.name}'s terms for API data. None of it goes through the Grayout service.`;
+    }
+    if (p.via === 'your Claude CLI login') {
+      return `Each check hands ${SENT} to the Claude CLI, which sends them to ${p.name}, a third-party AI provider, under your Claude CLI login. None of it goes through the Grayout service.`;
+    }
+    return `Each check sends ${SENT} to ${p.name}, a third-party AI provider, through ${p.via}, under ${p.name}'s terms.`;
+  }
+
+  let consentBusy = false;
+
+  function renderPrivacy() {
+    $('consent-note').textContent = consentNoteText(processorOf());
+    if (consentBusy) return;
+    const c = consentOf();
+    $('f-consent').checked = !!(c && c.granted === true);
+  }
+
+  // Acts at once: withdrawing consent pauses every check right away
+  // (App Review 5.1.1(ii)), and turning it on is the same explicit grant the
+  // welcome window asks for, with the same disclosure right above it.
+  async function onConsentToggle(ev) {
+    const t = ev.currentTarget;
+    const on = t.checked;
+    const supported = on ? typeof api.grantConsent === 'function' : typeof api.revokeConsent === 'function';
+    if (!supported) {
+      t.checked = !on;
+      setMsg('consent-msg', 'This version of Grayout cannot change this yet.', 'err');
+      return;
+    }
+    consentBusy = true;
+    t.disabled = true;
+    setMsg('consent-msg', on ? 'Turning checks on…' : 'Stopping checks…');
+    let r;
+    try { r = on ? await api.grantConsent() : await api.revokeConsent(); } catch (e) { r = { ok: false, message: e && e.message }; }
+    consentBusy = false;
+    t.disabled = false;
+    if (r === false || (r && r.ok === false)) {
+      t.checked = !on;
+      setMsg('consent-msg', on
+        ? 'Grayout could not save your choice, so nothing is sent. Try again.'
+        : 'Grayout could not save your choice. Pause Grayout from the menu bar to stop checks right now, then try again.', 'err');
+      return;
+    }
+    setMsg('consent-msg', on
+      ? 'On. Grayout can send screenshots for checks again.'
+      : 'Off. Nothing is captured or sent until you turn this back on.', 'ok');
+    await refresh();
+    loadSettings(false);
+  }
+
+  async function eraseData() {
+    const b = $('btn-erase');
+    if (b.disabled) return;
+    if (typeof api.eraseData !== 'function') {
+      setMsg('erase-status', 'This version of Grayout cannot erase its data from here yet.', 'err');
+      return;
+    }
+    b.disabled = true;
+    setMsg('erase-status', '');
+    let r;
+    // The main process asks for confirmation first, then erases and restarts.
+    try { r = await api.eraseData(); } catch (e) { r = { ok: false, message: e && e.message }; }
+    b.disabled = false;
+    if (r && r.ok === false && (r.cancelled || r.canceled)) { flash($('erase-status'), 'Nothing was erased.'); return; }
+    if (r === false || (r && r.ok === false)) {
+      setMsg('erase-status', 'Grayout could not finish erasing. Try again, or use Reveal data folder under Advanced.', 'err');
+      return;
+    }
+    setMsg('erase-status', 'Erased. Grayout is restarting.', 'ok');
   }
 
   function keyEditing() { return document.activeElement === $('f-key') || $('f-key').value.length > 0; }
@@ -628,8 +780,16 @@
     renderLogin(st.loginItem);
     renderPermissions(st.permissions, st.loginItem, st.tccResetCmd);
     renderAccount(st);
-    show($('key-panel'), st.selfHosted !== false);
+    renderPrivacy();
+    show($('key-panel'), st.selfHosted !== false && feature('selfHosting'));
     renderKeyCurrent(st.hasKey, st.keyMasked, st.estimates);
+    show($('row-updates'), feature('updates'));
+    renderCameraHint();
+    if (isMAS()) {
+      // Canvas, a tasks file and the model are off in the App Store build, so
+      // the note never points at settings that do nothing there.
+      $('adv-note').textContent = 'A few more options, such as the daily cap and timing, live in config.json. Grayout reloads it a couple of seconds after you save the file.';
+    }
     $('consequence-note').textContent = (!cfg.grayscale && !cfg.redFlash)
       ? 'Both off: Grayout will only log what it sees.' : '';
     if (st.secureStorage === false) {
@@ -838,6 +998,7 @@
 
   let claiming = false;   // a browser checkout is open and /v1/claim is polling
   let acctBusy = false;
+  let connectOpen = false; // App Store build: "Connect an existing subscription" expanded
 
   const commas = n => (Number.isFinite(n) ? n.toLocaleString('en-US') : '–');
   const MANAGE = 'You can also manage it at link.com, where this purchase is listed as Sold through Link.';
@@ -934,14 +1095,31 @@
     const canSubscribe = connected && !serving && !pastDue && !revoked && !keyMissing && !a.secretsLocked;
     show($('btn-subscribe'), canSubscribe);
     show($('plan-pick'), canSubscribe);
-    show($('buy-note'), canSubscribe && !a.hasLicense);
+    show($('buy-note'), canSubscribe && !a.hasLicense && !isMAS());
     renderPlanChoices(d);
     // A refunded or disputed key has nothing left to manage.
     show($('btn-manage'), connected && !!a.hasLicense && !revoked);
     // The account panel's own button. The header's "Restore color" is a
     // different button (#btn-restore) and is never hidden or disabled here.
     show($('btn-restore-key'), connected && !a.hasLicense && !revoked);
-    show($('license-row'), connected && (!a.hasLicense || !serving));
+    // The license field. Direct build: as it always was. App Store build:
+    // optional and collapsed under "Connect an existing subscription", and
+    // gone entirely when features.manualLicenseEntry is false.
+    const wantLicense = connected && (!a.hasLicense || !serving);
+    if (isMAS()) {
+      $('f-license').setAttribute('placeholder', 'Key from your purchase page');
+      $('f-license').setAttribute('aria-label', 'Key of an existing Grayout subscription');
+      const can = wantLicense && feature('manualLicenseEntry');
+      // Opens by itself when pasting a key is the way out the sentence names.
+      const asked = !!a.secretsLocked || a.problem === 'no_license' || a.problem === 'license_invalid';
+      const open = can && (connectOpen || asked);
+      show($('connect-block'), can);
+      show($('license-row'), open);
+      $('btn-connect-sub').setAttribute('aria-expanded', open ? 'true' : 'false');
+    } else {
+      show($('connect-block'), false);
+      show($('license-row'), wantLicense);
+    }
     show($('btn-link'), connected);
     show($('billing-note'), connected);
     // The website buys with a browser device that is never attached to this
@@ -1067,7 +1245,11 @@
     if (!r || !r.ok) { syncAccountButtons(); acctMsg(commonMessage(r) || acctDetail(r) || 'Checkout did not start. Try again.', 'err'); return; }
     if (r.opened === false) {
       syncAccountButtons();
-      acctMsg('Grayout could not open your browser. Subscribe on the Grayout site, then paste the license key here.', 'err');
+      acctMsg(!isMAS()
+        ? 'Grayout could not open your browser. Subscribe on the Grayout site, then paste the license key here.'
+        : feature('manualLicenseEntry')
+          ? 'Grayout could not open your browser. Subscribe on the Grayout site, then use Connect an existing subscription below.'
+          : 'Grayout could not open your browser. Check that macOS has a default browser, then press Subscribe again.', 'err');
       return;
     }
     claiming = true;
@@ -1126,7 +1308,11 @@
         return;
       }
       if (r && r.ok) {
-        acctMsg('The service has no subscription on file for this Mac. If you bought Grayout on the website, paste the key from the purchase page below.', 'err');
+        acctMsg(!isMAS()
+          ? 'The service has no subscription on file for this Mac. If you bought Grayout on the website, paste the key from the purchase page below.'
+          : feature('manualLicenseEntry')
+            ? 'The service has no subscription on file for this Mac. If you subscribed on the website or on another Mac, use Connect an existing subscription below.'
+            : 'The service has no subscription on file for this Mac.', 'err');
         return;
       }
       acctMsg(commonMessage(r) || acctDetail(r) || 'Could not ask the service. Try again in a moment.', 'err');
@@ -1158,6 +1344,12 @@
       acctMsg(kind === 'license_invalid'
         ? 'That license key is not one Grayout issued. Check it for missing characters.'
         : (commonMessage(r) || acctDetail(r) || 'That key could not be activated.'), 'err');
+    });
+    $('btn-connect-sub').addEventListener('click', () => {
+      connectOpen = !connectOpen;
+      const d = lastData || settings;
+      if (d) renderAccount(d);
+      if (connectOpen && !$('license-row').classList.contains('hidden')) $('f-license').focus();
     });
     $('btn-link').addEventListener('click', () => api.openExternal('https://link.com'));
     $('btn-plans').addEventListener('click', () => api.openExternal('https://aarushkandukoori.github.io/grayout/pricing.html'));
@@ -1265,6 +1457,10 @@
       setTimeout(() => { b.textContent = 'Copy'; }, 1500);
     });
 
+    $('f-consent').addEventListener('change', onConsentToggle);
+    $('btn-erase').addEventListener('click', eraseData);
+    $('btn-privacy-page').addEventListener('click', () => api.openExternal('https://aarushkandukoori.github.io/grayout/privacy.html'));
+
     $('btn-open-config').addEventListener('click', () => api.openConfigFile());
     $('btn-reveal').addEventListener('click', () => api.revealData());
     $('btn-clear').addEventListener('click', async () => {
@@ -1288,6 +1484,12 @@
     });
   }
 
+  function goToPrivacy() {
+    loadSettings(false).then(() => {
+      $('privacy-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+
   function goToAccount() {
     loadSettings(false).then(() => {
       $('account-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1298,6 +1500,7 @@
     if (section === 'settings') goToSettings(false);
     else if (section === 'key') goToSettings(true);
     else if (section === 'account') goToAccount();
+    else if (section === 'privacy') goToPrivacy();
     else window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 

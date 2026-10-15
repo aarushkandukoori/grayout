@@ -31,9 +31,12 @@
   .actions .btn-primary { min-width: 120px; justify-content: center; }
   .actions-note { font-size: 12px; color: var(--muted); }
 
-  /* screen 1 */
-  .privacy { margin-top: 10px; }
-  .privacy p { margin-bottom: 4px; }
+  /* screen 1: how it works + the third-party AI consent (App Review 5.1.2(i)) */
+  .consent { margin-top: 10px; }
+  .consent p { margin-bottom: 6px; }
+  .consent-list { margin: 4px 0 8px 20px; padding: 0; }
+  .consent-list li { margin: 2px 0; }
+  #consent-status { margin-top: 8px; }
   #move-bar { margin-top: 12px; }
 
   /* screen 2 */
@@ -72,19 +75,34 @@
 <main id="screens" hidden>
 
   <!-- ============ 1 of 5 ============ -->
+  <!-- Also the whole window when setup is done but consent is missing or stale
+       (onb:getState: completed && !consent.granted): then only the consent card
+       shows. Nothing is captured or sent before "Allow and continue". -->
   <section class="screen" data-step="1" aria-labelledby="h1-1">
     <div class="body">
       <h1 id="h1-1">How Grayout works</h1>
-      <p>Every 45 seconds, Grayout looks at your screen and asks one question: is this person clearly not working?</p>
-      <p>Two yeses in a row, and your whole Mac goes gray with a red border.</p>
-      <p>Color comes back the moment you get back to work.</p>
+      <div id="intro">
+        <p>Every 45 seconds, Grayout looks at your screen and asks one question: is this person clearly not working?</p>
+        <p>Two yeses in a row, and your whole Mac goes gray with a red border. Color comes back the moment you get back to work.</p>
+      </div>
+      <p class="lede" id="consent-only-lede" hidden>Grayout needs your OK before it checks your screen again. Nothing is captured or sent until you choose.</p>
 
-      <div class="privacy card">
-        <p><strong>What leaves your Mac.</strong> A screenshot of each display, resized, goes to the Grayout service, which asks the model and sends back a yes or a no. Screenshots are deleted from this Mac right after each check and are never stored by the service. There is no analytics and no tracking.</p>
+      <div class="consent card" id="consent-card" role="group" aria-labelledby="consent-title">
+        <p><strong id="consent-title">Before Grayout starts.</strong> <span id="consent-lede">To decide whether you are on task, Grayout sends these to the Grayout service at each check:</span></p>
+        <ul class="consent-list">
+          <li>a screenshot of each display, resized</li>
+          <li>the name of the app in front</li>
+          <li>your work description and task titles, if you add them</li>
+          <li>one webcam frame, only if you turn the camera on</li>
+        </ul>
+        <p id="consent-who">The Grayout service sends them to OpenAI, a third-party AI provider, gets back a one-line verdict, and keeps none of them. OpenAI does not use them to train its models and may keep them for up to 30 days to check for abuse.</p>
+        <p id="consent-when">Nothing is captured or sent until you choose Allow and continue. You can stop it any time in Settings (Send screenshots for checks), or by pausing or quitting Grayout.</p>
+        <p class="status status-good small" id="consent-granted" hidden></p>
         <a href="#" class="link" data-external="https://aarushkandukoori.github.io/grayout/privacy.html">Read the full privacy page</a>
       </div>
+      <div class="status small" id="consent-status" role="status" aria-live="polite"></div>
 
-      <p class="block">It never blocks, closes, or locks anything. Quit is one click in the menu bar.</p>
+      <p class="block" id="intro-tail">Screenshots are deleted from this Mac right after each check. There is no analytics and no tracking. Grayout never blocks, closes, or locks anything, and Quit is one click in the menu bar.</p>
 
       <div id="move-bar" class="banner banner-warn" hidden>
         <span class="grow">Grayout needs to live in your Applications folder to remember its permissions and to start at login.</span>
@@ -94,7 +112,9 @@
     </div>
     <div class="actions">
       <span class="grow"></span>
-      <button type="button" class="btn btn-primary" id="btn-1-continue">Continue</button>
+      <button type="button" class="btn" id="btn-consent-later">Not now</button>
+      <button type="button" class="btn btn-primary" id="btn-consent-allow">Allow and continue</button>
+      <button type="button" class="btn btn-primary" id="btn-1-continue" hidden>Continue</button>
     </div>
   </section>
 
@@ -123,8 +143,8 @@
       </ol>
 
       <div class="card block" id="stale-box" hidden>
-        <p>macOS thinks Grayout is allowed, but captures come back empty. This happens after an update. Fix: turn Grayout off and on in the list, or paste this in Terminal:</p>
-        <div class="cmd">
+        <p>macOS thinks Grayout is allowed, but captures come back empty.<span id="stale-why"> This happens after an update.</span> Fix: turn Grayout off and on in the list<span id="tcc-or">, or paste this in Terminal:</span><span id="tcc-end" hidden>, then come back here.</span></p>
+        <div class="cmd" id="tcc-row">
           <code id="tcc-cmd" class="selectable">tccutil reset ScreenCapture com.aarushkandukoori.grayout</code>
           <button type="button" class="btn btn-sm" id="btn-copy-tcc">Copy</button>
         </div>
@@ -149,7 +169,7 @@
         <p>This build of Grayout is not connected to the Grayout service yet, so subscriptions and free checks are not available in it. You can finish setup now. Nothing is captured or sent until a connected version is installed.</p>
       </div>
 
-      <div class="block" role="radiogroup" aria-labelledby="h1-3">
+      <div class="block" id="plan-group" role="radiogroup" aria-labelledby="h1-3">
         <label class="radio-row">
           <input type="radio" name="plan" value="monthly" checked>
           <span class="radio-text"><b>Monthly</b> &mdash; <span id="price-monthly">$9.99 a month</span>
@@ -173,12 +193,13 @@
 
       <div class="status block-tight" id="sub-status" role="status" aria-live="polite"></div>
 
-      <div class="card block free-card">
+      <div class="card block free-card" id="free-card">
         <button type="button" class="btn" id="btn-free">Try 100 checks free</button>
         <div class="hint" id="free-note">100 checks on this Mac. No card, no account, no sign-in.</div>
       </div>
 
-      <div class="block-tight">
+      <!-- Never in the Mac App Store build (features.licenseInOnboarding). -->
+      <div class="block-tight" id="license-block">
         <button type="button" class="link link-small" id="btn-have-key" aria-expanded="false" aria-controls="license-row">Bought Grayout on the website, or already have a license key? Paste it here</button>
         <div class="field-row block-tight" id="license-row" hidden>
           <input class="field mono" type="text" id="license" placeholder="gry_live_&hellip;" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" aria-label="Grayout license key">
@@ -221,7 +242,7 @@
           <input type="checkbox" id="camera">
           <span class="toggle-track"></span>
           <span class="toggle-text">Also use the webcam to notice a phone in your hand
-            <div class="hint">A frame goes with the screenshot in the same check, and is never saved.</div>
+            <div class="hint">A frame goes with the screenshot in the same check. Grayout never saves it.</div>
             <div class="status small" id="camera-status" aria-live="polite"></div>
           </span>
         </label>
