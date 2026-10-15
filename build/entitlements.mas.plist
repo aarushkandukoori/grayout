@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Mac App Store build, main app (Grayout.app itself).
+  - app-sandbox: mandatory on the Mac App Store.
+  - application-groups: must be "<ElectronTeamID>.<CFBundleIdentifier>".
+    Electron's MAS build registers its Mach rendezvous port under that name and
+    aborts at launch without it (tested 2026-10-15). This file holds the
+    default pair; electron-builder.mas.cjs writes a temp copy for any other
+    MAS_TEAM_ID / MAS_APP_ID. After enrolling, replace JQ8RG44463 here with the
+    paid team ID, or set MAS_TEAM_ID.
+  - network.client: the Grayout service (HTTPS).
+  - device.camera: the optional phone check, off until the user turns it on.
+  No JIT or library-validation entitlements: hardened runtime is off for MAS.
+  No files.user-selected: Grayout opens no file dialogs.
+  application-identifier and team-identifier are added by electron-builder
+  (preAutoEntitlements) for the store build only, never for mas-dev.
+-->
+<plist version="1.0">
+<dict>
+  <key>com.apple.security.app-sandbox</key>
+  <true/>
+  <key>com.apple.security.application-groups</key>
+  <array>
+    <string>JQ8RG44463.com.aarushkandukoori.grayout</string>
+  </array>
+  <key>com.apple.security.network.client</key>
+  <true/>
+  <key>com.apple.security.device.camera</key>
+  <true/>
+</dict>
+</plist>

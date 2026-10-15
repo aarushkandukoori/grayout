@@ -21,12 +21,15 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test 'tests/**/*.test.js'",
-    "check": "for f in main.js src/*.js ui/*.js ui/preload/*.js build/afterSign.js scripts/*.js; do node --check \"$f\" || exit 1; done",
+    "check": "for f in main.js src/*.js ui/*.js ui/preload/*.js build/afterSign.js scripts/*.js electron-builder.mas.cjs; do node --check \"$f\" || exit 1; done",
     "helper": "bash scripts/build-helper.sh",
     "icons": "bash scripts/make-icons.sh",
     "pack": "npm run helper && electron-builder --mac dir --arm64 --publish never",
     "dist": "npm run helper && electron-builder --mac dmg --arm64 --x64 --publish never",
     "verify:dmg": "bash scripts/verify-dmg.sh",
+    "mas:dev": "npm run helper && electron-builder --config electron-builder.mas.cjs --mac mas-dev --arm64 --publish never && bash scripts/verify-mas.sh dist/mas-dev-arm64/Grayout.app",
+    "mas": "npm run helper && electron-builder --config electron-builder.mas.cjs --mac mas --arm64 --publish never && bash scripts/verify-mas.sh dist/mas-arm64/Grayout.app \"dist/mas-arm64/Grayout-$npm_package_version-mas.pkg\"",
+    "verify:mas": "bash scripts/verify-mas.sh",
     "smoke:api": "node scripts/smoke-api.js"
   },
   "devDependencies": {
@@ -82,9 +85,8 @@
       "x64ArchFiles": "Contents/Resources/helper/grayscale",
       "extendInfo": {
         "LSUIElement": true,
-        "NSCameraUsageDescription": "Grayout can use your camera, only if you turn it on, to notice a phone in your hand. Frames go to the Grayout service with the screenshot, are deleted from this Mac immediately, and are never stored by the service.",
-        "NSScreenCaptureUsageDescription": "Grayout takes a screenshot of each display about every 45 seconds and asks the Grayout service whether you are clearly not working. Screenshots are deleted from this Mac immediately and are never stored by the service.",
-        "NSAppleEventsUsageDescription": "Grayout does not need to control other apps. If you see this prompt, you can decline it."
+        "NSCameraUsageDescription": "Only if you turn it on, Grayout sends one camera frame with each check to the Grayout service and OpenAI to notice a phone in your hand. Grayout never saves frames.",
+        "NSScreenCaptureUsageDescription": "Grayout takes a screenshot of each display about every 45 seconds and sends it to the Grayout service, which uses OpenAI to decide whether you are clearly not working. Screenshots are deleted from this Mac right away and are never stored by Grayout."
       }
     },
     "dmg": {

@@ -17,6 +17,11 @@ const { execFileSync, spawnSync } = require('child_process');
 const path = require('path');
 
 exports.default = async function afterSign(context) {
+  // Direct download only. A Mac App Store build ('mas', 'mas-dev' reports
+  // 'mas') must keep its Apple signature and sandbox entitlements, so it
+  // returns here untouched. electron-builder 26 also never calls afterSign
+  // for MAS targets (they are signed by signMas), so this is a second guard,
+  // pinned by tests/build-config.test.js.
   if (context.electronPlatformName !== 'darwin') return;
   const appPath = path.join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`);
   const id = context.packager.appInfo.id; // com.aarushkandukoori.grayout

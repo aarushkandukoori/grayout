@@ -39,6 +39,15 @@ function lookedUpIds(rendererSrc) {
   return new Set([...rendererSrc.matchAll(/\$\('([^']+)'\)/g)].map(m => m[1]));
 }
 
+// Contract item 4: bridges the consent branch adds to the preloads. Until that
+// branch merges, a renderer may call them only behind a
+// `typeof api.<name> === 'function'` guard. Once a preload exposes a name, it
+// is no longer exempt and the ordinary check below covers it.
+const PENDING_BRIDGE = {
+  onboarding: ['grantConsent'],
+  dashboard: ['grantConsent', 'revokeConsent', 'eraseData']
+};
+
 const WINDOWS = [
   { name: 'onboarding', html: 'ui/onboarding.html', js: 'ui/onboarding.js', preload: 'ui/preload/onboarding.js' },
   { name: 'dashboard', html: 'ui/dashboard.html', js: 'ui/dashboard.js', preload: 'ui/preload/dashboard.js' }
@@ -52,8 +61,17 @@ for (const w of WINDOWS) {
 
     test('every bridge method it calls is exposed by its preload', () => {
       const exposed = exposedNames(preload);
-      const missing = [...calledNames(js)].filter(n => !exposed.has(n)).sort();
+      const pending = new Set(PENDING_BRIDGE[w.name].filter(n => !exposed.has(n)));
+      const missing = [...calledNames(js)].filter(n => !exposed.has(n) && !pending.has(n)).sort();
       assert.deepEqual(missing, [], `${w.js} calls api.${missing.join(', api.')} — not on ${w.preload}`);
+    });
+
+    test('it wires the consent bridges, each behind a typeof guard', () => {
+      const called = calledNames(js);
+      for (const n of PENDING_BRIDGE[w.name]) {
+        assert.equal(called.has(n), true, `${w.js} never calls api.${n}`);
+        assert.match(js, new RegExp(`typeof api\\.${n} [!=]== 'function'`), `${w.js} calls api.${n} without checking it exists`);
+      }
     });
 
     test('every element it reaches for exists in its HTML', () => {
@@ -103,13 +121,19 @@ test('every ipc channel a preload invokes has a handler', () => {
 test.describe('product surfaces do not lead with an API key', () => {
   // v2 sells a subscription. Self-hosting is documented in the README and on
   // the site's self-hosting page; it is never what a first run talks about.
+  // The one provider the welcome window does name is OpenAI, and only in the
+  // third-party AI consent (App Review 5.1.2(i) wants it named). Any other
+  // provider name reaches it only from the payload's consent.processor.
   const surfaces = ['ui/onboarding.html', 'ui/onboarding.js'];
   for (const f of surfaces) {
-    test(`${f} names no model provider and no key guide`, () => {
+    test(`${f} names no key guide, no key shape, and OpenAI only in the consent copy`, () => {
       const src = read(f);
       assert.equal(/api-key\.html/.test(src), false, 'no link to the key guide');
-      assert.equal(/\bAnthropic\b|\bOpenAI\b/.test(src), false, 'no model provider named');
+      assert.equal(/\bAnthropic\b/.test(src), false, 'Anthropic is never written into the window');
       assert.equal(/sk-ant-|sk-proj-/.test(src), false, 'no model key shape shown');
+      const stray = src.split('\n').filter(l => /\bOpenAI\b/.test(l) && !/^\s*(\/\/|\*|<!--)/.test(l))
+        .filter(l => !/HOSTED|third-party AI provider|train its models|name === 'OpenAI'/.test(l));
+      assert.deepEqual(stray, [], 'OpenAI appears outside the consent disclosure');
     });
   }
 
@@ -300,5 +324,479 @@ test.describe('the CLI engine in the windows', () => {
     assert.match(dash, /const est = cli\s+\? 'no per-check charge'/);
     assert.match(onb, /setText\(\$\(`est-\$\{sec\}`\), 'no per-check charge'\)/);
     assert.match(onb, /show\(\$\('btn-3-continue'\), cli \|\| has \|\| !connected\(\)\)/);
+  });
+});
+
+/* ------------------------------------------------------------------------
+   The windows, run. A small fake DOM (just what ui/onboarding.js and
+   ui/dashboard.js touch) built from the real HTML, so the consent flow and
+   the Mac App Store gating are exercised end to end in plain Node, including
+   a payload from a main process that sends no channel and no consent.
+   ------------------------------------------------------------------------ */
+
+const vm = require('node:vm');
+
+const VOID_TAGS = new Set(['META', 'LINK', 'INPUT', 'BR', 'IMG', 'HR', 'SOURCE']);
+
+class FakeEl {
+  constructor(doc, tag, attrs = {}) {
+    this.ownerDocument = doc;
+    this.nodeType = 1;
+    this.tagName = tag;
+    this.attrs = { ...attrs };
+    this.childNodes = [];
+    this.parentNode = null;
+    this.listeners = {};
+    this.style = {};
+    this.id = attrs.id || '';
+    this.hidden = 'hidden' in attrs;
+    this.disabled = 'disabled' in attrs;
+    this.checked = 'checked' in attrs;
+    this.value = attrs.value || '';
+    this.type = attrs.type || '';
+    this.name = attrs.name || '';
+    this.dataset = {};
+    for (const [k, v] of Object.entries(attrs)) {
+      if (k.startsWith('data-')) this.dataset[k.slice(5).replace(/-(\w)/g, (_, c) => c.toUpperCase())] = v;
+    }
+    const classes = new Set(String(attrs.class || '').split(/\s+/).filter(Boolean));
+    this._classes = classes;
+    this.classList = {
+      add: (...c) => c.forEach(x => classes.add(x)),
+      remove: (...c) => c.forEach(x => classes.delete(x)),
+      contains: c => classes.has(c),
+      toggle: (c, force) => {
+        const on = force === undefined ? !classes.has(c) : !!force;
+        if (on) classes.add(c); else classes.delete(c);
+        return on;
+      }
+    };
+  }
+  get className() { return [...this._classes].join(' '); }
+  set className(v) { this._classes.clear(); String(v).split(/\s+/).filter(Boolean).forEach(c => this._classes.add(c)); }
+  get children() { return this.childNodes.filter(n => n.nodeType === 1); }
+  get firstChild() { return this.childNodes[0] || null; }
+  get options() { return this.descendants().filter(n => n.tagName === 'OPTION'); }
+  get clientWidth() { return 800; }
+  get textContent() { return this.childNodes.map(n => n.textContent).join(''); }
+  set textContent(v) { this.childNodes = []; if (v !== '' && v != null) this.appendChild({ nodeType: 3, textContent: String(v) }); }
+  descendants() { return this.children.flatMap(c => [c, ...c.descendants()]); }
+  appendChild(n) {
+    if (n.parentNode) n.parentNode.removeChild(n);
+    this.childNodes.push(n); n.parentNode = this; return n;
+  }
+  append(...ns) { for (const n of ns) this.appendChild(typeof n === 'string' ? { nodeType: 3, textContent: n } : n); }
+  replaceChildren(...ns) { this.childNodes = []; this.append(...ns); }
+  removeChild(n) { this.childNodes = this.childNodes.filter(x => x !== n); n.parentNode = null; return n; }
+  before(n) {
+    const p = this.parentNode;
+    if (n.parentNode) n.parentNode.removeChild(n);
+    p.childNodes.splice(p.childNodes.indexOf(this), 0, n); n.parentNode = p;
+  }
+  contains(n) { return n === this || this.descendants().includes(n); }
+  setAttribute(k, v) {
+    this.attrs[k] = String(v);
+    if (k === 'class') this.className = v;
+    if (k === 'id' || k === 'type' || k === 'name') this[k] = String(v);
+  }
+  getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; }
+  addEventListener(type, fn) { (this.listeners[type] = this.listeners[type] || []).push(fn); }
+  dispatch(type, extra = {}) {
+    const ev = { type, target: this, currentTarget: this, preventDefault() {}, ...extra };
+    for (const fn of this.listeners[type] || []) fn(ev);
+  }
+  click() { if (!this.disabled) this.dispatch('click'); }
+  focus() { this.ownerDocument.activeElement = this; }
+  scrollIntoView() {}
+  querySelectorAll(sel) { return this.descendants().filter(e => matchesSelector(e, sel)); }
+  querySelector(sel) { return this.querySelectorAll(sel)[0] || null; }
+}
+
+function matchesSelector(e, sel) {
+  const m = /^([a-z]*)(?:#([\w-]+))?(?:\.([\w-]+))?(?:\[([\w-]+)(?:="([^"]*)")?\])?(:checked)?$/.exec(sel);
+  if (!m) throw new Error(`the fake DOM cannot match ${sel}`);
+  const [, tag, id, cls, attr, val, checked] = m;
+  if (tag && e.tagName !== tag.toUpperCase()) return false;
+  if (id && e.id !== id) return false;
+  if (cls && !e.classList.contains(cls)) return false;
+  if (attr) {
+    const v = attr === 'name' ? e.name : e.attrs[attr];
+    if (v === undefined || (attr === 'name' && !v)) return false;
+    if (val !== undefined && v !== val) return false;
+  }
+  if (checked && !e.checked) return false;
+  return true;
+}
+
+function fakeDocument(html) {
+  const doc = { activeElement: null, readyState: 'complete', listeners: {} };
+  const root = new FakeEl(doc, '#ROOT');
+  const stack = [root];
+  const re = /<!--[\s\S]*?-->|<!doctype[^>]*>|<\/([a-zA-Z][\w-]*)\s*>|<([a-zA-Z][\w-]*)((?:\s+[^\s=>]+(?:="[^"]*")?)*)\s*\/?>|([^<]+)/gi;
+  for (const m of html.matchAll(re)) {
+    const top = stack[stack.length - 1];
+    if (m[4] !== undefined) { top.appendChild({ nodeType: 3, textContent: m[4] }); continue; }
+    if (m[1]) {
+      const i = stack.map(e => e.tagName).lastIndexOf(m[1].toUpperCase());
+      if (i > 0) stack.length = i;
+      continue;
+    }
+    if (!m[2]) continue;
+    const attrs = {};
+    for (const a of (m[3] || '').matchAll(/([^\s=>]+)(?:="([^"]*)")?/g)) attrs[a[1]] = a[2] === undefined ? '' : a[2];
+    const el = new FakeEl(doc, m[2].toUpperCase(), attrs);
+    top.appendChild(el);
+    if (!VOID_TAGS.has(el.tagName)) stack.push(el);
+  }
+  doc.root = root;
+  doc.getElementById = id => root.descendants().find(e => e.id === id) || null;
+  doc.createElement = tag => new FakeEl(doc, String(tag).toUpperCase());
+  doc.createTextNode = t => ({ nodeType: 3, textContent: String(t) });
+  doc.querySelectorAll = sel => root.querySelectorAll(sel);
+  doc.querySelector = sel => root.querySelector(sel);
+  doc.addEventListener = (type, fn) => { (doc.listeners[type] = doc.listeners[type] || []).push(fn); };
+  doc.dispatch = (type, extra) => { for (const fn of doc.listeners[type] || []) fn({ type, preventDefault() {}, ...extra }); };
+  return doc;
+}
+
+const settle = async () => { for (let i = 0; i < 8; i++) await new Promise(r => setImmediate(r)); };
+
+/** Runs a renderer against its real HTML and a fake bridge. Timers never fire. */
+async function runWindow(name, api) {
+  const doc = fakeDocument(read(`ui/${name}.html`));
+  const errors = [];
+  const sandbox = {
+    window: { grayout: api, addEventListener() {}, scrollTo() {} },
+    document: doc,
+    location: { hash: '' },
+    console: { log() {}, warn() {}, error: (...a) => errors.push(a.map(String).join(' ')) },
+    setTimeout: () => 0, clearTimeout() {}, setInterval: () => 0, clearInterval() {}
+  };
+  vm.runInNewContext(read(`ui/${name}.js`), sandbox, { filename: `ui/${name}.js` });
+  await settle();
+  const $ = id => {
+    const el = doc.getElementById(id);
+    assert.ok(el, `no #${id}`);
+    return el;
+  };
+  return { doc, $, errors };
+}
+
+/** A bridge with every method the preload exposes, recording calls. */
+function fakeBridge(preloadFile, impl = {}, { omit = [] } = {}) {
+  const calls = [];
+  const api = {};
+  for (const n of exposedNames(read(preloadFile))) {
+    api[n] = (...args) => { calls.push([n, ...args]); return Promise.resolve(impl[n] ? impl[n](...args) : undefined); };
+  }
+  for (const n of Object.keys(impl)) {
+    if (!api[n]) api[n] = (...args) => { calls.push([n, ...args]); return Promise.resolve(impl[n](...args)); };
+  }
+  for (const n of omit) delete api[n];
+  return { api, calls, called: n => calls.filter(c => c[0] === n) };
+}
+
+const channel = require('../src/channel');
+function channelPayload(n) {
+  channel._setForTests(n);
+  try { return { name: channel.name(), isMAS: channel.isMAS(), features: { ...channel.features() } }; }
+  finally { channel._setForTests(null); }
+}
+
+const pricing = require('../src/pricing');
+const HOSTED_PROCESSOR = { name: 'OpenAI', via: 'the Grayout service' };
+
+function onbState(over = {}) {
+  return {
+    step: 1, completed: false, engine: 'api', inApplications: true, screen: 'granted', cameraStatus: 'not-determined',
+    account: { ok: true, configured: true, hasLicense: false, usage: { checksUsed: 0, checksIncluded: pricing.FREE_CHECKS } },
+    plans: pricing.PLANS, freeChecks: pricing.FREE_CHECKS, includedChecks: pricing.INCLUDED_CHECKS,
+    selfHosted: false, secureStorage: true, loginItem: { status: 'not-registered', inApplications: true },
+    config: { workDescription: '', checkIntervalSec: 45, camera: false, startAtLogin: false },
+    estimates: { byInterval: {} }, version: '2.0.0', isPackaged: true, grayscaleAvailable: true,
+    tccResetCmd: 'tccutil reset ScreenCapture com.aarushkandukoori.grayout',
+    ...over
+  };
+}
+
+const stepOn = doc => {
+  const on = doc.querySelectorAll('.screen').filter(s => s.classList.contains('on'));
+  assert.equal(on.length, 1, 'exactly one screen shows');
+  return Number(on[0].dataset.step);
+};
+
+test.describe('the welcome window, run', () => {
+  const PRELOAD = 'ui/preload/onboarding.js';
+
+  test('a payload with no channel and no consent: the consent card comes first, naming OpenAI', async () => {
+    // A v2 main process resuming on the plan step. The consent step still wins.
+    const b = fakeBridge(PRELOAD, { getState: () => onbState({ step: 3 }) }, { omit: ['grantConsent'] });
+    const { doc, $, errors } = await runWindow('onboarding', b.api);
+    assert.deepEqual(errors, []);
+    assert.equal(stepOn(doc), 1);
+    assert.equal($('progress').textContent, '1 of 5');
+    assert.match($('consent-who').textContent, /sends them to OpenAI, a third-party AI provider/);
+    assert.match($('consent-who').textContent, /keeps none of them/);
+    assert.match($('consent-who').textContent, /does not use them to train its models and may keep them for up to 30 days/);
+    assert.equal($('btn-consent-allow').hidden, false);
+    assert.equal($('btn-consent-later').hidden, false);
+    assert.equal($('btn-1-continue').hidden, true);
+    assert.equal($('license-block').hidden, false, 'the direct build keeps the license box');
+  });
+
+  test('"Not now" captures nothing and setup stays on the consent card', async () => {
+    const b = fakeBridge(PRELOAD, { getState: () => onbState(), grantConsent: () => ({ ok: true }) });
+    const { doc, $ } = await runWindow('onboarding', b.api);
+    $('btn-consent-later').click();
+    await settle();
+    assert.equal(stepOn(doc), 1);
+    assert.equal(b.called('grantConsent').length, 0);
+    assert.match($('consent-status').textContent, /Nothing is captured or sent/);
+    // Return on the card never stands in for the click.
+    doc.dispatch('keydown', { key: 'Enter', target: $('screens') });
+    await settle();
+    assert.equal(stepOn(doc), 1);
+    assert.equal(b.called('grantConsent').length, 0);
+    assert.equal(b.called('setStep').length, 0);
+  });
+
+  test('"Allow and continue" records consent through the bridge, then opens Screen Recording', async () => {
+    let granted = false;
+    const b = fakeBridge(PRELOAD, {
+      getState: () => onbState({ consent: { granted, at: granted ? '2026-10-15T12:00:00Z' : null, version: granted ? 1 : null, processor: HOSTED_PROCESSOR } }),
+      grantConsent: () => { granted = true; return { ok: true }; }
+    });
+    const { doc, $ } = await runWindow('onboarding', b.api);
+    assert.equal(stepOn(doc), 1);
+    $('btn-consent-allow').click();
+    await settle();
+    assert.equal(b.called('grantConsent').length, 1);
+    assert.equal(stepOn(doc), 2);
+    assert.deepEqual(b.called('setStep').map(c => c[1]), [2]);
+    // Back on the first screen, consent shows as given and Continue replaces the buttons.
+    $('btn-2-back').click();
+    await settle();
+    assert.equal($('btn-consent-allow').hidden, true);
+    assert.equal($('btn-1-continue').hidden, false);
+    assert.match($('consent-granted').textContent, /You allowed this on .*2026/);
+  });
+
+  test('a grant the main process did not record keeps setup on the card', async () => {
+    const b = fakeBridge(PRELOAD, {
+      getState: () => onbState({ consent: { granted: false, at: null, version: null, processor: HOSTED_PROCESSOR } }),
+      grantConsent: () => ({ ok: true })
+    });
+    const { doc, $ } = await runWindow('onboarding', b.api);
+    $('btn-consent-allow').click();
+    await settle();
+    assert.equal(stepOn(doc), 1);
+    assert.match($('consent-status').textContent, /could not save your choice/);
+  });
+
+  test('a main process with no consent bridge at all still lets setup go on', async () => {
+    const b = fakeBridge(PRELOAD, { getState: () => onbState() }, { omit: ['grantConsent'] });
+    const { doc, $, errors } = await runWindow('onboarding', b.api);
+    $('btn-consent-allow').click();
+    await settle();
+    assert.equal(stepOn(doc), 2);
+    assert.deepEqual(errors, []);
+  });
+
+  test('setup done but consent missing: the window is only the consent card', async () => {
+    let granted = false;
+    const b = fakeBridge(PRELOAD, {
+      getState: () => onbState({ completed: true, step: 5, consent: { granted, at: null, version: null, processor: HOSTED_PROCESSOR } }),
+      grantConsent: () => { granted = true; return { ok: true }; }
+    });
+    const { doc, $ } = await runWindow('onboarding', b.api);
+    assert.equal(stepOn(doc), 1);
+    assert.equal($('h1-1').textContent, 'Before Grayout keeps watching');
+    assert.equal($('intro').hidden, true);
+    assert.equal($('consent-only-lede').hidden, false);
+    assert.equal($('progress').textContent, '');
+    assert.equal($('move-bar').hidden, true);
+    $('btn-consent-allow').click();
+    await settle();
+    assert.equal(b.called('grantConsent').length, 1);
+    assert.equal(stepOn(doc), 1, 'the main process closes the window; it never walks back into setup');
+    assert.equal(b.called('setStep').length, 0);
+    assert.match($('consent-status').textContent, /watching again/);
+  });
+
+  test('own key or the Claude CLI: the card names that provider and its terms, not the hosted ones', async () => {
+    for (const [processor, re] of [
+      [{ name: 'Anthropic', via: 'your own API key' }, /straight to Anthropic[\s\S]*your own API key[\s\S]*Anthropic's terms/],
+      [{ name: 'Anthropic', via: 'your Claude CLI login' }, /Claude CLI[\s\S]*sends them to Anthropic/],
+      [{ name: 'OpenAI', via: 'your own API key' }, /straight to OpenAI[\s\S]*your own API key/]
+    ]) {
+      const b = fakeBridge(PRELOAD, { getState: () => onbState({ consent: { granted: false, at: null, version: null, processor } }) });
+      const { $ } = await runWindow('onboarding', b.api);
+      const text = `${$('consent-lede').textContent} ${$('consent-who').textContent}`;
+      assert.match(text, re);
+      assert.equal(/30 days|keeps none of them/.test(text), false, `${processor.via}: the hosted terms do not apply`);
+    }
+  });
+
+  test('Mac App Store: no move bar, no Terminal fix, free checks lead, no license box', async () => {
+    const b = fakeBridge(PRELOAD, {
+      getState: () => onbState({
+        step: 3, isPackaged: true, inApplications: false, screen: 'stale', tccResetCmd: null,
+        channel: channelPayload('mas'),
+        consent: { granted: true, at: '2026-10-15T12:00:00Z', version: 1, processor: HOSTED_PROCESSOR }
+      })
+    });
+    const { doc, $, errors } = await runWindow('onboarding', b.api);
+    assert.deepEqual(errors, []);
+    assert.equal(stepOn(doc), 3);
+    assert.equal($('btn-free').classList.contains('btn-primary'), true);
+    assert.equal($('btn-subscribe').classList.contains('btn-primary'), false);
+    assert.equal($('license-block').hidden, true);
+    const kids = $('plan-group').parentNode.children;
+    assert.ok(kids.indexOf($('free-card')) < kids.indexOf($('plan-group')), 'the free card comes first');
+    assert.match($('pay-note').textContent, /LINK\.COM\*/, 'the US listing keeps the Stripe copy');
+    $('btn-3-back').click();
+    await settle();
+    assert.equal(stepOn(doc), 2);
+    assert.equal($('stale-box').hidden, false);
+    assert.equal($('tcc-row').hidden, true);
+    assert.equal($('tcc-end').hidden, false);
+    $('btn-2-back').click();
+    await settle();
+    assert.equal($('move-bar').hidden, true, 'the App Store installs the app itself');
+  });
+
+  test('the direct build keeps Subscribe as the primary and its license box', async () => {
+    const b = fakeBridge(PRELOAD, {
+      getState: () => onbState({ step: 3, channel: channelPayload('direct'), consent: { granted: true, at: null, version: 1, processor: HOSTED_PROCESSOR } })
+    });
+    const { doc, $ } = await runWindow('onboarding', b.api);
+    assert.equal(stepOn(doc), 3);
+    assert.equal($('btn-subscribe').classList.contains('btn-primary'), true);
+    assert.equal($('btn-free').classList.contains('btn-primary'), false);
+    assert.equal($('license-block').hidden, false);
+  });
+});
+
+function dashData(over = {}) {
+  return {
+    stats: {}, live: {}, config: { checkIntervalSec: 45, strikes: 2, engine: 'api', provider: 'grayout', providerLabel: 'Grayout', model: '' },
+    version: '2.0.0',
+    account: { ok: true, configured: true, hasLicense: false, usage: { checksUsed: 3, checksIncluded: pricing.FREE_CHECKS } },
+    plans: pricing.PLANS, freeChecks: pricing.FREE_CHECKS, includedChecks: pricing.INCLUDED_CHECKS,
+    selfHosted: false, hasKey: false, keyMasked: '', update: null, dataDir: '/tmp/grayout-test',
+    ...over
+  };
+}
+function dashSettings(over = {}) {
+  return {
+    config: { checkIntervalSec: 45, strikes: 2, workDescription: '', grayscale: true, redFlash: true, camera: false, startAtLogin: false, checkForUpdates: true, pauseWhenLocked: true, alwaysAllowedApps: [], neverCaptureApps: [] },
+    account: dashData().account, plans: pricing.PLANS, freeChecks: pricing.FREE_CHECKS, includedChecks: pricing.INCLUDED_CHECKS,
+    selfHosted: false, keyMasked: '', hasKey: false, secureStorage: true,
+    loginItem: { status: 'not-registered', inApplications: true }, estimates: { byInterval: {} },
+    permissions: { screen: 'granted', camera: 'not-determined' }, paths: {},
+    tccResetCmd: 'tccutil reset ScreenCapture com.aarushkandukoori.grayout', version: '2.0.0', isPackaged: true,
+    ...over
+  };
+}
+
+test.describe('the dashboard, run', () => {
+  const PRELOAD = 'ui/preload/dashboard.js';
+  const hidden = el => el.classList.contains('hidden');
+
+  test('a payload with no channel and no consent renders the direct build without throwing', async () => {
+    const b = fakeBridge(PRELOAD, { get: () => dashData(), getSettings: () => dashSettings() }, { omit: ['grantConsent', 'revokeConsent', 'eraseData'] });
+    const { $, errors } = await runWindow('dashboard', b.api);
+    assert.deepEqual(errors, []);
+    assert.equal($('f-consent').checked, false);
+    assert.equal($('banner-slot').children.length, 0, 'no consent banner without a consent record');
+    assert.equal(hidden($('row-updates')), false);
+    assert.equal(hidden($('tcc-row')), false);
+    assert.equal(hidden($('connect-block')), true);
+    assert.equal(hidden($('license-row')), false);
+    assert.equal(hidden($('buy-note')), false);
+    assert.match($('camera-hint').textContent, /to the Grayout service in the same check/);
+    assert.equal(/under your key/.test($('camera-hint').textContent), false, 'the v1 "under your key" copy is gone on the hosted plan');
+    assert.match($('consent-note').textContent, /OpenAI, a third-party AI provider/);
+    // Without the bridges the switch and the erase button say so instead of throwing.
+    $('f-consent').checked = true;
+    $('f-consent').dispatch('change');
+    await settle();
+    assert.equal($('f-consent').checked, false);
+    $('btn-erase').click();
+    await settle();
+    assert.match($('erase-status').textContent, /cannot erase/);
+    assert.deepEqual(errors, []);
+  });
+
+  test('consent off: a banner says nothing is checked, and the switch grants and withdraws', async () => {
+    let granted = false;
+    const consent = () => ({ granted, at: null, version: granted ? 1 : null, processor: HOSTED_PROCESSOR });
+    const b = fakeBridge(PRELOAD, {
+      get: () => dashData({ consent: consent() }),
+      getSettings: () => dashSettings({ consent: consent() }),
+      grantConsent: () => { granted = true; return { ok: true }; },
+      revokeConsent: () => { granted = false; return { ok: true }; }
+    });
+    const { $, errors } = await runWindow('dashboard', b.api);
+    assert.match($('banner-slot').textContent, /not sending screenshots, so nothing is being checked/);
+    assert.match($('headline').textContent, /screenshots are off/);
+    assert.equal($('f-consent').checked, false);
+    $('f-consent').checked = true;
+    $('f-consent').dispatch('change');
+    await settle();
+    assert.equal(b.called('grantConsent').length, 1);
+    assert.equal($('f-consent').checked, true);
+    assert.equal(/not sending screenshots/.test($('banner-slot').textContent), false);
+    $('f-consent').checked = false;
+    $('f-consent').dispatch('change');
+    await settle();
+    assert.equal(b.called('revokeConsent').length, 1);
+    assert.equal($('f-consent').checked, false);
+    assert.match($('consent-msg').textContent, /Nothing is captured or sent/);
+    assert.deepEqual(errors, []);
+  });
+
+  test('erase goes through the main process, which asks first', async () => {
+    const b = fakeBridge(PRELOAD, { get: () => dashData(), getSettings: () => dashSettings(), eraseData: () => ({ ok: false, cancelled: true }) });
+    const { $ } = await runWindow('dashboard', b.api);
+    assert.equal($('btn-erase').textContent, "Erase this Mac's Grayout data");
+    $('btn-erase').click();
+    await settle();
+    assert.equal(b.called('eraseData').length, 1);
+    assert.equal($('erase-status').textContent, 'Nothing was erased.');
+  });
+
+  test('Mac App Store: no update toggle or banner, no key panel, no Terminal fix, license under "Connect an existing subscription"', async () => {
+    const ch = channelPayload('mas');
+    const consent = { granted: true, at: '2026-10-15T12:00:00Z', version: 1, processor: HOSTED_PROCESSOR };
+    const b = fakeBridge(PRELOAD, {
+      get: () => dashData({ channel: ch, consent, update: { url: 'https://github.com/x', version: '9.9.9' }, selfHosted: false }),
+      getSettings: () => dashSettings({ channel: ch, consent, tccResetCmd: null })
+    });
+    const { $, errors } = await runWindow('dashboard', b.api);
+    assert.deepEqual(errors, []);
+    assert.equal(/is available/.test($('banner-slot').textContent), false, 'no update banner');
+    assert.equal(hidden($('row-updates')), true);
+    assert.ok($('f-checkForUpdates'), 'hidden, never deleted');
+    assert.equal(hidden($('key-panel')), true);
+    assert.equal(hidden($('tcc-row')), true);
+    assert.equal(hidden($('buy-note')), true);
+    assert.equal(hidden($('connect-block')), false);
+    assert.equal(hidden($('license-row')), true, 'collapsed until asked for');
+    $('btn-connect-sub').click();
+    assert.equal(hidden($('license-row')), false);
+    assert.equal($('btn-connect-sub').getAttribute('aria-expanded'), 'true');
+    assert.equal(/Canvas|tasks file/.test($('adv-note').textContent), false);
+    assert.equal($('f-consent').checked, true);
+    assert.match($('billing-note').textContent, /LINK\.COM\*/, 'the US listing keeps the Stripe copy');
+  });
+
+  test('Mac App Store with manual license entry switched off: no license field at all', async () => {
+    const ch = channelPayload('mas');
+    ch.features.manualLicenseEntry = false;
+    const b = fakeBridge(PRELOAD, { get: () => dashData({ channel: ch }), getSettings: () => dashSettings({ channel: ch }) });
+    const { $ } = await runWindow('dashboard', b.api);
+    assert.equal(hidden($('connect-block')), true);
+    assert.equal(hidden($('license-row')), true);
   });
 });
