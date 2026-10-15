@@ -5,14 +5,14 @@ In order. Each step is something only Aarush can do: it pays, signs an agreement
 ## A. Decisions first
 
 1. **Support email.** Pick a watched address that is not personal (an alias, never a phone number or home address). It goes in four places later: `docs/config.js` `supportEmail`, `SUPPORT_EMAIL` in `server/wrangler.jsonc` (both environments), Stripe's business details, and App Store Connect's App Review contact. Apple needs the Support URL (`support.html`) to show real contact information, and the site shows the email only once `supportEmail` is set.
-2. **Approve the privacy wording.** `docs/privacy.html#model` (and `PRIVACY.md`) now says: "We only use service providers that are bound by written data-protection terms giving your data the same or equal protection as this policy" for OpenAI, Cloudflare and Stripe. Apple's guideline 5.1.1(i) asks for this, but it is a legal commitment: confirm it is true for Grayout's OpenAI, Cloudflare and Stripe accounts (for example, that their data processing terms apply to your accounts), or ask for different wording before the page goes live.
+2. **Privacy wording: approved by Aarush on 2026-10-15.** `docs/privacy.html#model` (and `PRIVACY.md`) says: "We only use service providers that are bound by written data-protection terms giving your data the same or equal protection as this policy" for OpenAI, Cloudflare and Stripe (Apple guideline 5.1.1(i)). Keep it true: if a processor is added or its terms change, revisit this sentence first.
 3. **App Privacy judgment calls.** Keep or drop Browsing History and Payment Info in `privacy-labels.md`, and write down why if dropped.
 4. **Name check.** Search tmsearch.uspto.gov for GRAYOUT before launch.
 5. **Architecture.** arm64-only or universal for the first store build (the packaging report recommends arm64-only; the Intel DMG stays on the website).
 
 ## B. Make the website pages live
 
-6. The v2 site is already live on `main` (GitHub Pages, pushed 2026-10-15) with the service off. The 2026-10-15 `privacy.html`, `terms.html` and `support.html` that App Store Connect needs go live when the `mac-app-store` branch is merged and pushed to `main`. Leave the API base placeholder, `checkoutLive: false` and `masUrl: ''` in `docs/config.js` until steps 26 and 37.
+6. Done 2026-10-15: the v2 site is live on `main` (GitHub Pages) with the service off, including the 2026-10-15 `privacy.html`, `terms.html` and `support.html` that App Store Connect needs. Leave the API base placeholder, `checkoutLive: false` and `masUrl: ''` in `docs/config.js` until steps 26 and 37.
 
 ## C. Apple Developer Program
 
