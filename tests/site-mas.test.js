@@ -42,7 +42,7 @@ function el(extra) {
  * Runs docs/app.js against a stand-in page. `nodes` maps a selector to the
  * elements document.querySelectorAll should return for it.
  */
-function runApp({ config = {}, search = '', nodes = {}, boot = false } = {}) {
+function runApp({ config = {}, search = '', pathname = '/grayout/pricing.html', nodes = {}, boot = false } = {}) {
   const root = el({ classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } } });
   const errors = [];
   const replaced = [];
@@ -61,7 +61,7 @@ function runApp({ config = {}, search = '', nodes = {}, boot = false } = {}) {
   };
   const ctx = {
     window: win, document,
-    location: { search, pathname: '/grayout/pricing.html', hash: '' },
+    location: { search, pathname, hash: '' },
     history: { replaceState(_s, _t, url) { replaced.push(url); } },
     navigator: { userAgent: '', platform: 'MacIntel', maxTouchPoints: 0 },
     URL, URLSearchParams, setTimeout, clearTimeout,
@@ -290,6 +290,45 @@ test.describe('privacy, terms and the purchase pages', () => {
     assert.equal(n.app.hidden, true);
     assert.equal(n.web.hidden, false);
     assert.deepEqual(r.replaced, ['/grayout/pricing.html?plan=yearly']);
+  });
+
+  test('back from a billing portal the app opened, account.html says to go back to Grayout and offers no download', () => {
+    const html = read('docs/account.html');
+    assert.match(html, /<div class="callout callout--blue" data-portal-return hidden>\s*<p><strong>All set\. You can close this tab and go back to Grayout\.<\/strong><\/p>/);
+    assert.match(html, /data-when="noservice" data-hide-from-app/);
+    assert.match(html, /data-when="soon" data-hide-from-app/);
+    assert.equal(/<script>|\son[a-z]+="/.test(html), false, 'CSP: no inline script or handlers');
+
+    const make = () => ({
+      note: el({ hidden: true }),
+      float: el({ classList: { add() {}, remove() {}, toggle() {} } }),
+      notOpen: [el(), el()]
+    });
+    const nodes = n => ({ '[data-portal-return]': [n.note], '[data-float]': [n.float], '[data-hide-from-app]': n.notOpen });
+
+    let n = make();
+    let r = runApp({ pathname: '/grayout/account.html', search: '?from=app', nodes: nodes(n), boot: true });
+    assert.deepEqual(r.errors, []);
+    assert.equal(n.note.hidden, false);
+    assert.equal(n.float.hidden, true, 'no floating Download button');
+    assert.ok(n.notOpen.every(x => x.hidden), 'no "subscriptions are not open" note for a subscriber');
+    assert.deepEqual(r.replaced, ['/grayout/account.html'], 'from=app leaves the address bar, so a reload is the normal page');
+
+    n = make();
+    r = runApp({ pathname: '/grayout/account.html', search: '?from=app&x=1', nodes: nodes(n), boot: true });
+    assert.deepEqual(r.replaced, ['/grayout/account.html?x=1']);
+
+    n = make();
+    r = runApp({ pathname: '/grayout/account.html', search: '', nodes: nodes(n), boot: true });
+    assert.deepEqual(r.errors, []);
+    assert.equal(n.note.hidden, true);
+    assert.equal(n.float.hidden, false);
+    assert.ok(n.notOpen.every(x => !x.hidden));
+    assert.deepEqual(r.replaced, []);
+
+    // success.html has its own from=app handling (claim.js): untouched here.
+    r = runApp({ pathname: '/grayout/success.html', search: '?session_id=cs_test_1&from=app', boot: true });
+    assert.deepEqual(r.replaced, []);
   });
 
   test('after a purchase started in the app, success.html leads with "close this tab"', () => {

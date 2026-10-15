@@ -2046,9 +2046,6 @@ The Mac App Store edition has no own-key mode (16.1).
   sandbox before any change to section 9. The server already ignores
   unknown body fields, so adding the field later needs no coordinated
   release.
-- **The site's `from=app` copy** (16.2) is specified here but not built yet
-  on `pricing.html` and `account.html`; until it is, those pages ignore the
-  extra parameter and behave as before.
 - **Check in the sandbox** that a stored Workers Logs line (our own
   `logLine` output) carries no client IP now that invocation logs are off
   (13). Cloudflare documents the setting; what it attaches to a Worker's
