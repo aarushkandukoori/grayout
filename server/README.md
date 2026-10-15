@@ -250,7 +250,9 @@ has one regression test for each of the 29 problems found in v2, and
 `test/review-findings.test.js` one for each problem the 2026-10-08 review of
 v3 found, `test/server-fixes.test.js` covers the second pass over that
 review, and `test/third-pass.test.js` the third (each file's header maps every
-finding to its test).
+finding to its test). `test/scripts.test.js` runs `set-secrets.sh` (on a real
+pseudo-terminal, which needs `python3`) and `deploy.sh` end to end against
+stub `npx`, `stripe`, `npm` and `curl` commands.
 
 ## Things worth knowing before you change it
 
@@ -273,5 +275,7 @@ finding to its test).
   engagement" section of `CONTRIBUTING.md` before touching either.
 - **Nothing secret is logged.** Log lines carry ids and codes only, and
   `scrub()` in `src/http.js` masks anything key-shaped as a second guard.
-- **Self-hosting still works.** Setting `provider` to `anthropic` or `openai`
-  in the app's `config.json` bypasses this service entirely.
+- **Self-hosting still works** in the direct download and source builds.
+  Setting `provider` to `anthropic` or `openai` in the app's `config.json`
+  bypasses this service entirely. The Mac App Store edition only talks to
+  this service (contract 16.1).

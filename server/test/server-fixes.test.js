@@ -1,6 +1,9 @@
-// Regression tests for the second pass over the 2026-10-08 review: the 19
-// confirmed findings and 2 follow-ups from the app team (scratchpad file
-// SERVER-FIXES.json, numbered 1 to 21 there and here).
+// Regression tests for the second pass over the 2026-10-08 review of the v3
+// server: 21 items (19 confirmed findings and 2 follow-ups), numbered 1 to 21
+// in the table below. They cover sandbox licenses getting real service, trial
+// abuse, second subscriptions, billed model failures, free checks per
+// network and per IPv6 block, the cost of one check, and deploy.sh's Node
+// version check (contract Appendix B, B13 to B17).
 //
 // Most were fixed in the first pass and already have a test in
 // test/review-findings.test.js. This table says where each finding's test
@@ -66,7 +69,7 @@ function minutePasses(h) {
   for (const limiter of Object.values(h.limiters)) limiter.reset();
 }
 
-describe('SERVER-FIXES.json, second pass', () => {
+describe('second pass over the 2026-10-08 review', () => {
   test('fix 1: on the sandbox Worker, test-key checks come out of the daily budget, so test cards cannot spend the model key without limit', async () => {
     const h = harness({ env: { FREE_DAILY_BUDGET: '3' } });
     const { device, license } = await subscriber(h);

@@ -1,6 +1,8 @@
 # Grayout hosted API — the contract (v3)
 
-Dated 2026-10-07. This file is binding for the app (`src/`, `main.js`, `ui/`),
+Dated 2026-10-07, revised 2026-10-15: app-started return pages (6.10, 9),
+the Mac App Store edition (16.1), the owner's scripts (3, 14.5), no stored
+invocation logs (13) and open items (20). This file is binding for the app (`src/`, `main.js`, `ui/`),
 the service (`server/`) and the site (`docs/`). If something here is wrong,
 change it here first, then change the code. Where this file and any other file
 disagree (README, runbook, comments), this file wins.
@@ -108,13 +110,21 @@ Until a domain is bought, the API lives at:
 https://grayout-api.<cloudflare-subdomain>.workers.dev
 ```
 
-The deploy step fills it into exactly two lines. Nothing else in the repo names
-the API host.
+The deploy step fills it into exactly two lines, at two different times.
+Nothing else in the repo names the API host.
 
 | Where | The one line | Placeholder in git |
 |---|---|---|
 | App | `src/config.js`: `const DEFAULT_API_BASE = '__GRAYOUT_API_BASE__';` (exported; `src/account.js` imports it) | `__GRAYOUT_API_BASE__` |
 | Site | `docs/config.js`: `window.GRAYOUT_API_BASE = '__GRAYOUT_API_BASE__';` (loaded before `docs/app.js`) | `__GRAYOUT_API_BASE__` |
+
+- **The app line** is filled by `bash server/scripts/deploy.sh live`.
+- **The site line** is filled only by `bash server/scripts/deploy.sh live
+  --fill-site`, and only once a 2.x release is the GitHub "latest" release
+  (the flag checks this and stops otherwise). A filled-in site promises free
+  checks with no API key, and every Download button fetches whatever release
+  is latest; while that is 1.x, the promise would be false. Plain
+  `deploy.sh live` never touches `docs/`.
 
 Rules:
 
@@ -134,9 +144,11 @@ Rules:
 - **Site CSP:** every page that loads `config.js` or `app.js` must allow the API
   origin in `connect-src`: either `https://*.workers.dev`, the exact origin, or
   the `__GRAYOUT_API_BASE__` placeholder (which the deploy step fills on
-  `connect-src` lines). `bash server/scripts/deploy.sh live` runs
-  `server/scripts/check-csp.js` after filling in the address and **stops** if any
-  page would block it or still names `grayout.app`. Drop `grayout.app` from CSP
+  `connect-src` lines, with `--fill-site`). `bash server/scripts/deploy.sh live`
+  runs `server/scripts/check-csp.js` against the address; with `--fill-site`
+  it **stops** if any page would block it or still names `grayout.app`, and
+  without the flag (the site makes no calls yet) it lists the problem as a
+  to-do for before `--fill-site`. Drop `grayout.app` from CSP
   and from `SITE_ORIGINS` until it is owned.
 - **The sandbox address is never committed.** `deploy.sh sandbox` prints it but
   writes it into nothing; the public files only ever point at the live Worker.
@@ -1486,8 +1498,9 @@ Code constants (server):
 
 Deploy-time constants: the API base in `src/config.js` and `docs/config.js`
 (section 3), and the site CSP `connect-src`. Optional for the site:
-`window.GRAYOUT_PORTAL_LOGIN_URL` in `docs/config.js` (the billing portal login
-link from 14.2) for a "Manage billing" link that needs no license.
+`portalLoginUrl` in `window.GRAYOUT_CONFIG` in `docs/config.js` (the billing
+portal login link from 14.2, `https://billing.stripe.com/p/login/…`) for a
+"Manage billing" link that needs no license.
 
 ---
 
@@ -1533,7 +1546,8 @@ Never point the public site or app at the sandbox Worker.
   customer cancelling in the portal until they take effect).
 - Changes during a trial **keep the trial** (`features.subscription_update.trial_update_behavior: "continue_trial"`;
   set it with the API if the Dashboard does not show it).
-- Login link: on. Copy it for `GRAYOUT_PORTAL_LOGIN_URL`.
+- Login link: on. Copy it into `portalLoginUrl` in `window.GRAYOUT_CONFIG`
+  (`docs/config.js`).
 - **Test in the sandbox** with a Managed Payments subscription: switch monthly
   ↔ yearly, cancel, update the card. Stripe documents the portal as working with
   Managed Payments, but plan switching on a Managed Payments subscription is not
@@ -1586,13 +1600,23 @@ webhooks needs no API key.
 2. `bash server/scripts/deploy.sh sandbox`: creates `grayout-sandbox`, applies
    the migrations, deploys `grayout-api-sandbox`. It writes the sandbox
    address into nothing public.
-3. The five secrets (section 13), each with `--env sandbox`. `GET /v1/health`
-   should show every `configured` flag true and `"mode": "test"`.
+3. The five secrets (section 13), each with `--env sandbox`, or all five at
+   once with `bash server/scripts/set-secrets.sh sandbox <worker address>`.
+   Only the owner runs that script, in his own Terminal: it refuses to run
+   without a terminal (it shows `LICENSE_SECRET` once), checks every value
+   before storing it (never an empty or malformed one), and stops when the
+   Stripe CLI answers with an error, which it can do while exiting 0.
+   `GET /v1/health` should show every `configured` flag true and
+   `"mode": "test"`.
 4. Go live: `bash server/scripts/deploy.sh live` creates the separate, empty
    `grayout` database, deploys `grayout-api`, fills the API base into
-   `src/config.js` and `docs/config.js`, and checks every site page's CSP
-   allows it (it stops if not). Then the five live secrets without `--env`,
-   and `"mode": "live"` in `/v1/health`.
+   `src/config.js` only, and checks every site page's CSP against it. Then
+   the five live secrets without `--env` (or `set-secrets.sh live`), and
+   `"mode": "live"` in `/v1/health`. `SUPPORT_EMAIL` and the live price ids
+   are checked in the live Worker's own `vars`, never the sandbox's.
+5. After a 2.x release is the GitHub "latest" release:
+   `bash server/scripts/deploy.sh live --fill-site` fills `docs/config.js`
+   (section 3) and stops if a page's CSP would block the API.
 
 ### 14.6 Hand-run D1 operations
 
@@ -1691,6 +1715,52 @@ purchase is never attached to a device.
 - Honour `retryAfter` on `rate_limited` and `quota_exceeded`.
 - Everything that is not a clean verdict counts as on-task.
 
+#### Mac App Store edition
+
+The same codebase builds a second edition for the Mac App Store, inside
+Apple's App Sandbox. `src/channel.js` decides which edition is running: in a
+packaged build only `process.mas` does, and no environment variable or
+`config.json` can change it. Its App Store listing (not live yet) is for the
+**United States storefront only**, under the store name "Grayout: Back to
+Work" (inside the app it is still Grayout), bundle id
+`com.aarushkandukoori.grayout`.
+Everything above applies, except:
+
+- **No update checker.** Updates come from the App Store (guideline
+  2.4.5(vii)); this edition never calls GitHub.
+- **The hosted service only.** No Claude CLI engine (it runs an outside
+  binary, guideline 2.5.2), no own-key mode (`provider` `anthropic` or
+  `openai`, section 19), and no `apiBase` override (`config.json` or
+  `GRAYOUT_API_BASE`): checks go only to `DEFAULT_API_BASE`.
+- **No private grayscale API.** The gray-out is the overlay helper
+  `Contents/Resources/helper/grayout-overlay`: a window one level below
+  screen saver whose `compositingFilter` is the string
+  `"saturationBlendMode"`, with Electron's red border above it. The direct
+  download keeps the Color Filters helper.
+- **Start at login through `SMAppService` only.** No LaunchAgent file (the
+  sandbox does not allow writing one).
+- **Explicit permission before the first check** (guideline 5.1.2(i)).
+  Nothing is captured or sent until the user taps "Allow and continue" on a
+  screen that names who receives the screenshots (OpenAI, through the
+  Grayout service) and what is sent. Settings can withdraw it, which pauses
+  checks. The direct download asks the same way.
+- **The purchase is the same Stripe link-out**, allowed for the US
+  storefront by guideline 3.1.1(a): device code, Checkout in the browser,
+  `/v1/claim`, with `from=app` on the return pages (9, 6.10). No Apple
+  in-app purchase and no server change. Never list the edition outside the
+  United States without adding in-app purchase.
+- **Pasting a license key is in Settings only**, never in onboarding, and
+  can be switched off (`features.manualLicenseEntry`) if App Review objects.
+- **A store install starts with a fresh device id.** Its sandbox container
+  cannot read the direct download's `state.json` or Keychain items, so it
+  mints its own device (`/v1/device`). `/v1/restore` only finds a license
+  that this new device bought; someone moving over from the direct download
+  pastes their key in Settings. Stripe's "Limit customers to one
+  subscription" (14.1) guards against buying twice with the same email.
+- Screen capture is `/usr/sbin/screencapture` in both editions; it works
+  inside the sandbox once Screen Recording is allowed.
+- The service cannot tell the two editions apart (no channel field; see 20).
+
 ### 16.2 Site (`docs/`)
 
 - `window.GRAYOUT_API_BASE` lives in `docs/config.js` (one line, section 3).
@@ -1713,7 +1783,7 @@ purchase is never attached to a device.
   as before.
 - Prices say "plus tax where it applies". Terms, privacy and checkout copy say
   "sold through Link" and "LINK.COM*" (section 10). "Manage billing" links to
-  `GRAYOUT_PORTAL_LOGIN_URL` when set, and always mentions link.com.
+  `GRAYOUT_CONFIG.portalLoginUrl` when set, and always mentions link.com.
 - Privacy page describes exactly what 12.5 lists.
 - CSP `connect-src` gets the workers.dev origin; drop `grayout.app` until it is
   owned.
@@ -1933,6 +2003,10 @@ Workers plan limits must be checked at deploy time.
   maps every finding to its test, and `server/test/third-pass.test.js` for the
   third). The tests need Node 22.13 or newer
   (`node:sqlite` without a flag); `deploy.sh` checks for it.
+- The owner's scripts are tested end to end against stub commands
+  (`server/test/scripts.test.js`): `set-secrets.sh` on a real
+  pseudo-terminal, `deploy.sh live` with and without `--fill-site` on a copy
+  of the repo. Nothing reaches Cloudflare, Stripe or GitHub.
 - Before launch, in a sandbox: a trial purchase, a paid yearly purchase, a
   delayed-payment purchase if one is offered, a portal plan switch and cancel, a
   full refund, a partial refund, a dispute, an early fraud warning, a second
@@ -1955,6 +2029,30 @@ what makes $9.99 work.
 **Self-hosting.** The repo is MIT. Setting `provider` to `anthropic` or
 `openai` in `config.json`, with a key in the keychain, still works and bypasses
 the service entirely. It is documented in the README, never in the product UI.
+The Mac App Store edition has no own-key mode (16.1).
+
+---
+
+## 20. Open items
+
+- **Future: channel attribution.** The service cannot tell a Mac App Store
+  purchase from a direct-download or website one. A later version could
+  have the app send an optional `channel` (`"mas"` or `"direct"`; the site
+  would be `"web"`) on `/v1/device` and `/v1/checkout`, keep it in a new
+  migration (`devices.channel`, `checkout_sessions.channel`), and report
+  revenue per edition. Not now: section 9 keeps `metadata` off the Checkout
+  Session, and whether Managed Payments accepts `metadata` or
+  `subscription_data.metadata` has not been checked. Confirm that in a
+  sandbox before any change to section 9. The server already ignores
+  unknown body fields, so adding the field later needs no coordinated
+  release.
+- **The site's `from=app` copy** (16.2) is specified here but not built yet
+  on `pricing.html` and `account.html`; until it is, those pages ignore the
+  extra parameter and behave as before.
+- **Check in the sandbox** that a stored Workers Logs line (our own
+  `logLine` output) carries no client IP now that invocation logs are off
+  (13). Cloudflare documents the setting; what it attaches to a Worker's
+  own lines was not checked.
 
 ---
 
