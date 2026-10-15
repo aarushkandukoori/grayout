@@ -20,7 +20,7 @@
 //
 // Exit code 0: every page is fine. 1: at least one page would block the API.
 
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, realpathSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -72,7 +72,9 @@ export function cspProblems(docsDir, apiBase) {
 }
 
 // Run as a script (not when a test imports it).
-if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+// realpath: on macOS the temp folder /var is a link to /private/var, and
+// import.meta.url always names the real path.
+if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(resolve(process.argv[1]))).href) {
   const [docsDir, apiBase] = process.argv.slice(2);
   if (!docsDir || !apiBase) {
     console.error('usage: node scripts/check-csp.js <docs folder> <API address>');
