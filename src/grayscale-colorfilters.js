@@ -1,4 +1,9 @@
 'use strict';
+// Grayscale backend for the direct download: the macOS Color Filters switch,
+// driven by helper/grayscale. That helper uses a private MediaAccessibility
+// API, so the Mac App Store edition never bundles it and never picks this
+// backend. Callers use src/grayscale.js, which chooses between this file and
+// src/grayscale-blend.js.
 const fs = require('fs');
 const { execFile, execFileSync } = require('child_process');
 const paths = require('./paths');

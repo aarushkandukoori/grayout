@@ -15,6 +15,11 @@ const CALLS = path.join(dir, 'calls');
 
 process.env.GRAYOUT_USER_DATA = dir;
 process.env.GRAYOUT_HELPER_BIN = STUB;
+// These tests cover the direct download's Color Filters backend. Pin it, and
+// never point at the real overlay helper, whatever the developer's shell says.
+process.env.GRAYOUT_OVERLAY_BIN = path.join(dir, 'no-overlay-helper');
+delete process.env.GRAYOUT_GRAYSCALE_BACKEND;
+delete process.env.GRAYOUT_CHANNEL;
 
 fs.writeFileSync(STUB, `#!/bin/sh
 echo "$1" >> "${CALLS}"

@@ -24,4 +24,6 @@ for arch in arm64 x86_64; do
 done
 lipo -create -output helper/grayout-overlay "$tmp/grayout-overlay-arm64" "$tmp/grayout-overlay-x86_64"
 lipo -info helper/grayout-overlay
-printf 'ping\n' | ./helper/grayout-overlay
+# Non-visual smoke checks only: never send "on" from a build script.
+printf 'ping\nstatus\n' | ./helper/grayout-overlay
+./helper/grayout-overlay front || echo 'overlay front skipped (no display session)'

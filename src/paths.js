@@ -35,9 +35,19 @@ const VERDICT_LOG = path.join(USER_DATA, 'verdicts.jsonl');
 const LOG_DIR = path.join(USER_DATA, 'logs');
 const LOG_PATH = path.join(LOG_DIR, 'grayout.log');
 const FRAMES_DIR = path.join(tempRoot(), `grayout-frames-${process.pid}`);
-const HELPER_BIN = (electronApp && electronApp.isPackaged)
+// The two display helpers ship in Contents/Resources/helper (read-only, so
+// both work inside the App Sandbox). Each edition bundles only its own:
+//   grayscale        direct download: drives the system Color Filters switch
+//   grayout-overlay  Mac App Store: grays the screen with an overlay window and
+//                    reports the frontmost app
+// The env overrides exist for tests and `npm start`; a packaged app ignores them.
+const isPackaged = () => !!(electronApp && electronApp.isPackaged);
+const HELPER_BIN = isPackaged()
   ? path.join(process.resourcesPath, 'helper', 'grayscale')
   : (process.env.GRAYOUT_HELPER_BIN || path.join(APP_ROOT, 'helper', 'grayscale'));
+const OVERLAY_BIN = isPackaged()
+  ? path.join(process.resourcesPath, 'helper', 'grayout-overlay')
+  : (process.env.GRAYOUT_OVERLAY_BIN || path.join(APP_ROOT, 'helper', 'grayout-overlay'));
 
 const ui = f => path.join(APP_ROOT, 'ui', f);
 const preload = f => path.join(APP_ROOT, 'ui', 'preload', f);
@@ -71,5 +81,6 @@ function removeFramesDir() {
 
 module.exports = {
   IN_ELECTRON, APP_ROOT, USER_DATA, CONFIG_PATH, SECRETS_PATH, STATE_PATH, VERDICT_LOG,
-  LOG_DIR, LOG_PATH, FRAMES_DIR, HELPER_BIN, ui, preload, asset, init, cleanStaleFrameDirs, removeFramesDir
+  LOG_DIR, LOG_PATH, FRAMES_DIR, HELPER_BIN, OVERLAY_BIN, isPackaged, ui, preload, asset, init,
+  cleanStaleFrameDirs, removeFramesDir
 };
