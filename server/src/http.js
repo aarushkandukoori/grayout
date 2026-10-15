@@ -63,6 +63,16 @@ export function requestIdFor(request) {
   return given && REQUEST_ID_RE.test(given) ? given : crypto.randomUUID();
 }
 
+/**
+ * True when a request came from the Mac app, not a web page. Browsers always
+ * send an Origin header with a POST; the app's main-process fetch never does
+ * (contract 16.1). Only used to pick the page Stripe returns to, never to
+ * grant anything: anyone can leave the header out.
+ */
+export function isAppRequest(request) {
+  return !request.headers.get('Origin');
+}
+
 /** CORS headers, only for an allowed origin. Routes that serve no browser never call this. */
 export function corsHeaders(request, env) {
   const origin = request.headers.get('Origin');

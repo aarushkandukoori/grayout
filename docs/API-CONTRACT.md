@@ -417,10 +417,12 @@ What the server does, in order:
      only). Any subscription still open there — `trialing`, `active`,
      `past_due`, `unpaid`, `paused` or `incomplete` — means `409
      already_subscribed` with a fresh billing portal link in `portalUrl` (or
-     `null` if making one failed). For `past_due`, `unpaid`, `paused` and
-     `incomplete` the message says to fix the payment in Manage billing or at
-     link.com instead of buying again: Stripe may still collect the old
-     invoice, and a second subscription would bill twice.
+     `null` if making one failed; it returns to the app's page when the
+     request has a `deviceCode`, otherwise home, 6.10). For `past_due`,
+     `unpaid`, `paused` and `incomplete` the message says to fix the payment
+     in Manage billing or at link.com instead of buying again: Stripe may
+     still collect the old invoice, and a second subscription would bill
+     twice.
    - Everything there is `canceled` or `incomplete_expired`: carry on.
 
    Reuse a Stripe customer (`customer: …`) **only** from the license this
@@ -551,7 +553,8 @@ The app caches the answer for 10 minutes.
 ```
 
 200: the account object (6.1) with one more field, `portalUrl`: a billing
-portal URL when the request had `"portal": true`, otherwise `null`.
+portal URL when the request had `"portal": true`, otherwise `null`. Its return
+page follows the rule in 6.10.
 
 - If `licenses.synced_at` is older than **24 hours**, re-read Stripe before
   answering (section 7.3).
@@ -572,7 +575,19 @@ Device and license. Limits: `RL_IP`, `RL_STRIPE_IP`.
 { "url": "https://billing.stripe.com/p/session/…" }
 ```
 
-`billingPortal.sessions.create({ customer: license.customer_id, return_url: SITE_URL + "/" })`.
+`billingPortal.sessions.create({ customer: license.customer_id, return_url })`, where
+`return_url` is where the portal's "Return" link goes:
+
+- **From the app:** `SITE_URL + "/account.html?from=app"`. That page must not
+  push the download (the buyer already has Grayout); it says to go back to the
+  app. A request is from the app when it carries **no `Origin` header**:
+  browsers always send one with a `POST`, and the app never does (16.1). This
+  only picks a page, never grants anything.
+- **From a browser** (an `Origin` header): `SITE_URL + "/"`, as before.
+- **The 409 link from `/v1/checkout`** (6.5 step 4) uses the request's
+  `deviceCode` instead, the same signal as `success_url` (section 9): with a
+  code the app page, without one the home page.
+
 Errors: `license_invalid`, `license_revoked`, `device_unverified`,
 `rate_limited`, `not_configured`.
 
@@ -985,7 +1000,7 @@ await stripe.checkout.sessions.create({
   ...(knownCustomerId ? { customer: knownCustomerId } : {}),
   ...(trialEligible ? { subscription_data: { trial_period_days: 7 } } : {}),
   success_url: `${env.SITE_URL}/success.html?session_id={CHECKOUT_SESSION_ID}${deviceCode ? '&from=app' : ''}`,
-  cancel_url: `${env.SITE_URL}/pricing.html?canceled=1`,
+  cancel_url: `${env.SITE_URL}/pricing.html?canceled=1${deviceCode ? '&from=app' : ''}`,
   expires_at: nowSeconds + 3600,                   // the same life as a device code
 });
 ```
@@ -998,6 +1013,10 @@ await stripe.checkout.sessions.create({
   `checkout_sessions` row, found by `session.id` (Stripe's own object), not
   `client_reference_id` or metadata.
 - **`trialEligible`** is from 6.5 step 3 and is only ever true for `monthly`.
+- **`from=app`** goes on both return URLs when the app started the checkout
+  (the request had a `deviceCode`; the site never sends one). The pages then
+  say "go back to Grayout" instead of offering the download the buyer
+  already has. Website checkouts come back exactly as before.
 
 Never pass any of these. Managed Payments rejects them or controls them itself:
 
@@ -1640,6 +1659,9 @@ purchase is never attached to a device.
   call.
 - Use `POST` for claim and status. The license goes in the body or an
   `Authorization: Bearer` header, never in a URL.
+- Send no `Origin` header (Node's `fetch` in the main process sends none). The
+  service reads a missing `Origin` as "from the app" to pick the billing
+  portal's return page (6.10).
 - Purchase: `/v1/device-code`, then `/v1/checkout` with the code, open `url` in
   the browser, poll `/v1/claim` (6.6). Stop on terminal answers. When the window
   closes, `/v1/restore` later.
@@ -1675,6 +1697,12 @@ purchase is never attached to a device.
 - `success.html`: `POST /v1/claim { sessionId }`, poll for 120 seconds with
   backoff, "reload this page" on timeout (6.6). The key regex accepts
   `gry_live_` and `gry_test_`.
+- `from=app` (the app started it, so the visitor already has Grayout):
+  `pricing.html?canceled=1&from=app` says nothing was charged and the tab can
+  be closed to go back to Grayout; `account.html?from=app` (back from a
+  billing portal the app opened) says the tab can be closed to go back to
+  Grayout. Neither pushes the download. Without `from=app` both pages behave
+  as before.
 - Prices say "plus tax where it applies". Terms, privacy and checkout copy say
   "sold through Link" and "LINK.COM*" (section 10). "Manage billing" links to
   `GRAYOUT_PORTAL_LOGIN_URL` when set, and always mentions link.com.

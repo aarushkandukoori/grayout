@@ -35,7 +35,7 @@ describe('POST /v1/checkout: the Checkout Session', () => {
       client_reference_id: device.deviceId,
       subscription_data: { trial_period_days: 7 },
       success_url: `${SITE}/success.html?session_id={CHECKOUT_SESSION_ID}&from=app`,
-      cancel_url: `${SITE}/pricing.html?canceled=1`,
+      cancel_url: `${SITE}/pricing.html?canceled=1&from=app`,
       expires_at: T0 + 3600
     });
     for (const key of FORBIDDEN) assert.equal(key in params, false, `${key} must not be sent`);
@@ -56,6 +56,7 @@ describe('POST /v1/checkout: the Checkout Session', () => {
     assert.deepEqual(params.line_items, [{ price: PRICES.yearly, quantity: 1 }]);
     assert.equal('subscription_data' in params, false);
     assert.equal(params.success_url, `${SITE}/success.html?session_id={CHECKOUT_SESSION_ID}`);
+    assert.equal(params.cancel_url, `${SITE}/pricing.html?canceled=1`, 'a website checkout comes back as before');
     assert.equal(h.db.rows('SELECT device_code FROM checkout_sessions')[0].device_code, null);
   });
 
@@ -112,6 +113,23 @@ describe('POST /v1/checkout: never a second subscription', () => {
     assert.equal(res.body.error.code, 'already_subscribed');
     assert.match(res.body.error.portalUrl, /^https:\/\/billing\.stripe\.com\//);
     assert.equal(h.stripe.callsTo('checkout.sessions.create').length, before);
+  });
+
+  test('the 409 portal link returns an app checkout to the app page, and a website checkout home', async () => {
+    const h = harness();
+    const device = await h.mint();
+    const { code } = await h.appPurchase(device);
+    await h.call('/v1/claim', { ...device, deviceCode: code });
+    const returnUrl = () => h.stripe.callsTo('billingPortal.sessions.create').at(-1).args[0].return_url;
+
+    // From the app: Subscribe always sends a fresh device code.
+    const fromApp = (await h.call('/v1/device-code', device)).body.deviceCode;
+    assert.equal((await h.call('/v1/checkout', { ...device, plan: 'yearly', deviceCode: fromApp })).status, 409);
+    assert.equal(returnUrl(), `${SITE}/account.html?from=app`);
+
+    // From the website: no device code, so the portal returns to the home page as before.
+    assert.equal((await h.call('/v1/checkout', { ...device, plan: 'yearly' })).status, 409);
+    assert.equal(returnUrl(), `${SITE}/`);
   });
 
   test('if the portal link cannot be made, portalUrl is null (still 409)', async () => {
