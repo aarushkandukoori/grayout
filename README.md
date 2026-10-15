@@ -56,7 +56,7 @@ shasum -a 256 ~/Downloads/Grayout-arm64.dmg
 | Grayout Pro | Bought on the web through Stripe | The same, never through Apple |
 | Data folder | `~/Library/Application Support/Grayout/` | `~/Library/Containers/com.aarushkandukoori.grayout/Data/Library/Application Support/Grayout/` |
 
-Use one at a time: two copies would both try to gray the screen. Settings and a saved license key don't carry over between them; paste your key in Settings > Your plan on the other one.
+Use one at a time: two copies would both try to gray the screen. Settings and a saved license key don't carry over between them. On the other one, paste your key in Settings > Your plan and click Activate; in the Mac App Store edition, click Connect an existing subscription first.
 
 ## First launch on macOS
 
@@ -93,7 +93,7 @@ No Gatekeeper steps: apps from the App Store open without a warning. Open Grayou
 
 **Trial.** Monthly carries a 7-day free trial. You enter a card, you are not charged until day 8, and cancelling inside the week costs nothing. There is one trial per Mac, per email address and per card: a second trial with the same email or card is charged straight away. Stripe sends no reminder before a 7-day trial ends, so Grayout shows one notification about two days before, if it is running then.
 
-**Subscribing.** Click Subscribe in the menu bar. Grayout opens Stripe's checkout page in your browser; when you finish paying, the app unlocks itself within a few seconds. There is nothing to copy and no password to invent. If you already have a license key (a second Mac, a reinstall), paste it in Settings instead.
+**Subscribing.** Click Subscribe in the menu bar. Grayout opens Stripe's checkout page in your browser; when you finish paying, the app unlocks itself within a few seconds. There is nothing to copy and no password to invent. If you already have a license key (a second Mac, a reinstall), paste it in Settings > Your plan instead (in the Mac App Store edition, under Connect an existing subscription).
 
 **Who you pay.** Grayout Pro is sold through Link: Stripe is the merchant of record. It works out and collects any sales tax or VAT, sends the receipts, and answers payment questions. Your card statement shows LINK.COM*. That is true in the Mac App Store edition too: the app is free there, and Grayout Pro is bought on the web through Stripe, never through Apple, so Apple doesn't bill, cancel or refund it.
 
@@ -157,7 +157,7 @@ The full policy is in [PRIVACY.md](PRIVACY.md). If you would rather send nothing
 
 On the direct download, grayscale is macOS's Color Filters setting, which outlives the process, so Grayout has seven ways back to color:
 
-1. Grayout turns grayscale off on every launch, before it does anything else. Relaunching the app restores color.
+1. Grayout turns grayscale off on every launch, before it does anything else. Relaunching the app restores color. If the menu doesn't respond, force quit it first (see Force quitting, below).
 2. Color is restored on quit, on a crash, on SIGINT and SIGTERM, on an uncaught exception, and on system shutdown.
 3. A watchdog restores color after 20 minutes of gray no matter what (`maxAlertMinutes`).
 4. The menu-bar item **Restore color now** works in every state, including paused, blocked, and unsubscribed.
@@ -176,9 +176,13 @@ The gray is a set of click-through windows drawn by a small helper process (`gra
 
 1. **Restore color now** in the menu bar, in every state.
 2. **I'm working**, when it is shown.
-3. Pause, or Quit. Force Quit (Option-Command-Esc) works too, because the helper goes with the app.
+3. Pause, or Quit. A force quit works too, because the helper goes with the app.
 4. The watchdog restores color after 20 minutes no matter what (`maxAlertMinutes`).
 5. Onboarding's **Preview the gray** shows the restore path before the loop is armed.
+
+### Force quitting
+
+Grayout is a menu bar app (`LSUIElement`), so it usually isn't listed in the Force Quit window (Option-Command-Esc). Open Activity Monitor, select Grayout, click Stop (the X button), then Force Quit, or run `killall -9 Grayout` in Terminal. Plain `killall` sends SIGTERM, which a hung Grayout can't act on. The gray is click-through, so both work while it is on. In the Mac App Store edition the gray goes with the app; on the direct download, Color Filters stays on until you relaunch Grayout or switch it off (direct download items 1 and 6).
 
 Nothing to do with billing can leave your screen gray. A license that lapses, a failed payment, an exhausted free taste, or an unreachable service all stop checks; they never start an alert.
 

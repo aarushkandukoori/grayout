@@ -42,7 +42,7 @@ function el(extra) {
  * Runs docs/app.js against a stand-in page. `nodes` maps a selector to the
  * elements document.querySelectorAll should return for it.
  */
-function runApp({ config = {}, search = '', nodes = {}, boot = false } = {}) {
+function runApp({ config = {}, search = '', pathname = '/grayout/pricing.html', nodes = {}, boot = false } = {}) {
   const root = el({ classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } } });
   const errors = [];
   const replaced = [];
@@ -61,7 +61,7 @@ function runApp({ config = {}, search = '', nodes = {}, boot = false } = {}) {
   };
   const ctx = {
     window: win, document,
-    location: { search, pathname: '/grayout/pricing.html', hash: '' },
+    location: { search, pathname, hash: '' },
     history: { replaceState(_s, _t, url) { replaced.push(url); } },
     navigator: { userAgent: '', platform: 'MacIntel', maxTouchPoints: 0 },
     URL, URLSearchParams, setTimeout, clearTimeout,
@@ -186,6 +186,23 @@ test.describe('the support page (the App Store Support URL)', () => {
     }
   });
 
+  test('force quit help works for a menu bar app: Activity Monitor or killall -9, never the Option-Command-Esc window', () => {
+    // LSUIElement apps are not in the Force Quit window, and main.js handles
+    // SIGTERM in JavaScript, so a hung Grayout ignores a plain killall.
+    for (const f of ['docs/support.html', 'docs/download.html', 'README.md']) {
+      const t = read(f).replace(/&rsquo;/g, "'");
+      assert.match(t, /Activity Monitor, select Grayout, click Stop \(the X button\), then Force Quit/, f);
+      assert.match(t, /killall -9 Grayout/, f);
+      for (const sentence of t.split(/(?<=\.)\s/).filter(x => x.includes('Option-Command-Esc'))) {
+        assert.match(sentence, /isn't listed/, `${f}: ${sentence}`);
+      }
+    }
+    // The direct download's Color Filters gray outlives the process, so its
+    // escape hatch stays next to the force quit help.
+    assert.match(html, /Color Filters setting, which outlives a force quit/);
+    assert.match(read('docs/download.html'), /Color Filters setting, which outlives a force quit/);
+  });
+
   test('links cancelling, refunds, the account page and privacy', () => {
     for (const href of ['account.html', 'refunds.html', 'privacy.html', 'privacy.html#deletion', 'terms.html']) {
       assert.ok(html.includes(`href="${href}"`), href);
@@ -225,6 +242,20 @@ test.describe('privacy, terms and the purchase pages', () => {
     }
   });
 
+  test('privacy scopes the consent step and its controls to 2.0, and says what still goes out before it', () => {
+    for (const doc of [read('docs/privacy.html'), read('PRIVACY.md')]) {
+      const t = doc.replace(/&rsquo;/g, "'").replace(/<[^>]+>/g, '').replace(/\*\*/g, '');
+      assert.match(t, /Grayout asks first \(2\.0 and later\)\. Before any screenshot leaves your Mac/);
+      assert.match(t, /From Grayout 2\.0, the first time Grayout starts/);
+      assert.match(t, /Grayout 1\.0\.x runs on your own API key and has no consent step, no Send screenshots for checks switch and no erase control/);
+      assert.match(t, /Send screenshots for checks in Settings \(2\.0 and later\)/);
+      assert.match(t, /Erase this Mac's Grayout data in Settings \(2\.0 and later\)/);
+      assert.match(t, /Grayout sends no screenshot, app name, work description or camera frame\. It may still contact the Grayout service to register this Mac or check your plan/);
+      assert.match(t, /the direct download may ask GitHub for the latest version number/);
+      assert.equal(/Before anything leaves your Mac|nothing is captured or sent|nothing more is sent/i.test(t), false, 'the update check and the plan check are not gated on consent');
+    }
+  });
+
   test('terms set a minimum age and say Apple is not a party', () => {
     const t = read('docs/terms.html');
     assert.match(t, /<h2 id="age">/);
@@ -261,6 +292,45 @@ test.describe('privacy, terms and the purchase pages', () => {
     assert.deepEqual(r.replaced, ['/grayout/pricing.html?plan=yearly']);
   });
 
+  test('back from a billing portal the app opened, account.html says to go back to Grayout and offers no download', () => {
+    const html = read('docs/account.html');
+    assert.match(html, /<div class="callout callout--blue" data-portal-return hidden>\s*<p><strong>All set\. You can close this tab and go back to Grayout\.<\/strong><\/p>/);
+    assert.match(html, /data-when="noservice" data-hide-from-app/);
+    assert.match(html, /data-when="soon" data-hide-from-app/);
+    assert.equal(/<script>|\son[a-z]+="/.test(html), false, 'CSP: no inline script or handlers');
+
+    const make = () => ({
+      note: el({ hidden: true }),
+      float: el({ classList: { add() {}, remove() {}, toggle() {} } }),
+      notOpen: [el(), el()]
+    });
+    const nodes = n => ({ '[data-portal-return]': [n.note], '[data-float]': [n.float], '[data-hide-from-app]': n.notOpen });
+
+    let n = make();
+    let r = runApp({ pathname: '/grayout/account.html', search: '?from=app', nodes: nodes(n), boot: true });
+    assert.deepEqual(r.errors, []);
+    assert.equal(n.note.hidden, false);
+    assert.equal(n.float.hidden, true, 'no floating Download button');
+    assert.ok(n.notOpen.every(x => x.hidden), 'no "subscriptions are not open" note for a subscriber');
+    assert.deepEqual(r.replaced, ['/grayout/account.html'], 'from=app leaves the address bar, so a reload is the normal page');
+
+    n = make();
+    r = runApp({ pathname: '/grayout/account.html', search: '?from=app&x=1', nodes: nodes(n), boot: true });
+    assert.deepEqual(r.replaced, ['/grayout/account.html?x=1']);
+
+    n = make();
+    r = runApp({ pathname: '/grayout/account.html', search: '', nodes: nodes(n), boot: true });
+    assert.deepEqual(r.errors, []);
+    assert.equal(n.note.hidden, true);
+    assert.equal(n.float.hidden, false);
+    assert.ok(n.notOpen.every(x => !x.hidden));
+    assert.deepEqual(r.replaced, []);
+
+    // success.html has its own from=app handling (claim.js): untouched here.
+    r = runApp({ pathname: '/grayout/success.html', search: '?session_id=cs_test_1&from=app', boot: true });
+    assert.deepEqual(r.replaced, []);
+  });
+
   test('after a purchase started in the app, success.html leads with "close this tab"', () => {
     const html = read('docs/success.html');
     assert.match(html, /<p class="app-done" data-from-app hidden><strong>You can close this tab\. Grayout in your menu bar is already unlocked\.<\/strong><\/p>/);
@@ -289,6 +359,44 @@ test.describe('honesty', () => {
     for (const f of files) {
       assert.equal(/now (?:available )?on the (?:Mac )?App Store|available on the Mac App Store today/i.test(read(f)), false, f);
     }
+  });
+});
+
+test.describe('the App Store package', () => {
+  const notes = fs.readFileSync(path.join(STORE, 'review-notes.txt'), 'utf8');
+
+  test('the review key restores an existing web subscription with the exact App Store steps', () => {
+    assert.match(notes, /restore our existing web subscription: menu bar icon > Settings > Your plan > Connect an existing subscription, paste this key, click Activate: <REVIEWER_LICENSE_KEY>/);
+    assert.match(notes, /The field is optional\./);
+    assert.equal(/task titles/.test(notes), false, 'the App Store edition never sends task titles');
+  });
+
+  test('every page that says to paste a key names the App Store edition\'s extra click', () => {
+    for (const f of ['docs/success.html', 'docs/download.html', 'docs/account.html', 'README.md']) {
+      assert.match(read(f), /Connect an existing subscription/, f);
+    }
+  });
+
+  test('the owner checklist opens the site and checkout before the live purchase and review', () => {
+    const md = fs.readFileSync(path.join(STORE, 'owner-checklist.md'), 'utf8');
+    const steps = [...md.matchAll(/^(\d+)\. (.*)$/gm)].map(m => ({ n: Number(m[1]), text: m[2] }));
+    assert.deepEqual(steps.map(s => s.n), steps.map((_, i) => i + 1), 'numbered 1, 2, 3, ... with no gaps');
+    const at = re => {
+      const s = steps.find(x => re.test(x.text));
+      assert.ok(s, String(re));
+      return s.n;
+    };
+    const release = at(/Publish the 2\.x direct download as GitHub's latest release/);
+    const fill = at(/deploy\.sh live --fill-site/);
+    assert.equal(at(/supportEmail.*checkoutLive: true/), fill);
+    const testflight = at(/TestFlight for Mac/);
+    const purchase = at(/One live purchase through the store build/);
+    const submit = at(/Submit for Review/);
+    assert.ok(release < fill && fill < testflight && testflight < purchase && purchase < submit);
+    assert.match(md, /Settings > Your plan > Connect an existing subscription, paste the key, click Activate/);
+    assert.equal(/probe keychain/.test(md), false, 'the probe cleanup is done');
+    assert.match(md, /invocation logs are now off in `server\/wrangler\.jsonc`/);
+    assert.match(md, /stripe login/);
   });
 });
 

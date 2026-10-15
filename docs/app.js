@@ -903,6 +903,21 @@
     }
   }
 
+  // Back from a billing portal the app opened (return_url =
+  // account.html?from=app, contract 6.10). That visitor already has Grayout
+  // and a subscription, so for this visit the page says to go back to the app,
+  // offers no download and drops the "not open yet" notes.
+  function initPortalReturn() {
+    var note = $('[data-portal-return]');
+    var params = new URLSearchParams(location.search);
+    if (!note || params.get('from') !== 'app') return;
+    note.hidden = false;
+    $$('[data-float]').concat($$('[data-hide-from-app]')).forEach(function (n) { n.hidden = true; });
+    params.delete('from');
+    var q = params.toString();
+    history.replaceState(null, '', location.pathname + (q ? '?' + q : '') + location.hash);
+  }
+
   /* ------------------------------------------------------------------ */
   /* Boot                                                                */
   /* ------------------------------------------------------------------ */
@@ -928,7 +943,8 @@
 
   function boot() {
     [initStatus, initSupport, initPortalLink, initMas, initSheet, initFloat, initReveal, initFaq, initCopy,
-      initDownloads, initPreviewGray, initKeys, initTrio, initMotionToggle, initDoc, initBilling, initCheckout]
+      initDownloads, initPreviewGray, initKeys, initTrio, initMotionToggle, initDoc, initBilling, initCheckout,
+      initPortalReturn]
       .forEach(function (fn) {
         try { fn(); } catch (e) { if (window.console) console.error('grayout:', fn.name, e); }
       });

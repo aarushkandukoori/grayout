@@ -88,7 +88,7 @@
           <li><strong>Updates</strong> - through the App Store, like any other app. The direct download shows Update available in its menu, or updates with Homebrew.</li>
           <li><strong>The gray</strong> - the Mac App Store edition draws it with a click-through window of its own, which closes when Grayout quits. The direct download uses macOS&rsquo;s Color Filters switch.</li>
           <li><strong>Your own API key</strong> - direct download and source builds only. The Mac App Store edition always uses the Grayout service.</li>
-          <li><strong>Your settings</strong> - the Mac App Store edition keeps them in its own sandbox folder, so settings and a saved license key don&rsquo;t carry over from the direct download. Paste your key under Settings &gt; Your plan to use a subscription you already have.</li>
+          <li><strong>Your settings</strong> - the Mac App Store edition keeps them in its own sandbox folder, so settings and a saved license key don&rsquo;t carry over from the direct download. To use a subscription you already have, open Settings &gt; Your plan &gt; Connect an existing subscription, paste your key and click Activate.</li>
         </ul>
         <p class="muted">Use one edition at a time. Quit and delete the direct download before installing from the App Store, or both copies will try to gray the screen.</p>
 
@@ -155,10 +155,11 @@
             <li>Quit Grayout. Color comes back at once.</li>
             <li>Do nothing. A watchdog restores color after 20 minutes no matter what.</li>
           </ol>
+          <p>If the menu doesn&rsquo;t respond, force quit Grayout. It lives in the menu bar, so it usually isn&rsquo;t listed in the Force Quit window (Option-Command-Esc). Open Activity Monitor, select Grayout, click Stop (the X button), then Force Quit. Or run <code>killall -9 Grayout</code> in Terminal. The gray doesn&rsquo;t block clicks, so both work while it is on.</p>
           <p class="t">Mac App Store edition</p>
-          <p>The gray is a window that belongs to Grayout, so it closes whenever Grayout stops, even after a force quit (Option-Command-Esc). Grayout never changes a display setting there, so there is nothing to switch off in System Settings.</p>
+          <p>The gray is a window that belongs to Grayout, so it closes whenever Grayout stops, force quit included. Grayout never changes a display setting there, so there is nothing to switch off in System Settings.</p>
           <p class="t">Direct download</p>
-          <p>Every launch turns grayscale off before anything else, even after a force quit, so relaunching works too. With no Terminal: System Settings &gt; Accessibility &gt; Display &gt; Color Filters, and switch it off. That is the switch the direct download uses. From Terminal, with the quotes:</p>
+          <p>The gray is macOS&rsquo;s Color Filters setting, which outlives a force quit. Every launch turns grayscale off before anything else, so relaunching works. With no Terminal: System Settings &gt; Accessibility &gt; Display &gt; Color Filters, and switch it off. That is the switch the direct download uses. From Terminal, with the quotes:</p>
           <div class="code"><pre id="cmd-off">"/Applications/Grayout.app/<wbr>Contents/<wbr>Resources/<wbr>helper/<wbr>grayscale" off</pre><button class="copy" type="button" data-copy="#cmd-off"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.6"/><path d="M10.5 5.5V3.6a1.1 1.1 0 0 0-1.1-1.1H3.6a1.1 1.1 0 0 0-1.1 1.1v5.8a1.1 1.1 0 0 0 1.1 1.1h1.9"/></svg><span data-copy-label>Copy</span></button></div>
           <p>If you needed any of these, <a href="support.html#contact">tell us</a> which one worked.</p>
         </div>

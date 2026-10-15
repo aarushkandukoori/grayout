@@ -82,10 +82,11 @@
             <li>Quit Grayout. Color comes back at once.</li>
             <li>Do nothing. A watchdog restores color after 20 minutes no matter what.</li>
           </ol>
+          <p>If the menu doesn&rsquo;t respond, force quit Grayout. It lives in the menu bar, so it usually isn&rsquo;t listed in the Force Quit window (Option-Command-Esc). Open Activity Monitor, select Grayout, click Stop (the X button), then Force Quit. Or run <code>killall -9 Grayout</code> in Terminal. The gray doesn&rsquo;t block clicks, so both work while it is on.</p>
           <p class="t">Mac App Store edition</p>
-          <p>The gray is a window that belongs to Grayout, so it closes whenever Grayout stops. If the menu doesn&rsquo;t respond, force quit Grayout (Option-Command-Esc) and the gray goes with it. Grayout never changes a display setting in this edition, so there is nothing to switch off in System Settings.</p>
+          <p>The gray is a window that belongs to Grayout, so it closes whenever Grayout stops, force quit included. Grayout never changes a display setting in this edition, so there is nothing to switch off in System Settings.</p>
           <p class="t">Direct download (GitHub or Homebrew)</p>
-          <p>Relaunching works too: every launch turns grayscale off before anything else, even after a force quit. With no Terminal: System Settings &gt; Accessibility &gt; Display &gt; Color Filters, and switch it off. That is the switch the direct download uses. The Terminal command is on the <a href="download.html#stuck">download page</a>.</p>
+          <p>The gray is macOS&rsquo;s Color Filters setting, which outlives a force quit. Relaunch Grayout: every launch turns grayscale off before anything else. With no Terminal: System Settings &gt; Accessibility &gt; Display &gt; Color Filters, and switch it off. That is the switch the direct download uses. The Terminal command is on the <a href="download.html#stuck">download page</a>.</p>
         </div>
 
         <h2 id="edition"><span class="grad">Which edition do I have?</span></h2>
@@ -111,7 +112,7 @@
         </ul>
 
         <h2 id="data"><span class="grad">Your data</span></h2>
-        <p>What Grayout sends, to whom, and what is kept is all in the <a href="privacy.html">privacy policy</a>. On your Mac, Delete all history in Settings empties the log, and Erase this Mac&rsquo;s Grayout data removes everything Grayout keeps there. To have what the service holds deleted, see <a href="privacy.html#deletion">retention and deletion</a>. The <a href="terms.html">terms of service</a> cover the Grayout service and Grayout Pro.</p>
+        <p>What Grayout sends, to whom, and what is kept is all in the <a href="privacy.html">privacy policy</a>. On your Mac, Delete all history in Settings empties the log, and from Grayout 2.0, Erase this Mac&rsquo;s Grayout data removes everything Grayout keeps there. To have what the service holds deleted, see <a href="privacy.html#deletion">retention and deletion</a>. The <a href="terms.html">terms of service</a> cover the Grayout service and Grayout Pro.</p>
       </article>
       <nav class="toc" aria-label="On this page" data-toc>
         <p class="eyebrow">On this page</p>
