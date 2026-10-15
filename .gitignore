@@ -11,3 +11,14 @@ npm-debug.log*
 server/node_modules/
 server/.dev.vars
 server/.wrangler/
+helper/grayout-overlay
+# a node_modules symlink in a worktree (the rule above only matches a directory)
+node_modules
+# Apple signing material and API keys: never commit
+*.p8
+AuthKey_*.p8
+*.provisionprofile
+*.mobileprovision
+*.cer
+.env
+build/mas/
