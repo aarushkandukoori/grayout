@@ -75,6 +75,8 @@ html[data-support="on"] [data-when="nosupport"],
 html:not([data-portal="on"]) [data-when="portal"],
 html[data-portal="on"] [data-when="noportal"],
 html:not([data-licenseportal="on"]) [data-when="licenseportal"],
+html:not([data-mas="on"]) [data-when="mas"],
+html[data-mas="on"] [data-when="nomas"],
 html:not([data-plan="yearly"]) [data-plan-show="yearly"],
 html[data-plan="yearly"] [data-plan-show="monthly"]{display:none!important}
 
@@ -365,6 +367,17 @@ html.is-still .keys .keycap,html.is-still .pulse{animation:none!important}
 .ftr__bottom svg{width:20px;height:20px}
 .ftr__bottom .motion-toggle{margin-left:auto;min-height:36px;padding:6px 12px;font-size:13px}
 .ftr__bottom .motion-toggle svg{width:12px;height:12px}
+/* Apple's trademark credit: shown only while the Mac App Store link is live (data-mas="on"). */
+.ftr__credit{margin-top:12px;font-size:12px;line-height:1.5;color:var(--ink-muted)}
+
+/* "Download on the Mac App Store": a plain text link, never an imitation of
+   Apple's badge artwork. Hidden by [data-when="mas"] until masUrl is set. */
+.mas-link{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
+.mas-link small{font-size:13px;line-height:1.5;color:var(--ink-muted)}
+.plan__cta .mas-link{margin-top:10px;justify-content:center;text-align:center}
+.hero__mas{position:relative;z-index:5;justify-content:center;margin-top:12px}
+.hero__mas .btn{background:rgba(255,255,255,.92)}
+.hero__mas small{padding:2px 10px;border-radius:12px;background:rgba(12,32,96,.42);color:#fff}
 @media (max-width:1023px){.ftr__grid{grid-template-columns:1fr}.ftr__cols{gap:40px}}
 @media (max-width:767px){.ftr__cols{grid-template-columns:1fr 1fr;gap:28px 24px}.ftr__col a{padding:11px 0}.ftr__col ul{gap:0}}
 

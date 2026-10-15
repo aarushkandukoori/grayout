@@ -45,5 +45,14 @@ window.GRAYOUT_CONFIG = {
   // Leave false unless the service answers browsers on POST /v1/portal
   // (contract v3 section 5 lists only health, device, checkout and claim as
   // CORS routes). When true, account.html shows "paste your license key".
-  licensePortal: false
+  licensePortal: false,
+
+  // The Mac App Store listing ("Grayout: Back to Work", United States
+  // storefront only). Leave '' until App Store Connect says "Ready for
+  // Distribution" AND the URL opens in a signed-out browser. While it is '',
+  // every "Download on the Mac App Store" link and the Apple trademark credit
+  // stay hidden. Only https://apps.apple.com/.../id<digits> URLs are accepted;
+  // anything else is ignored. Shape:
+  // https://apps.apple.com/us/app/grayout-back-to-work/id0000000000?mt=12
+  masUrl: ''
 };

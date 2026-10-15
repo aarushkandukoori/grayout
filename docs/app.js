@@ -41,12 +41,27 @@
   var CHECKOUT_HOSTS = ['checkout.stripe.com'];
   var PORTAL_HOSTS = ['billing.stripe.com'];
 
+  // The Mac App Store listing: only a real product page on apps.apple.com,
+  // e.g. https://apps.apple.com/us/app/grayout-back-to-work/id1234567890?mt=12.
+  // Anything else (another host, http, a search page, a typo) gives '' and the
+  // App Store links stay hidden, so a bad edit can never send people elsewhere.
+  var MAS_HOSTS = ['apps.apple.com'];
+  var MAS_PATH_RE = /^\/(?:[a-z]{2}\/)?app\/(?:[^\/]+\/)?id\d{6,12}$/;
+  function parseMasUrl(value) {
+    var href = parseHttpsUrl(value, MAS_HOSTS);
+    if (!href) return '';
+    var u = new URL(href);
+    if (u.username || u.password || u.port || u.hash) return '';
+    return MAS_PATH_RE.test(u.pathname) ? u.href : '';
+  }
+
   var CFG = {
     apiBase: parseBase(RAW.apiBase || window.GRAYOUT_API_BASE),
     checkoutLive: RAW.checkoutLive === true,
     portalLoginUrl: parseHttpsUrl(RAW.portalLoginUrl, PORTAL_HOSTS),
     supportEmail: (typeof RAW.supportEmail === 'string' && EMAIL_RE.test(RAW.supportEmail.trim())) ? RAW.supportEmail.trim() : '',
-    licensePortal: RAW.licensePortal === true
+    licensePortal: RAW.licensePortal === true,
+    masUrl: parseMasUrl(RAW.masUrl)
   };
   // Selling also needs a support address: the refund policy promises refunds
   // that only an email can grant, so checkout stays off until one is set.
@@ -60,6 +75,7 @@
   root.setAttribute('data-support', CFG.supportEmail ? 'on' : 'off');
   root.setAttribute('data-portal', CFG.portalLoginUrl ? 'on' : 'off');
   root.setAttribute('data-licenseportal', (CFG.apiBase && CFG.licensePortal) ? 'on' : 'off');
+  root.setAttribute('data-mas', CFG.masUrl ? 'on' : 'off');
 
   var planFromUrl = null;
   try { planFromUrl = new URLSearchParams(location.search).get('plan'); } catch (e) { /* old browser */ }
@@ -271,6 +287,13 @@
   function initPortalLink() {
     if (!CFG.portalLoginUrl) return;
     $$('[data-portal-login]').forEach(function (a) { a.setAttribute('href', CFG.portalLoginUrl); });
+  }
+
+  // Every "Download on the Mac App Store" link. They sit inside
+  // [data-when="mas"], which style.css hides until masUrl is set.
+  function initMas() {
+    if (!CFG.masUrl) return;
+    $$('[data-mas-link]').forEach(function (a) { a.setAttribute('href', CFG.masUrl); });
   }
 
   /* Mobile sheet (F3) */
@@ -860,12 +883,21 @@
       $$('[data-checkout-msg]').forEach(function (m) { setMessage(m, ''); });
     });
 
-    // Back from a cancelled checkout (cancel_url = pricing.html?canceled=1).
+    // Back from a cancelled checkout (cancel_url = pricing.html?canceled=1,
+    // plus &from=app when the checkout was opened by the app). A visitor from
+    // the app only needs to know nothing was charged and that the app is
+    // still where they left it, not to be offered the download.
     var params = new URLSearchParams(location.search);
     if (params.get('canceled') === '1') {
       var note = $('[data-canceled]');
-      if (note) note.hidden = false;
+      var fromApp = params.get('from') === 'app';
+      if (note) {
+        $$('[data-canceled-web]', note).forEach(function (n) { n.hidden = fromApp; });
+        $$('[data-canceled-app]', note).forEach(function (n) { n.hidden = !fromApp; });
+        note.hidden = false;
+      }
       params.delete('canceled');
+      params.delete('from');
       var q = params.toString();
       history.replaceState(null, '', location.pathname + (q ? '?' + q : '') + location.hash);
     }
@@ -895,7 +927,7 @@
   };
 
   function boot() {
-    [initStatus, initSupport, initPortalLink, initSheet, initFloat, initReveal, initFaq, initCopy,
+    [initStatus, initSupport, initPortalLink, initMas, initSheet, initFloat, initReveal, initFaq, initCopy,
       initDownloads, initPreviewGray, initKeys, initTrio, initMotionToggle, initDoc, initBilling, initCheckout]
       .forEach(function (fn) {
         try { fn(); } catch (e) { if (window.console) console.error('grayout:', fn.name, e); }

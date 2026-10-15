@@ -121,6 +121,7 @@
         <a class="btn btn-ghost" href="pricing.html">See pricing</a>
       </div>
       <p class="hero__fine"><span data-when="service">100 checks free. No card, no account.</span><span data-when="noservice">Free and open source.</span> macOS 13 or later, Apple Silicon and Intel.</p>
+      <p class="mas-link hero__mas" data-when="mas"><a class="btn btn-light btn-sm" data-mas-link href="https://apps.apple.com/" rel="noopener">Download on the Mac App Store</a><small>United States only. Listed as &ldquo;Grayout: Back to Work&rdquo;.</small></p>
     </div>
 
     <div class="wrap wrap--mid hero__stage">
@@ -375,7 +376,7 @@
         </div>
       </div>
     </div>
-    <p class="marquee__note center" data-reveal>Each phrase names a kind of activity. Words from your screen are not recorded. Phrases stay on your Mac for 30 days.</p>
+    <p class="marquee__note center" data-reveal>Each phrase names a kind of activity, and Grayout tells the model never to include words from your screen. Phrases stay on your Mac for 30 days.</p>
   </section>
 
   <section class="sec stats" aria-labelledby="stats-title">
@@ -397,10 +398,10 @@
         <h2 id="stats-title" class="stats__title" data-reveal><span class="grad grad--deep">What happens to a screenshot</span></h2>
         <dl class="srows">
           <div class="srow dl-3" data-reveal="snap"><dt class="srow__n">1366<span>px</span></dt><dd><strong>Shrunk before it leaves</strong>Each display is resized and compressed, and the file on your Mac is deleted right after.</dd></div>
-          <div class="srow dl-4" data-reveal="snap"><dt class="srow__n">0</dt><dd><strong>Copies Grayout keeps</strong>The image goes to the AI model for a verdict and is then dropped. Grayout never stores it and never logs it.</dd></div>
+          <div class="srow dl-4" data-reveal="snap"><dt class="srow__n">0</dt><dd><strong>Copies Grayout keeps</strong>The image goes to the AI model for one verdict. Grayout never stores it and never logs it; the model provider handles it under its API data policy.</dd></div>
           <div class="srow dl-5" data-reveal="snap"><dt class="srow__n">3</dt><dd><strong>Fields come back</strong>Off task or not, a short activity phrase, and a confidence. That&rsquo;s all the app receives.</dd></div>
         </dl>
-        <p class="stats__foot" data-reveal>On Grayout Pro the image passes through the Grayout service on its way to the model. On your own key it goes straight from your Mac to OpenAI or Anthropic. <a class="arrow-link" href="privacy.html">Read the privacy policy <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h9.5M8.5 4l4 4-4 4"/></svg></a></p>
+        <p class="stats__foot" data-reveal>On the free checks and Grayout Pro, the image passes through the Grayout service on its way to OpenAI&rsquo;s model, and Grayout asks your permission before the first one goes. On your own key it goes straight from your Mac to OpenAI or Anthropic. <a class="arrow-link" href="privacy.html">Read the privacy policy <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h9.5M8.5 4l4 4-4 4"/></svg></a></p>
       </div>
     </div>
   </section>
@@ -466,7 +467,7 @@
           <div class="plan__price">$0<small>plus your API costs</small></div>
           <p class="plan__note">Your OpenAI or Anthropic account pays for each check, a fraction of a cent.</p>
           <div class="plan__cta"><a class="btn btn-light" href="api-key.html">Read the guide</a></div>
-          <p class="plan__desc">Open source under the MIT license.</p>
+          <p class="plan__desc">Open source under the MIT license.<span data-when="mas"> Direct download and source builds only.</span></p>
           <ul class="plan__feats">
             <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg>Your OpenAI or Anthropic key</li>
             <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg>Screenshots go straight to your provider</li>
@@ -488,11 +489,12 @@
       <div class="faq dl-1" data-faq data-reveal>
         <div class="faq__item" id="q-off-task"><button class="faq__q" type="button">What counts as off task? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>Grayout asks an AI model one question about your screen: is this person clearly not working? Add a one-line description of your work in Settings and it judges against that. Anything ambiguous counts as work.</p></div></div></div>
         <div class="faq__item" id="q-calls"><button class="faq__q" type="button">Will it gray me out during a video call? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>No. When a video-call app such as Zoom, FaceTime, Teams or Webex is in front, Grayout skips the check and clears any alert. You can change that list in Settings.</p></div></div></div>
-        <div class="faq__item" id="q-screens"><button class="faq__q" type="button">What happens to my screenshots? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>Each display is resized and sent for a verdict, then dropped. On Pro it passes through the Grayout service to the AI model, and the service never stores or logs it. On your own key it goes straight to OpenAI or Anthropic under your account. When a password manager is in front, nothing is captured at all.</p></div></div></div>
+        <div class="faq__item" id="q-screens"><button class="faq__q" type="button">What happens to my screenshots? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>Each display is resized and sent for a verdict, then dropped. On the free checks and Pro it passes through the Grayout service to OpenAI&rsquo;s model, and the service never stores or logs it. On your own key it goes straight to OpenAI or Anthropic under your account. When a password manager is in front, nothing is captured at all.</p></div></div></div>
         <div class="faq__item" id="q-color"><button class="faq__q" type="button">How do I get my color back? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>Get back to work and the next check restores it. You can also click I&rsquo;m working, pause, or choose Restore color now in the menu bar. Quitting restores color, and a 20-minute watchdog does too.</p></div></div></div>
         <div class="faq__item" id="q-free"><button class="faq__q" type="button">How far do 100 free checks go? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>About 2 hours of active use at the 45-second default. A check is only spent when you&rsquo;re at your Mac and something on screen changed. That&rsquo;s enough to watch it catch you. No card, no account, no email.</p><p data-when="noservice">The free checks start when the Grayout service opens. Until then, today&rsquo;s release runs on your own OpenAI or Anthropic key.</p></div></div></div>
         <div class="faq__item" id="q-allowance"><button class="faq__q" type="button">Is 10,000 checks a month enough? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>Yes, with room to spare. A full month of work at the default pace is around 8,000 checks before unchanged screens are skipped, and roughly half that after. If you ever pass 10,000, Grayout keeps going at one check every 10 minutes until the month resets.</p></div></div></div>
-        <div class="faq__item" id="q-gatekeeper"><button class="faq__q" type="button">Why does macOS warn me the first time I open it? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>Grayout isn&rsquo;t notarized by Apple yet, so the first launch needs Open Anyway in System Settings. The <a class="inline-link" href="download.html#first-run">install guide</a> walks through it in three clicks.</p></div></div></div>
+        <div class="faq__item" id="q-gatekeeper"><button class="faq__q" type="button">Why does macOS warn me the first time I open it? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>Grayout isn&rsquo;t notarized by Apple yet, so the first launch needs Open Anyway in System Settings. The <a class="inline-link" href="download.html#first-run">install guide</a> walks through it in three clicks.</p><p data-when="mas">From the Mac App Store? There is no warning.</p></div></div></div>
+        <div class="faq__item" id="q-store" data-when="mas"><button class="faq__q" type="button">Mac App Store or direct download? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>Both run the same checks on the Grayout service and sell the same Grayout Pro, bought on the web through Stripe. The Mac App Store edition is for the United States only, updates through the App Store, and draws the gray with a window of its own instead of macOS&rsquo;s Color Filters switch. The direct download works everywhere and can also run on your own API key. <a class="inline-link" href="download.html#mac-app-store">Compare them</a>.</p></div></div></div>
         <div class="faq__item" id="q-billing"><button class="faq__q" type="button">How does billing work? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>Payments run through Stripe and Grayout Pro is sold through Link, so Grayout never sees your card number. Sales tax or VAT is worked out at checkout. Cancel any time from Manage subscription in the menu bar or at link.com; Grayout keeps working until the period you paid for ends.</p></div></div></div>
         <div class="faq__item" id="q-open"><button class="faq__q" type="button">Is it open source? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>Yes, MIT licensed. If you would rather use your own OpenAI or Anthropic key, <a class="inline-link" href="api-key.html">here is how</a>.</p></div></div></div>
         <div class="faq__item" id="q-who"><button class="faq__q" type="button">Who makes Grayout? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>Aarush Kandukoori, a student founder. Wrong calls and bugs go to <a class="inline-link" href="https://github.com/aarushkandukoori/grayout/issues">GitHub issues</a>.</p></div></div></div>
@@ -527,7 +529,7 @@
           <a class="logo" href="./" aria-label="Grayout home"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="currentColor" opacity=".5"/><path d="M10 10V1a9 9 0 0 1 9 9z" fill="#D03B3B"/></svg><span>Grayout</span></a>
           <p>Your Mac goes gray when you drift and comes back in color when you work. Made by Aarush Kandukoori.</p>
         </div>
-        <div><span class="status" data-status><span class="dot dot--amber"></span><span data-status-text>Subscriptions opening soon</span></span></div>
+        <div><span class="status" data-status><span class="dot dot--gray"></span><span data-status-text>Service status</span></span></div>
       </div>
       <div class="ftr__cols">
         <div class="ftr__col">
@@ -555,7 +557,7 @@
             <li><a href="download.html#first-run">First launch</a></li>
             <li><a href="download.html#stuck">Stuck gray screen</a></li>
             <li><a href="https://github.com/aarushkandukoori/grayout/issues/new?template=wrong-call.yml">Report a wrong call</a></li>
-            <li><a href="https://github.com/aarushkandukoori/grayout/issues">Contact</a></li>
+            <li><a href="support.html">Support</a></li>
           </ul>
         </div>
       </div>
@@ -565,6 +567,7 @@
       <button class="motion-toggle" type="button" data-motion-toggle aria-pressed="false"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><rect x="3.5" y="3" width="3" height="10" rx="1"/><rect x="9.5" y="3" width="3" height="10" rx="1"/></svg><span>Pause animations</span></button>
       <a href="https://github.com/aarushkandukoori/grayout" aria-label="Grayout on GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1.8a10.2 10.2 0 0 0-3.2 19.9c.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.2-3.4-1.2-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.6 1 1.6 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.6-1.4-2.3-.3-4.6-1.1-4.6-5a3.9 3.9 0 0 1 1-2.7 3.6 3.6 0 0 1 .1-2.7s.9-.3 2.8 1a9.6 9.6 0 0 1 5.1 0c1.9-1.3 2.8-1 2.8-1 .5 1.4.2 2.4.1 2.7a3.9 3.9 0 0 1 1 2.7c0 3.9-2.4 4.7-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10.2 10.2 0 0 0 12 1.8Z"/></svg></a>
     </div>
+    <p class="ftr__credit" data-when="mas">Apple, the Apple logo, Mac and Mac App Store are trademarks of Apple Inc., registered in the U.S. and other countries and regions. App Store is a service mark of Apple Inc.</p>
   </div>
 </footer>
 <div class="sheet" id="sheet" hidden>
@@ -579,6 +582,7 @@
         <a href="download.html">Download</a>
         <a href="privacy.html">Privacy</a>
       <a href="account.html">Manage subscription</a>
+      <a href="support.html">Support</a>
     </nav>
     <a class="btn btn-primary btn-block" href="download.html"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 13h10"/></svg>Download for Mac</a>
   </div>

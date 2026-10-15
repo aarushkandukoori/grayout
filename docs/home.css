@@ -34,7 +34,7 @@
   html.js .hero__pill{animation:fade-up8 .5s var(--ease-out) .5s backwards}
   html.js .hero__rule{animation:fade-up8 .5s var(--ease-out) 1s backwards}
   html.js .hero__sub{animation:fade-up8 .5s var(--ease-out) 1.2s backwards}
-  html.js .hero__cta,html.js .hero__fine{animation:fade-up16 .6s var(--ease-spring) 1.3s backwards}
+  html.js .hero__cta,html.js .hero__fine,html.js .hero__mas{animation:fade-up16 .6s var(--ease-spring) 1.3s backwards}
   html.js .stage{animation:mock-in 1.3s var(--ease-spring) 1.5s backwards}
   html.js .preview-row{animation:fade-up8 .5s var(--ease-out) 2.4s backwards}
   html.js .hero__sky{animation:art-in 1.6s var(--ease-out) backwards}

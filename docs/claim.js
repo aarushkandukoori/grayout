@@ -36,7 +36,10 @@
   } else if (session) {
     try { var saved = JSON.parse(session.getItem('grayout.claim') || 'null'); if (saved) { sid = saved.sid || ''; fromApp = !!saved.fromApp; } } catch (e) { /* ignore */ }
   }
+  // A purchase started in the app: the app unlocks itself, so lead with
+  // "close this tab" and show the key only as a key for another Mac.
   $$('[data-from-app]').forEach(function (n) { n.hidden = !fromApp; });
+  $$('[data-from-web]').forEach(function (n) { n.hidden = fromApp; });
 
   var TITLES = {
     off: ['Nothing to claim yet', 'This page shows your license key right after checkout. Subscriptions are not open yet.'],
@@ -44,7 +47,7 @@
     checking: ['Unlocking Grayout Pro', 'Checking your purchase with the Grayout service. This usually takes a few seconds.'],
     ready: ["You're set.", 'Your license key is below. Paste it into Grayout to unlock Pro.'],
     // A purchase started in the app: the app unlocks without the key.
-    readyApp: ["You're set.", 'Grayout on your Mac unlocks itself in a few seconds. The key below is for another Mac.'],
+    readyApp: ["You're set.", 'Grayout on your Mac unlocks itself. You only need the key below for another Mac.'],
     pending: ['Almost there', 'Your payment went through. Your key is not ready yet.'],
     unreachable: ['Your key is safe', 'We could not reach the Grayout service from this page.'],
     trouble: ['Your key is safe', 'The Grayout service is having trouble right now.'],
