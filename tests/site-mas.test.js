@@ -186,6 +186,23 @@ test.describe('the support page (the App Store Support URL)', () => {
     }
   });
 
+  test('force quit help works for a menu bar app: Activity Monitor or killall -9, never the Option-Command-Esc window', () => {
+    // LSUIElement apps are not in the Force Quit window, and main.js handles
+    // SIGTERM in JavaScript, so a hung Grayout ignores a plain killall.
+    for (const f of ['docs/support.html', 'docs/download.html', 'README.md']) {
+      const t = read(f).replace(/&rsquo;/g, "'");
+      assert.match(t, /Activity Monitor, select Grayout, click Stop \(the X button\), then Force Quit/, f);
+      assert.match(t, /killall -9 Grayout/, f);
+      for (const sentence of t.split(/(?<=\.)\s/).filter(x => x.includes('Option-Command-Esc'))) {
+        assert.match(sentence, /isn't listed/, `${f}: ${sentence}`);
+      }
+    }
+    // The direct download's Color Filters gray outlives the process, so its
+    // escape hatch stays next to the force quit help.
+    assert.match(html, /Color Filters setting, which outlives a force quit/);
+    assert.match(read('docs/download.html'), /Color Filters setting, which outlives a force quit/);
+  });
+
   test('links cancelling, refunds, the account page and privacy', () => {
     for (const href of ['account.html', 'refunds.html', 'privacy.html', 'privacy.html#deletion', 'terms.html']) {
       assert.ok(html.includes(`href="${href}"`), href);

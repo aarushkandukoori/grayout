@@ -157,7 +157,7 @@ The full policy is in [PRIVACY.md](PRIVACY.md). If you would rather send nothing
 
 On the direct download, grayscale is macOS's Color Filters setting, which outlives the process, so Grayout has seven ways back to color:
 
-1. Grayout turns grayscale off on every launch, before it does anything else. Relaunching the app restores color.
+1. Grayout turns grayscale off on every launch, before it does anything else. Relaunching the app restores color. If the menu doesn't respond, force quit it first (see Force quitting, below).
 2. Color is restored on quit, on a crash, on SIGINT and SIGTERM, on an uncaught exception, and on system shutdown.
 3. A watchdog restores color after 20 minutes of gray no matter what (`maxAlertMinutes`).
 4. The menu-bar item **Restore color now** works in every state, including paused, blocked, and unsubscribed.
@@ -176,9 +176,13 @@ The gray is a set of click-through windows drawn by a small helper process (`gra
 
 1. **Restore color now** in the menu bar, in every state.
 2. **I'm working**, when it is shown.
-3. Pause, or Quit. Force Quit (Option-Command-Esc) works too, because the helper goes with the app.
+3. Pause, or Quit. A force quit works too, because the helper goes with the app.
 4. The watchdog restores color after 20 minutes no matter what (`maxAlertMinutes`).
 5. Onboarding's **Preview the gray** shows the restore path before the loop is armed.
+
+### Force quitting
+
+Grayout is a menu bar app (`LSUIElement`), so it usually isn't listed in the Force Quit window (Option-Command-Esc). Open Activity Monitor, select Grayout, click Stop (the X button), then Force Quit, or run `killall -9 Grayout` in Terminal. Plain `killall` sends SIGTERM, which a hung Grayout can't act on. The gray is click-through, so both work while it is on. In the Mac App Store edition the gray goes with the app; on the direct download, Color Filters stays on until you relaunch Grayout or switch it off (direct download items 1 and 6).
 
 Nothing to do with billing can leave your screen gray. A license that lapses, a failed payment, an exhausted free taste, or an unreachable service all stop checks; they never start an alert.
 
