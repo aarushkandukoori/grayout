@@ -26,12 +26,15 @@ exit "$(cat "${CODE}" 2>/dev/null || echo 0)"
 `, { mode: 0o755 });
 
 const channel = require('../src/channel');
-const { getFrontmostApp, _resetFailures } = require('../src/frontmost');
+const { getFrontmostApp, FAILURE_LIMIT, RETRY_MS, _resetFailures, _setClockForTests } = require('../src/frontmost');
 
 const answer = (out, code = 0) => { fs.writeFileSync(OUT, out); fs.writeFileSync(CODE, String(code)); };
 const calls = () => { try { return fs.readFileSync(CALLS, 'utf8').trim().split('\n').filter(Boolean); } catch { return []; } };
 
-after(() => { channel._setForTests(null); helpers.cleanup(dir); });
+let clock = 1_789_905_600_000;
+_setClockForTests(() => clock);
+
+after(() => { channel._setForTests(null); _setClockForTests(null); helpers.cleanup(dir); });
 
 describe('frontmost app, Mac App Store (overlay helper)', () => {
   beforeEach(() => {
@@ -72,15 +75,40 @@ describe('frontmost app, Mac App Store (overlay helper)', () => {
     assert.equal(await getFrontmostApp(), null);
   });
 
-  test('three failures in a row stop asking until reset', async () => {
+  test('three failures in a row stop asking for a minute, then it tries again', async () => {
+    assert.equal(FAILURE_LIMIT, 3);
+    assert.equal(RETRY_MS, 60000);
     answer('garbage\n');
     for (let i = 0; i < 3; i++) assert.equal(await getFrontmostApp(), null);
     assert.equal(calls().length, 3);
     answer('{"bundleId":"com.apple.Safari","name":"Safari"}\n');
-    assert.equal(await getFrontmostApp(), null, 'circuit open');
-    assert.equal(calls().length, 3, 'the helper was not run again');
-    _resetFailures();
-    assert.equal(await getFrontmostApp(), 'Safari');
+    assert.equal(await getFrontmostApp(), null, 'waiting');
+    clock += RETRY_MS - 1;
+    assert.equal(await getFrontmostApp(), null, 'still waiting');
+    assert.equal(calls().length, 3, 'the helper was not run during the wait');
+    clock += 1;
+    assert.equal(await getFrontmostApp(), 'Safari', 'asks again once the minute is up');
+    assert.equal(calls().length, 4);
+  });
+
+  test('a retry that fails again waits another minute; one success resets it all', async () => {
+    answer('garbage\n');
+    for (let i = 0; i < 3; i++) await getFrontmostApp();
+    clock += RETRY_MS;
+    assert.equal(await getFrontmostApp(), null, 'the retry fails');
+    assert.equal(calls().length, 4);
+    clock += RETRY_MS - 1;
+    assert.equal(await getFrontmostApp(), null);
+    assert.equal(calls().length, 4, 'one try per minute while it stays broken, not one per tick');
+    clock += 1;
+    answer('{"name":"Mail"}\n');
+    assert.equal(await getFrontmostApp(), 'Mail');
+    answer('garbage\n');
+    await getFrontmostApp();
+    await getFrontmostApp();
+    answer('{"name":"Notes"}\n');
+    assert.equal(await getFrontmostApp(), 'Notes', 'the count started over: two failures do not wait');
+    assert.equal(calls().length, 8);
   });
 
   test('a success resets the failure count', async () => {
@@ -117,6 +145,43 @@ describe('frontmost app, direct download (lsappinfo)', () => {
     const name = await getFrontmostApp();
     assert.ok(name === null || typeof name === 'string');
     assert.deepEqual(calls(), []);
+  });
+
+  // lsappinfo, faked: execFile answers for /usr/bin/lsappinfo, and the
+  // overlay helper stub still runs for real.
+  function fakeLsappinfo(t, answerFor) {
+    const cp = require('child_process');
+    const real = cp.execFile;
+    const seen = [];
+    t.mock.method(cp, 'execFile', (file, args, opts, cb) => {
+      if (file !== '/usr/bin/lsappinfo') return real(file, args, opts, cb);
+      seen.push(args[0]);
+      const r = answerFor(args);
+      setImmediate(() => (r instanceof Error ? cb(r, '') : cb(null, r)));
+    });
+    return seen;
+  }
+
+  test('lsappinfo: the name from LSDisplayName', async t => {
+    channel._setForTests('direct');
+    fakeLsappinfo(t, args => (args[0] === 'front' ? 'ASN:0x0-0x1d01d:\n' : '"LSDisplayName"="Safari"\n'));
+    assert.equal(await getFrontmostApp(), 'Safari');
+  });
+
+  test('lsappinfo failing three times waits a minute too, then tries again', async t => {
+    channel._setForTests('direct');
+    let broken = true;
+    const seen = fakeLsappinfo(t, args => (broken ? new Error('lsappinfo: timed out')
+      : args[0] === 'front' ? 'ASN:0x0-0x1d01d:\n' : '"LSDisplayName"="Terminal"\n'));
+    for (let i = 0; i < 3; i++) assert.equal(await getFrontmostApp(), null);
+    assert.equal(seen.length, 3);
+    broken = false;
+    clock += RETRY_MS - 1;
+    assert.equal(await getFrontmostApp(), null);
+    assert.equal(seen.length, 3, 'not run during the wait');
+    clock += 1;
+    assert.equal(await getFrontmostApp(), 'Terminal', 'never latched off for the session');
+    assert.deepEqual(seen.slice(3), ['front', 'info']);
   });
 
   test('the backend is picked on every call, not cached', async () => {

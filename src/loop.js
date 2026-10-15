@@ -57,6 +57,10 @@ const PERMISSION_RE = /screencapture|could not create image|Screen Recording|pro
 // The person has not allowed screenshots to go to a third-party AI, or took
 // that back in Settings (src/consent.js). Nothing is captured or sent.
 const NO_CONSENT_LINE = 'checks are off until you allow sending screenshots';
+// The front app could not be read (src/frontmost.js answered null) while the
+// Never capture list has entries. The screen might be one of those apps, so
+// this tick captures nothing: an exclusion fails closed, never open.
+const FRONT_UNKNOWN_LINE = "skipped: can't tell which app is in front (protects your Never capture list)";
 
 function createLoop(deps) {
   const d = {
@@ -335,6 +339,12 @@ function createLoop(deps) {
 
       if (isMatch(c.neverCaptureApps, frontApp)) {
         s.lastLine = `not watching: ${frontApp}`;
+        status(); return;
+      }
+      // Like a Never capture match: no capture, strikes and alert left as they are.
+      if (!frontApp && Array.isArray(c.neverCaptureApps) && c.neverCaptureApps.some(Boolean)) {
+        if (s.lastLine !== FRONT_UNKNOWN_LINE) console.error('[tick] front app unknown; skipping capture (Never capture list is set)');
+        s.lastLine = FRONT_UNKNOWN_LINE;
         status(); return;
       }
       if (isMatch(c.alwaysAllowedApps, frontApp)) {
@@ -758,6 +768,6 @@ function createLoop(deps) {
 
 module.exports = {
   createLoop, TICK_HARD_LIMIT_MS, BACKOFF_STEPS_MS, OVERAGE_FALLBACK_MS, CONFIG_INVALID_LINE, CLI_MISSING_LINE,
-  SUBSCRIPTION_LINES, SUBSCRIPTION_BACKOFF_MS, NO_CONSENT_LINE,
+  SUBSCRIPTION_LINES, SUBSCRIPTION_BACKOFF_MS, NO_CONSENT_LINE, FRONT_UNKNOWN_LINE,
   DAILY_BUDGET_LINE, QUOTA_RETRY_MS, NOT_CONNECTED_LINE, UNREGISTERED_LINE, SECRETS_LOCKED_LINE, isStickyPlanProblem
 };

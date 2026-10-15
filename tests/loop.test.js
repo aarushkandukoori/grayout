@@ -8,7 +8,7 @@ const helpers = require('./helpers');
 const dir = helpers.freshUserData('loop');
 const {
   createLoop, BACKOFF_STEPS_MS, TICK_HARD_LIMIT_MS, OVERAGE_FALLBACK_MS, CONFIG_INVALID_LINE, CLI_MISSING_LINE,
-  DAILY_BUDGET_LINE, NOT_CONNECTED_LINE, UNREGISTERED_LINE, SECRETS_LOCKED_LINE, SUBSCRIPTION_LINES
+  DAILY_BUDGET_LINE, NOT_CONNECTED_LINE, UNREGISTERED_LINE, SECRETS_LOCKED_LINE, SUBSCRIPTION_LINES, FRONT_UNKNOWN_LINE
 } = require('../src/loop');
 const { DEFAULT_CONFIG } = require('../src/config');
 const { NoKeyError } = require('../src/analyzer');
@@ -566,12 +566,40 @@ describe('8. app lists', () => {
     assert.equal(h.live().strikeCount, 1);
   });
 
-  test('an unknown front app (null) is captured and logged as null', async () => {
-    const h = build();
+  test('an unknown front app (null) with an empty Never capture list is captured and logged as null', async () => {
+    const h = build({ cfg: { neverCaptureApps: [] } });
     h.setFront(null);
     await h.step(ON());
     assert.equal(h.calls.capture, 1);
     assert.equal(h.calls.log[0].app, null);
+  });
+
+  test('an unknown front app with a Never capture list fails closed: no capture, strikes and alert untouched', async t => {
+    const errors = t.mock.method(console, 'error', () => {});
+    const h = build();
+    assert.ok(h.cfg.neverCaptureApps.length > 0, 'the default list has password managers');
+    await h.step(OFF());
+    assert.equal(h.live().strikeCount, 1);
+    h.setFront(null);
+    await h.step();
+    await h.step();
+    assert.equal(h.calls.capture, 1, 'nothing captured while the front app is unknown');
+    assert.equal(h.calls.analyze.length, 1);
+    assert.equal(h.calls.webcam, 0);
+    assert.equal(h.live().strikeCount, 1);
+    assert.equal(h.live().lastLine, FRONT_UNKNOWN_LINE);
+    assert.equal(/—/.test(FRONT_UNKNOWN_LINE), false, 'no em dash');
+    assert.equal(h.live().lastApp, null);
+    assert.equal(errors.mock.calls.length, 1, 'logged once per stretch, not every tick');
+    // Known again: behaves exactly as before.
+    h.setFront('Code');
+    await h.step(OFF());
+    assert.equal(h.calls.capture, 2);
+    assert.equal(h.live().alerting, true, 'the earlier strike still counted');
+    h.setFront(null);
+    await h.step();
+    assert.equal(h.live().alerting, true, 'alert held, like a Never capture app');
+    assert.equal(h.calls.capture, 2);
   });
 });
 
