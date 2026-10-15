@@ -12,11 +12,11 @@ You can expect an acknowledgement within a few days. App fixes ship as a patch r
 
 ## Supported versions
 
-Only the latest release is supported. Update by downloading the current DMG. The service runs one version, the deployed one.
+Only the latest release is supported. Update the direct download by downloading the current DMG, and the Mac App Store edition (not listed yet) through the App Store. The service runs one version, the deployed one.
 
 ## Threat model
 
-Grayout runs as your user, captures your screen, and sends the captures to the Grayout service (the address in `src/config.js`), which forwards them to OpenAI under Grayout's own key and returns a verdict. A self-hosted install replaces that hop with a direct call to Anthropic or OpenAI under your key. The model below is what the design defends against and what it does not.
+Grayout runs as your user, captures your screen, and, once you have allowed it in onboarding, sends the captures to the Grayout service (the address in `src/config.js`), which forwards them to OpenAI under Grayout's own key and returns a verdict. A self-hosted install (direct download and source builds only) replaces that hop with a direct call to Anthropic or OpenAI under your key. The Mac App Store edition is the same code with some features switched off by `src/channel.js`, running inside Apple's App Sandbox. The model below is what the design defends against and what it does not.
 
 ### Assets
 
@@ -50,7 +50,9 @@ Grayout runs as your user, captures your screen, and sends the captures to the G
 - A watchdog restores color after 20 minutes regardless of state; color is also restored on every launch, on quit, on crash, on SIGINT and SIGTERM, on system shutdown, and from an always-enabled menu item.
 - A daily cap (1,200 checks), change-gating, and exponential backoff on rate limits and outages bound both the request rate and, when self-hosting, the spend from a runaway loop.
 - Renderer windows run with `contextIsolation`, `sandbox`, no `nodeIntegration`, a strict Content Security Policy, and no remote content. Pages reach the main process only through the preload bridges in `ui/preload/`. Links opened from the app are limited to an allowlist of hosts, which now includes the Stripe checkout and billing-portal hosts.
-- No Automation, Accessibility, or Full Disk Access permission is ever requested. Frontmost-app detection uses `lsappinfo`.
+- No Automation, Accessibility, or Full Disk Access permission is ever requested. Frontmost-app detection uses `lsappinfo` on the direct download and the bundled overlay helper's `NSWorkspace` call on the Mac App Store edition.
+- Nothing is captured or sent until you allow it on the consent screen, which names who receives the screenshots. The permission is stored in `state.json` with its date and version, and turning off Send screenshots for checks in Settings withdraws it and pauses the loop.
+- The Mac App Store edition runs in Apple's App Sandbox: it can't read files outside its own container, its helper inherits the same sandbox, and which edition a build is comes only from Electron's `process.mas` in a packaged app, never from an environment variable or `config.json`. It has no self-update check, no own-key mode, no Claude CLI engine and no `apiBase` override, and its bundle does not contain the private-API grayscale helper.
 - The menu-bar tooltip shows status only, never the activity phrase, so a glance at the menu bar reveals nothing about what was on screen.
 
 ### Mitigations in the service
@@ -81,8 +83,8 @@ Grayout runs as your user, captures your screen, and sends the captures to the G
 - A license key is derived from the Stripe customer, so the same customer always gets the same key. Replacing one leaked key is not built yet: until it is, a leaked key can only be revoked by hand, which also ends that subscription's service.
 - Two other values are bearer credentials of a narrower kind. The device code the app makes before it opens checkout lives one hour and only works together with the device token of the Mac that made it. The Stripe Checkout Session id in the `success.html` link can be exchanged for the license that one purchase bought, and for nothing else, for 30 days; `success.html` removes it from the address bar at once. The service only answers for session ids it created itself, and both are rate limited.
 - The service is a single Cloudflare Worker and a single D1 database with one maintainer. An outage stops checks; it never grays a screen.
-- The app is ad-hoc signed and not notarized. Verify downloads against `SHA256SUMS.txt` on the release page, or build from source.
-- The grayscale flag is global system state. If the helper cannot run, the escape hatches in the README restore color by hand.
+- The direct download is ad-hoc signed and not notarized. Verify downloads against `SHA256SUMS.txt` on the release page, or build from source.
+- On the direct download, grayscale is global system state (macOS's Color Filters setting). If the helper cannot run, the escape hatches in the README restore color by hand. On the Mac App Store edition the gray is a window owned by a helper process that exits when its pipe to Grayout closes or Grayout stops being its parent, so it cannot outlive the app.
 
 ### Out of scope
 
