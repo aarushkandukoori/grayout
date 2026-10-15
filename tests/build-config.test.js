@@ -38,6 +38,12 @@ function loadMas(env = {}) {
   }
 }
 
+/** Requires the MAS config in a fresh node whose argv carries these electron-builder arguments. */
+function loadMasWithArgv(args, env = {}) {
+  const clean = Object.fromEntries(Object.entries(process.env).filter(([k]) => !ENV_KEYS.includes(k)));
+  return spawnSync(process.execPath, ['-e', `require(${JSON.stringify(CONFIG)})`, '--', ...args], { env: { ...clean, ...env }, encoding: 'utf8' });
+}
+
 /** The top-level keys of a flat entitlements plist: { key: true | [strings] }. */
 function entitlements(file) {
   const src = fs.readFileSync(path.isAbsolute(file) ? file : path.join(ROOT, file), 'utf8').replace(/<!--[\s\S]*?-->/g, '');
@@ -141,6 +147,27 @@ test.describe('electron-builder.mas.cjs', () => {
     assert.throws(() => loadMas({ MAS_APP_ID: 'grayout' }), /MAS_APP_ID/);
     assert.throws(() => loadMas({ MAS_BUILD: '2.0.0.1' }), /MAS_BUILD/, 'macOS allows at most three integers');
     assert.throws(() => loadMas({ MAS_DEV_IDENTITY: 'Apple Development' }), /MAS_DEV_IDENTITY/);
+  });
+
+  test('MAS_APP_ID stops the store build (mas) and still works for mas-dev', () => {
+    // A test id left exported would otherwise sign a store pkg for the wrong
+    // bundle id with the real profile, rejected only at upload.
+    const TEST_ID = { MAS_APP_ID: 'com.aarushkandukoori.grayout.mastest' };
+    const cli = (...targets) => ['--config', 'electron-builder.mas.cjs', '--mac', ...targets, '--arm64', '--publish', 'never'];
+    for (const args of [cli('mas'), cli('mas', 'mas-dev'), cli('mas:arm64'), ['--config', 'electron-builder.mas.cjs', '--mac=mas']]) {
+      const r = loadMasWithArgv(args, TEST_ID);
+      assert.notEqual(r.status, 0, `${args.join(' ')} with MAS_APP_ID must stop`);
+      assert.match(r.stderr, /MAS_APP_ID=com\.aarushkandukoori\.grayout\.mastest is for mas-dev test builds only; the store build \(mas\) must use com\.aarushkandukoori\.grayout/);
+    }
+    for (const [args, env, why] of [
+      [cli('mas-dev'), TEST_ID, 'mas-dev keeps the override'],
+      [cli('mas'), {}, 'the store build with the default id'],
+      [cli('mas'), { MAS_APP_ID: pkg.build.appId }, 'the default id set explicitly'],
+      [cli('mas'), { MAS_TEAM_ID: 'ABCDE12345', MAS_BUILD: '7' }, 'the other MAS_* variables']
+    ]) {
+      const r = loadMasWithArgv(args, env);
+      assert.equal(r.status, 0, `${why}: ${r.stderr}`);
+    }
   });
 
   test('exports nothing electron-builder does not know (its schema rejects unknown keys)', () => {
@@ -331,5 +358,36 @@ test.describe('scripts/verify-mas.sh', () => {
     const r = verify(app);
     assert.notEqual(r.status, 0);
     assert.match(r.stderr, /FAIL: com\.apple\.quarantine xattr present on /);
+  });
+
+  test('check_app_id: signature and profile must name exactly <ElectronTeamID>.<CFBundleIdentifier>', darwinOnly, () => {
+    const TEAM = 'ABCDE12345';
+    const BID = 'com.aarushkandukoori.grayout';
+    const ents = id => plistXml({ 'com.apple.security.app-sandbox': true, ...(id ? { 'com.apple.application-identifier': id } : {}) });
+    const profile = (team, id) => plistXml({
+      TeamIdentifier: [team],
+      Entitlements: { ...(id ? { 'com.apple.application-identifier': id } : {}), 'com.apple.developer.team-identifier': team }
+    });
+    // Sourcing defines the checks and stops before the bundle checks run.
+    const check = (bid, main, prof = '') =>
+      spawnSync('bash', ['-c', 'source "$1"; shift; check_app_id "$@"', 'verify-test', VERIFY, TEAM, bid, main, prof], { encoding: 'utf8' });
+    const ok = (r, why) => assert.equal(r.status, 0, `${why}: ${r.stderr}`);
+    const bad = (r, re) => { assert.notEqual(r.status, 0); assert.match(r.stderr, re); };
+
+    ok(check(BID, ents(`${TEAM}.${BID}`), profile(TEAM, `${TEAM}.${BID}`)), 'the store build');
+    ok(check(`${BID}.mastest`, ents(null)), 'mas-dev: no profile and no application-identifier');
+    // MAS_APP_ID left set for `npm run mas`: osx-sign signs TEAM.<override>, the profile is the store one.
+    bad(check(`${BID}.mastest`, ents(`${TEAM}.${BID}.mastest`), profile(TEAM, `${TEAM}.${BID}`)),
+      /FAIL: profile application-identifier ABCDE12345\.com\.aarushkandukoori\.grayout != ABCDE12345\.com\.aarushkandukoori\.grayout\.mastest/);
+    bad(check(BID, ents(`${TEAM}.com.example.other`), profile(TEAM, `${TEAM}.${BID}`)),
+      /FAIL: signed application-identifier ABCDE12345\.com\.example\.other != ABCDE12345\.com\.aarushkandukoori\.grayout/);
+    bad(check(BID, ents(`${TEAM}.com.example.other`)), /FAIL: signed application-identifier/);
+    bad(check(BID, ents(`${TEAM}.${BID}`), profile('ZZZZZ99999', `ZZZZZ99999.${BID}`)), /FAIL: profile team ZZZZZ99999 != ElectronTeamID ABCDE12345/);
+    bad(check(BID, ents(`${TEAM}.${BID}`), profile(TEAM, null)), /FAIL: profile application-identifier missing/);
+  });
+
+  test('runs check_app_id on the built app with the decoded profile', () => {
+    assert.match(src, /PROFILE=\$\(security cms -D -i "\$APP\/Contents\/embedded\.provisionprofile"\)/);
+    assert.match(src, /^check_app_id "\$TEAM" "\$BID" "\$MAIN" "\$PROFILE"$/m);
   });
 });
