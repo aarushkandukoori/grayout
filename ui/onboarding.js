@@ -41,14 +41,17 @@
      (src/consent.js). A main process from before either existed sends
      neither: that reads as the direct build with consent not given yet. */
 
-  const DIRECT_FEATURES = { moveToApplications: true, tccResetHint: true, licenseInOnboarding: true, manualLicenseEntry: true };
-  const MAS_FEATURES = { moveToApplications: false, tccResetHint: false, licenseInOnboarding: false, manualLicenseEntry: true };
+  const DIRECT_FEATURES = { moveToApplications: true, tccResetHint: true, licenseInOnboarding: true, manualLicenseEntry: true, canvas: true, tasksFile: true };
+  const MAS_FEATURES = { moveToApplications: false, tccResetHint: false, licenseInOnboarding: false, manualLicenseEntry: true, canvas: false, tasksFile: false };
   const isMAS = () => !!(S && S.channel && S.channel.isMAS === true);
   function feature(name) {
     const f = S && S.channel && S.channel.features;
     if (f && typeof f[name] === 'boolean') return f[name];
     return (isMAS() ? MAS_FEATURES : DIRECT_FEATURES)[name] === true;
   }
+  // Task titles come only from Canvas or a tasks file. A build with neither
+  // (the App Store edition) never sends any, so the consent card never lists them.
+  const sendsTaskTitles = () => feature('canvas') || feature('tasksFile');
 
   // Who receives the screenshots for the engine and provider in use. The
   // hosted service (OpenAI, behind the Grayout service) is the product, so it
@@ -164,6 +167,9 @@
     const c = consentCopy(processorOf());
     setText($('consent-lede'), c.lede);
     setText($('consent-who'), c.who);
+    setText($('consent-work'), sendsTaskTitles()
+      ? 'your work description and task titles, if you add them'
+      : 'your work description, if you add one');
   }
 
   function grantedLine() {

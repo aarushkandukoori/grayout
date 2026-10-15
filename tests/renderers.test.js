@@ -542,6 +542,29 @@ test.describe('the welcome window, run', () => {
     assert.equal($('btn-consent-later').hidden, false);
     assert.equal($('btn-1-continue').hidden, true);
     assert.equal($('license-block').hidden, false, 'the direct build keeps the license box');
+    assert.equal($('consent-work').textContent, 'your work description and task titles, if you add them');
+  });
+
+  test('the consent card lists task titles only where Canvas or a tasks file can supply them', async () => {
+    const noTasks = channelPayload('direct');
+    noTasks.features.canvas = false;
+    noTasks.features.tasksFile = false;
+    const canvasOnly = channelPayload('mas');
+    canvasOnly.features.canvas = true;
+    for (const [ch, want] of [
+      [channelPayload('direct'), 'your work description and task titles, if you add them'],
+      [channelPayload('mas'), 'your work description, if you add one'],
+      [{ isMAS: true }, 'your work description, if you add one'],
+      [noTasks, 'your work description, if you add one'],
+      [canvasOnly, 'your work description and task titles, if you add them']
+    ]) {
+      const b = fakeBridge(PRELOAD, { getState: () => onbState({ channel: ch }) });
+      const { doc, $, errors } = await runWindow('onboarding', b.api);
+      assert.deepEqual(errors, []);
+      assert.equal(stepOn(doc), 1);
+      assert.equal($('consent-work').textContent, want, JSON.stringify(ch));
+      assert.equal($('consent-work').hidden, false, 'the work description is still disclosed');
+    }
   });
 
   test('"Not now" captures nothing and setup stays on the consent card', async () => {
@@ -663,6 +686,7 @@ test.describe('the welcome window, run', () => {
     $('btn-2-back').click();
     await settle();
     assert.equal($('move-bar').hidden, true, 'the App Store installs the app itself');
+    assert.equal(/task titles/.test($('consent-card').textContent), false, 'the store build never sends task titles');
   });
 
   test('the direct build keeps Subscribe as the primary and its license box', async () => {
@@ -801,8 +825,26 @@ test.describe('the dashboard, run', () => {
     assert.equal(hidden($('license-row')), false);
     assert.equal($('btn-connect-sub').getAttribute('aria-expanded'), 'true');
     assert.equal(/Canvas|tasks file/.test($('adv-note').textContent), false);
+    assert.match($('consent-note').textContent, /the name of the app in front, your work description, and one webcam frame/);
+    assert.equal(/task titles/.test($('consent-note').textContent), false, 'the store build never sends task titles');
     assert.equal($('f-consent').checked, true);
     assert.match($('billing-note').textContent, /LINK\.COM\*/, 'the US listing keeps the Stripe copy');
+  });
+
+  test('the consent note lists task titles only where Canvas or a tasks file can supply them', async () => {
+    const direct = channelPayload('direct');
+    const noTasks = channelPayload('direct');
+    noTasks.features.canvas = false;
+    noTasks.features.tasksFile = false;
+    const fileOnly = channelPayload('mas');
+    fileOnly.features.tasksFile = true;
+    for (const [ch, want] of [[undefined, true], [direct, true], [noTasks, false], [channelPayload('mas'), false], [fileOnly, true]]) {
+      const b = fakeBridge(PRELOAD, { get: () => dashData({ channel: ch }), getSettings: () => dashSettings({ channel: ch }) });
+      const { $, errors } = await runWindow('dashboard', b.api);
+      assert.deepEqual(errors, []);
+      assert.equal(/your work description and task titles/.test($('consent-note').textContent), want, JSON.stringify(ch && ch.features));
+      assert.match($('consent-note').textContent, /your work description/);
+    }
   });
 
   test('Mac App Store with manual license entry switched off: no license field at all', async () => {
