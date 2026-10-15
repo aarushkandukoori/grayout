@@ -13,3 +13,19 @@ holds icons, the social card, and real captures of the real app.
 | `onboarding-welcome-crop.png` | `download.html`, shown only while the current release is 1.x | `onboarding-welcome.png` with its empty middle cut out (rows 582 to 986 removed with Pillow), so the text and the Continue button sit together. Nothing else is changed. Replace both when 2.0 ships. |
 | `dashboard.png` | the repository README | A real render of the dashboard. Not used by the site: it shows the 1.x spend line. |
 | `hero-color.svg`, `hero-gray.svg` | nothing | Old placeholders, kept so old social-card caches do not 404. Safe to delete. |
+
+## Mac App Store badge (not here yet)
+
+The site links to the Mac App Store with a plain text button, "Download on the
+Mac App Store", shown only when `masUrl` is set in `config.js`. It never
+imitates Apple's badge artwork. To use the real badge later:
+
+1. Aarush accepts Apple's Marketing Artwork License Agreement and downloads the
+   official black, US-English "Download on the Mac App Store" SVG from App Store
+   Marketing Tools (toolbox.marketingtools.apple.com).
+2. Commit it unmodified as `mac-app-store-badge.svg` and add a row to the table
+   above. Never hotlink it: the page CSP is `img-src 'self' data:`.
+3. Swap the text button for the badge in the `[data-mas-link]` elements, at
+   least 40 px tall with clear space of a quarter of its height, one per page.
+   The Apple credit line in every footer (`.ftr__credit`) is already there and
+   shows whenever `masUrl` is set.

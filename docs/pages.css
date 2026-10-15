@@ -244,5 +244,7 @@ html[data-service="on"]:not([data-checkout="live"]) .acct-wrap .routes{margin-to
 
 .acct-sec .panel{max-width:none;margin:0}
 .panel .howto{margin-top:18px}
+/* success.html, purchase started in the app: the app is already unlocked. */
+.panel .app-done{font-size:17px;color:var(--ink-2)}
 /* An app window at about half size, so its text matches the page. */
 .shot--narrow img{width:100%;max-width:480px}

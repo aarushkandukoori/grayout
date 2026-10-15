@@ -55,7 +55,7 @@
     <div class="wrap">
       <h1 id="price-h1" class="price-h1"><span data-when="service">100 checks <span class="tile" aria-hidden="true"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" fill="none" stroke="#fff" stroke-width="5"/><path d="M32 32V10a22 22 0 0 1 22 22z" fill="#fff"/><path d="M32 32h22A22 22 0 1 1 32 10z" fill="#fff" opacity=".45"/></svg></span> on the house.</span><span data-when="noservice">Simple <span class="tile" aria-hidden="true"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" fill="none" stroke="#fff" stroke-width="5"/><path d="M32 32V10a22 22 0 0 1 22 22z" fill="#fff"/><path d="M32 32h22A22 22 0 1 1 32 10z" fill="#fff" opacity=".45"/></svg></span> pricing.</span></h1>
       <p class="lede"><span data-when="live">Try it free for about 2 hours of real work. If it keeps you honest, Pro keeps it running all month.</span><span data-when="soon">Try it free for about 2 hours of real work. Pro, for the whole month, opens soon.</span><span data-when="noservice">Use Grayout today on your own API key. Grayout Pro, with nothing to set up, opens soon.</span></p>
-      <div class="callout callout--blue canceled" data-canceled hidden role="status"><p class="t">Checkout canceled. No charge was made.</p><p>You can start again whenever you like, or keep using the free download.</p></div>
+      <div class="callout callout--blue canceled" data-canceled hidden role="status"><p class="t">Checkout canceled.</p><p data-canceled-web>No charge was made. You can start again whenever you like, or keep using the free download.</p><p data-canceled-app hidden>Nothing was charged. You can close this tab and go back to Grayout.</p></div>
       <div class="price-controls">
         <div class="billing" data-billing>
         <button type="button" class="billing__lab" data-label="monthly">Monthly</button>
@@ -82,6 +82,7 @@
           </div>
         </div></div>
             <a class="btn btn-light" href="changelog.html#v2" data-when="noservice">See what&rsquo;s coming</a>
+            <p class="mas-link" data-when="mas"><a class="btn btn-light btn-sm" data-mas-link href="https://apps.apple.com/" rel="noopener">Download on the Mac App Store</a><small>United States only. Listed as &ldquo;Grayout: Back to Work&rdquo;.</small></p>
           </div>
           <p class="plan__desc"><span data-when="service">The whole app, for a first taste.</span><span data-when="noservice">When it opens: the whole app, for a first taste.</span></p>
           <ul class="plan__feats">
@@ -114,7 +115,7 @@
           <div class="plan__price">$0<small>plus your API costs</small></div>
           <p class="plan__note">Your OpenAI or Anthropic account pays for each check, a fraction of a cent.</p>
           <div class="plan__cta"><a class="btn btn-light" href="api-key.html">Read the guide</a></div>
-          <p class="plan__desc">Open source under the MIT license.</p>
+          <p class="plan__desc">Open source under the MIT license.<span data-when="mas"> Direct download and source builds only.</span></p>
           <ul class="plan__feats">
             <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg>Your OpenAI or Anthropic key</li>
             <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg>Screenshots go straight to your provider</li>
@@ -196,6 +197,7 @@
         <div class="faq__item" id="b-tax"><button class="faq__q" type="button">Do prices include tax? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>No. Prices are in US dollars before tax. Where sales tax or VAT applies, Stripe adds it at checkout, and you see the total before you pay. Checkout may show the price in your local currency.</p></div></div></div>
         <div class="faq__item" id="b-statement"><button class="faq__q" type="button">What will my card statement say? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>LINK.COM* followed by a short description. Grayout Pro is sold through Link, Stripe&rsquo;s checkout, so receipts and refund notices come from Link too.</p></div></div></div>
         <div class="faq__item" id="b-switch"><button class="faq__q" type="button">Can I switch between monthly and yearly? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>Yes, from Manage subscription. The change is prorated, so you only pay the difference.</p></div></div></div>
+        <div class="faq__item" id="b-apple" data-when="mas"><button class="faq__q" type="button">I got Grayout from the Mac App Store. Does Apple bill me? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>No. The app is free on the Mac App Store. Grayout Pro is sold on the web through Stripe and Link, so Apple doesn&rsquo;t charge, cancel or refund it, and it isn&rsquo;t listed in your Apple Account&rsquo;s subscriptions. Manage it from the menu bar or at link.com.</p></div></div></div>
         <div class="faq__item" id="b-two"><button class="faq__q" type="button">Can I use it on two Macs? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>Yes. Paste the same license key into Settings on the other Mac. Both share the 10,000 checks a month.</p></div></div></div>
         <div class="faq__item" id="b-data"><button class="faq__q" type="button">What happens to my data when I cancel? <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button><div class="faq__a"><div><p>The service holds a license record with your monthly check counts, plus the device and trial records listed in the <a class="inline-link" href="privacy.html#service">privacy policy</a>, which also says how long each is kept and <a class="inline-link" href="privacy.html#deletion">how to have them deleted</a>. Screenshots were never stored.</p></div></div></div>
       </div>
@@ -229,7 +231,7 @@
           <a class="logo" href="./" aria-label="Grayout home"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="currentColor" opacity=".5"/><path d="M10 10V1a9 9 0 0 1 9 9z" fill="#D03B3B"/></svg><span>Grayout</span></a>
           <p>Your Mac goes gray when you drift and comes back in color when you work. Made by Aarush Kandukoori.</p>
         </div>
-        <div><span class="status" data-status><span class="dot dot--amber"></span><span data-status-text>Subscriptions opening soon</span></span></div>
+        <div><span class="status" data-status><span class="dot dot--gray"></span><span data-status-text>Service status</span></span></div>
       </div>
       <div class="ftr__cols">
         <div class="ftr__col">
@@ -257,7 +259,7 @@
             <li><a href="download.html#first-run">First launch</a></li>
             <li><a href="download.html#stuck">Stuck gray screen</a></li>
             <li><a href="https://github.com/aarushkandukoori/grayout/issues/new?template=wrong-call.yml">Report a wrong call</a></li>
-            <li><a href="https://github.com/aarushkandukoori/grayout/issues">Contact</a></li>
+            <li><a href="support.html">Support</a></li>
           </ul>
         </div>
       </div>
@@ -267,6 +269,7 @@
       <button class="motion-toggle" type="button" data-motion-toggle aria-pressed="false"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><rect x="3.5" y="3" width="3" height="10" rx="1"/><rect x="9.5" y="3" width="3" height="10" rx="1"/></svg><span>Pause animations</span></button>
       <a href="https://github.com/aarushkandukoori/grayout" aria-label="Grayout on GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1.8a10.2 10.2 0 0 0-3.2 19.9c.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.2-3.4-1.2-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.6 1 1.6 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.6-1.4-2.3-.3-4.6-1.1-4.6-5a3.9 3.9 0 0 1 1-2.7 3.6 3.6 0 0 1 .1-2.7s.9-.3 2.8 1a9.6 9.6 0 0 1 5.1 0c1.9-1.3 2.8-1 2.8-1 .5 1.4.2 2.4.1 2.7a3.9 3.9 0 0 1 1 2.7c0 3.9-2.4 4.7-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10.2 10.2 0 0 0 12 1.8Z"/></svg></a>
     </div>
+    <p class="ftr__credit" data-when="mas">Apple, the Apple logo, Mac and Mac App Store are trademarks of Apple Inc., registered in the U.S. and other countries and regions. App Store is a service mark of Apple Inc.</p>
   </div>
 </footer>
 <div class="sheet" id="sheet" hidden>
@@ -281,6 +284,7 @@
         <a href="download.html">Download</a>
         <a href="privacy.html">Privacy</a>
       <a href="account.html">Manage subscription</a>
+      <a href="support.html">Support</a>
     </nav>
     <a class="btn btn-primary btn-block" href="download.html"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 13h10"/></svg>Download for Mac</a>
   </div>

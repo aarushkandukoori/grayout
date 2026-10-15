@@ -78,6 +78,20 @@
         </div>
         <p class="small"><span data-dl-detected hidden></span> Not sure which you have? Apple menu &gt; About This Mac. &ldquo;Chip: Apple M&hellip;&rdquo; means Apple Silicon. Both links always point at the <a href="https://github.com/aarushkandukoori/grayout/releases/latest">latest release</a>; see <a href="changelog.html">what changed</a>.</p>
 
+        <h2 id="mac-app-store"><span class="grad">Mac App Store</span></h2>
+        <p data-when="nomas">A Mac App Store edition for the United States is being prepared. It is not listed yet; when it is, this section links to it. Until then, use the download above.</p>
+        <div class="mas-link" data-when="mas"><a class="btn btn-light" data-mas-link href="https://apps.apple.com/" rel="noopener">Download on the Mac App Store</a><small>United States only. Listed as &ldquo;Grayout: Back to Work&rdquo;.</small></div>
+        <p>Both editions run the same checks and sell the same Grayout Pro, bought on the web through Stripe. Where they differ:</p>
+        <ul>
+          <li><strong>Where</strong> - the Mac App Store edition is for the United States storefront only. The direct download works everywhere.</li>
+          <li><strong>First launch</strong> - from the App Store there is no Gatekeeper warning, so you start at step 4 below.</li>
+          <li><strong>Updates</strong> - through the App Store, like any other app. The direct download shows Update available in its menu, or updates with Homebrew.</li>
+          <li><strong>The gray</strong> - the Mac App Store edition draws it with a click-through window of its own, which closes when Grayout quits. The direct download uses macOS&rsquo;s Color Filters switch.</li>
+          <li><strong>Your own API key</strong> - direct download and source builds only. The Mac App Store edition always uses the Grayout service.</li>
+          <li><strong>Your settings</strong> - the Mac App Store edition keeps them in its own sandbox folder, so settings and a saved license key don&rsquo;t carry over from the direct download. Paste your key under Settings &gt; Your plan to use a subscription you already have.</li>
+        </ul>
+        <p class="muted">Use one edition at a time. Quit and delete the direct download before installing from the App Store, or both copies will try to gray the screen.</p>
+
         <div class="callout callout--amber" id="today" data-when="noservice">
           <p class="t">What you get today</p>
           <p>The current release is Grayout 1.0.1. It runs on your own OpenAI or Anthropic API key: you paste the key during setup and pay your provider directly, a fraction of a cent per check. The Grayout service, with 100 free checks and no key to get, opens with the next release, along with Grayout Pro. <a href="api-key.html">How to get a key</a>.</p>
@@ -94,6 +108,7 @@
 
         <h2 id="first-run"><span class="grad">First launch</span></h2>
         <p>Grayout is a one-person project and is not in Apple&rsquo;s notarization program yet, so macOS warns you once. These steps get you past it.</p>
+        <p class="muted" data-when="mas">From the Mac App Store? There is no warning: skip to step 4.</p>
         <ol class="steps">
           <li class="step">
             <h3 id="step-drag">Drag it to Applications</h3>
@@ -112,6 +127,7 @@
           </li>
           <li class="step">
             <h3 id="step-screen">Turn on Screen Recording</h3>
+            <p data-when="service">First, Grayout lists what it sends at each check and who receives it, and asks for your permission. Nothing is captured until you click <strong>Allow and continue</strong>, and you can withdraw it later in Settings.</p>
             <p>The welcome window walks you through it. Click <strong>Open System Settings</strong>, switch Grayout on under Screen Recording, then click <strong>Relaunch Grayout</strong>. macOS only applies this permission after the app restarts.</p>
             <p class="muted">That is the only permission it needs. No Accessibility, no Automation, no Full Disk Access. The camera is optional and off by default.</p>
           </li>
@@ -136,18 +152,21 @@
           <ol>
             <li>Click <strong>Restore color now</strong> in the Grayout menu. It works in every state, paused included.</li>
             <li>Click <strong>I&rsquo;m working</strong> if it is there. Color returns and Grayout backs off for ten minutes.</li>
-            <li>Quit or relaunch Grayout. Quitting restores color, and every launch turns grayscale off before anything else, even after a force quit.</li>
-            <li>No Terminal needed: System Settings &gt; Accessibility &gt; Display &gt; Color Filters, and switch it off. That is the switch Grayout uses.</li>
+            <li>Quit Grayout. Color comes back at once.</li>
             <li>Do nothing. A watchdog restores color after 20 minutes no matter what.</li>
           </ol>
-          <p>From Terminal, with the quotes:</p>
+          <p class="t">Mac App Store edition</p>
+          <p>The gray is a window that belongs to Grayout, so it closes whenever Grayout stops, even after a force quit (Option-Command-Esc). Grayout never changes a display setting there, so there is nothing to switch off in System Settings.</p>
+          <p class="t">Direct download</p>
+          <p>Every launch turns grayscale off before anything else, even after a force quit, so relaunching works too. With no Terminal: System Settings &gt; Accessibility &gt; Display &gt; Color Filters, and switch it off. That is the switch the direct download uses. From Terminal, with the quotes:</p>
           <div class="code"><pre id="cmd-off">"/Applications/Grayout.app/<wbr>Contents/<wbr>Resources/<wbr>helper/<wbr>grayscale" off</pre><button class="copy" type="button" data-copy="#cmd-off"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.6"/><path d="M10.5 5.5V3.6a1.1 1.1 0 0 0-1.1-1.1H3.6a1.1 1.1 0 0 0-1.1 1.1v5.8a1.1 1.1 0 0 0 1.1 1.1h1.9"/></svg><span data-copy-label>Copy</span></button></div>
-          <p>If you needed any of these, <a href="https://github.com/aarushkandukoori/grayout/issues">open an issue</a> and say which one worked.</p>
+          <p>If you needed any of these, <a href="support.html#contact">tell us</a> which one worked.</p>
         </div>
 
         <h2 id="updating"><span class="grad">Updating</span></h2>
-        <p>Grayout checks GitHub once a day and shows <strong>Update available</strong> in its menu when there is one; you can turn that off in Settings. Download the new DMG, drag Grayout over the old app, and relaunch. With Homebrew, run <code>brew upgrade --cask grayout</code>.</p>
-        <p>macOS sometimes asks for Screen Recording again after an update. If the switch is on but checks come back blank, choose Permissions &gt; Captures look blank? in the menu, or paste this in Terminal:</p>
+        <p>The direct download checks GitHub once a day and shows <strong>Update available</strong> in its menu when there is one; you can turn that off in Settings. Download the new DMG, drag Grayout over the old app, and relaunch. With Homebrew, run <code>brew upgrade --cask grayout</code>.</p>
+        <p>The Mac App Store edition updates through the App Store, like any other app, and never checks GitHub.</p>
+        <p>On the direct download, macOS sometimes asks for Screen Recording again after an update. If the switch is on but checks come back blank, choose Permissions &gt; Captures look blank? in the menu, or paste this in Terminal:</p>
         <div class="code"><pre id="cmd-tcc">tccutil reset ScreenCapture com.aarushkandukoori.grayout</pre><button class="copy" type="button" data-copy="#cmd-tcc"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.6"/><path d="M10.5 5.5V3.6a1.1 1.1 0 0 0-1.1-1.1H3.6a1.1 1.1 0 0 0-1.1 1.1v5.8a1.1 1.1 0 0 0 1.1 1.1h1.9"/></svg><span data-copy-label>Copy</span></button></div>
 
         <h2 id="verify"><span class="grad">Check your download</span></h2>
@@ -156,7 +175,7 @@
         <p class="muted">Use Grayout-x64.dmg for the Intel build. The two hashes must match exactly.</p>
 
         <h2 id="source"><span class="grad">Build it from source</span></h2>
-        <p>You need Node 22 and the Xcode Command Line Tools, which compile the small grayscale helper.</p>
+        <p>You need Node 22 and the Xcode Command Line Tools, which compile the two small display helpers.</p>
         <div class="code"><pre id="cmd-build">git clone https://github.com/<wbr>aarushkandukoori/grayout
 cd grayout
 npm ci
@@ -166,10 +185,12 @@ npm start</pre><button class="copy" type="button" data-copy="#cmd-build"><svg vi
 
         <h2 id="uninstall"><span class="grad">Uninstall</span></h2>
         <p>Cancel any subscription first (<a href="account.html">how</a>). Then quit Grayout, drag it from Applications to the Trash, and delete <code class="wrapcode">~/Library/Application Support/Grayout</code>, which holds your settings and the 30-day log. Turn off its login item in System Settings &gt; General &gt; Login Items if it is still listed.</p>
+        <p>The Mac App Store edition keeps its settings and log in <code class="wrapcode">~/Library/Containers/com.aarushkandukoori.grayout</code> instead. To clear them before you delete the app, use <strong>Erase this Mac&rsquo;s Grayout data</strong> in Settings, or delete that folder afterwards.</p>
       </article>
       <nav class="toc" aria-label="On this page" data-toc>
         <p class="eyebrow">On this page</p>
         <ol>
+          <li><a href="#mac-app-store">Mac App Store</a></li>
           <li><a href="#homebrew">Homebrew</a></li>
           <li><a href="#first-run">First launch</a></li>
           <li><a href="#stuck">Stuck gray screen</a></li>
@@ -190,7 +211,7 @@ npm start</pre><button class="copy" type="button" data-copy="#cmd-build"><svg vi
           <a class="logo" href="./" aria-label="Grayout home"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="currentColor" opacity=".5"/><path d="M10 10V1a9 9 0 0 1 9 9z" fill="#D03B3B"/></svg><span>Grayout</span></a>
           <p>Your Mac goes gray when you drift and comes back in color when you work. Made by Aarush Kandukoori.</p>
         </div>
-        <div><span class="status" data-status><span class="dot dot--amber"></span><span data-status-text>Subscriptions opening soon</span></span></div>
+        <div><span class="status" data-status><span class="dot dot--gray"></span><span data-status-text>Service status</span></span></div>
       </div>
       <div class="ftr__cols">
         <div class="ftr__col">
@@ -218,7 +239,7 @@ npm start</pre><button class="copy" type="button" data-copy="#cmd-build"><svg vi
             <li><a href="download.html#first-run">First launch</a></li>
             <li><a href="download.html#stuck">Stuck gray screen</a></li>
             <li><a href="https://github.com/aarushkandukoori/grayout/issues/new?template=wrong-call.yml">Report a wrong call</a></li>
-            <li><a href="https://github.com/aarushkandukoori/grayout/issues">Contact</a></li>
+            <li><a href="support.html">Support</a></li>
           </ul>
         </div>
       </div>
@@ -227,6 +248,7 @@ npm start</pre><button class="copy" type="button" data-copy="#cmd-build"><svg vi
       <span>&copy; 2026 Aarush Kandukoori. MIT licensed.</span>
       <a href="https://github.com/aarushkandukoori/grayout" aria-label="Grayout on GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1.8a10.2 10.2 0 0 0-3.2 19.9c.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.2-3.4-1.2-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.6 1 1.6 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.6-1.4-2.3-.3-4.6-1.1-4.6-5a3.9 3.9 0 0 1 1-2.7 3.6 3.6 0 0 1 .1-2.7s.9-.3 2.8 1a9.6 9.6 0 0 1 5.1 0c1.9-1.3 2.8-1 2.8-1 .5 1.4.2 2.4.1 2.7a3.9 3.9 0 0 1 1 2.7c0 3.9-2.4 4.7-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10.2 10.2 0 0 0 12 1.8Z"/></svg></a>
     </div>
+    <p class="ftr__credit" data-when="mas">Apple, the Apple logo, Mac and Mac App Store are trademarks of Apple Inc., registered in the U.S. and other countries and regions. App Store is a service mark of Apple Inc.</p>
   </div>
 </footer>
 <div class="sheet" id="sheet" hidden>
@@ -241,6 +263,7 @@ npm start</pre><button class="copy" type="button" data-copy="#cmd-build"><svg vi
         <a href="download.html" aria-current="page">Download</a>
         <a href="privacy.html">Privacy</a>
       <a href="account.html">Manage subscription</a>
+      <a href="support.html">Support</a>
     </nav>
     <a class="btn btn-primary btn-block" href="download.html"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 13h10"/></svg>Download for Mac</a>
   </div>
