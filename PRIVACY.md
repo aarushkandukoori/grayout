@@ -6,7 +6,7 @@ Grayout looks at your screen, so this page is specific about where every byte go
 
 ## The short version
 
-- **Grayout asks first.** Before anything leaves your Mac, the app shows what it sends at each check and who receives it, and asks for your permission. Nothing is captured until you click Allow and continue, and you can withdraw it any time in Settings.
+- **Grayout asks first** (2.0 and later). Before any screenshot leaves your Mac, the app shows what it sends at each check and who receives it, and asks for your permission. Until you click Allow and continue, it captures nothing and sends no screenshot, app name, work description or camera frame, and you can withdraw it any time in Settings. Grayout 1.0.x, which runs on your own API key, has no such step (see Asking first).
 - **Screenshots are judged and dropped.** Each check sends a resized screenshot for a one-line verdict. Nothing in the chain we run stores it or logs it.
 - **With the Grayout service** (the free checks and Grayout Pro, in either edition), the screenshot goes to the Grayout service, which passes it to OpenAI under Grayout's key and returns the verdict. OpenAI doesn't train on it and may keep it for up to 30 days to check for abuse. The service keeps device and license records and counts of checks. It does not keep the image.
 - **On your own key** (direct download and source builds only), the screenshot goes straight from your Mac to OpenAI or Anthropic under your account. We are not in the path at all.
@@ -15,13 +15,17 @@ Grayout looks at your screen, so this page is specific about where every byte go
 
 ## Asking first
 
-The first time Grayout starts, and once after updating from a version that did not ask, it shows a screen before anything is captured. That screen says:
+From Grayout 2.0, the first time Grayout starts, and once after updating from 1.0.x (which did not ask), it shows a screen before anything is captured. That screen says:
 
 - what is sent at each check: a screenshot of each display, resized; the name of the app in front; your work description and task titles if you add them; and one webcam frame, only if you turn the camera on;
 - who receives it: OpenAI, through the Grayout service, or the provider you chose if you run on your own key or the Claude CLI engine;
 - that the Grayout service keeps none of it.
 
-**Not now** means nothing is captured or sent, and setup can't finish. **Allow and continue** records your permission, with the date, on your Mac only. To withdraw it, turn off **Send screenshots for checks** in Settings: checks stop at once, and nothing more is sent until you turn it back on. If what Grayout sends or who receives it ever changes, the app asks again.
+**Not now** means nothing is captured and no check is sent, and setup can't finish. **Allow and continue** records your permission, with the date, on your Mac only. To withdraw it, turn off **Send screenshots for checks** in Settings: checks stop at once, and no check is sent until you turn it back on. If what Grayout sends or who receives it ever changes, the app asks again.
+
+Before you allow it, and while that switch is off, Grayout sends no screenshot, app name, work description or camera frame. It may still contact the Grayout service to register this Mac or check your plan, with the identifiers listed below, and the direct download may ask GitHub for the latest version number unless you switched that off.
+
+Grayout 1.0.x runs on your own API key and has no consent step, no Send screenshots for checks switch and no erase control. Its first screen says what leaves your Mac, Pause or Quit stops checks, and Delete all history in Settings empties the log.
 
 ## What the app sends, and to whom
 
@@ -100,7 +104,7 @@ Everything lives in `~/Library/Application Support/Grayout/` (in the Mac App Sto
 - **config.json:** your settings, including the work description.
 - **secrets.bin:** your license key or API key, your device token, and any Canvas token, encrypted with a key held in your macOS Keychain. There is no plain-text copy.
 - **verdicts.jsonl:** one line per check with the time, the verdict, the category phrase, the app in front and the number of displays. No screenshots and no on-screen text. Kept for 30 days and deletable any time from Settings. This file never leaves your Mac.
-- **state.json:** your device id, setup progress, whether and when you allowed checks to be sent, and update-check bookkeeping.
+- **state.json:** your device id, setup progress, whether and when you allowed checks to be sent (from 2.0), and update-check bookkeeping.
 - **logs/grayout.log:** short status lines, capped at a few megabytes. Never images, prompts, task titles, your work description or any key.
 
 ## Other people on your screen
@@ -109,13 +113,13 @@ A screenshot can include other people: a call, a shared screen, a chat. Two defa
 
 ## Your controls
 
-- **Send screenshots for checks** in Settings. Off withdraws your permission and stops all checks until you turn it back on.
+- **Send screenshots for checks** in Settings (2.0 and later). Off withdraws your permission and stops all checks until you turn it back on.
 - **Pause** for 15 minutes, an hour, until tomorrow, or until you resume. Nothing is captured while paused.
 - **I'm working** clears the gray and holds off for ten minutes.
 - **Never capture** and **never trigger** lists in Settings.
 - **The camera** is off unless you turn it on, and macOS lets you revoke it in System Settings > Privacy & Security > Camera.
 - **Delete all history** in Settings empties the log.
-- **Erase this Mac's Grayout data** in Settings deletes Grayout's settings, history, license key and device token on this Mac and restarts it fresh. It does not cancel a subscription or delete what the service holds; see below.
+- **Erase this Mac's Grayout data** in Settings (2.0 and later) deletes Grayout's settings, history, license key and device token on this Mac and restarts it fresh. It does not cancel a subscription or delete what the service holds; see below.
 - **Quit** stops everything and restores color.
 - **Cancel** any time from Manage subscription or at link.com. A lapsed plan stops the checks. It does not gray your screen.
 
@@ -126,7 +130,7 @@ A screenshot can include other people: a call, a shared screen, a chat. Two defa
 - License records: kept while the license exists. Monthly check counts: 13 months.
 - Free-check counts per network: until the month ends. Per IPv6 /48 block: 7 days. Trial hashes: one year. Checkout records and webhook ids: 30 days. App purchase codes: a day after they expire.
 - Stripe's records: kept by Stripe as its terms and tax law require. We can't delete an invoice.
-- Everything on your Mac: yours. It is gone when you delete the folder above or use Erase this Mac's Grayout data in Settings.
+- Everything on your Mac: yours. It is gone when you delete the folder above or, from 2.0, use Erase this Mac's Grayout data in Settings.
 
 To have your license record deleted, ask Link to delete your data at link.com. Stripe then cancels the subscription and tells us, and we delete your license record, its monthly check counts and your trial hashes. Your device records are unlinked from it and kept, holding only a random id and counters. Or email the support address listed on the [privacy page](https://aarushkandukoori.github.io/grayout/privacy.html#deletion), once there is one, from the address you paid with. Please don't post your email address or license key in a public GitHub issue.
 
@@ -144,6 +148,6 @@ The direct download is signed ad hoc and not yet notarized by Apple, so its firs
 
 ## Changes and contact
 
-Changes are dated at the top of this page and recorded in the repository's history. Anything that sends something new off your Mac, or stores something new, is called out in the release notes. If what the app sends or who receives it changes, it asks for your permission again.
+Changes are dated at the top of this page and recorded in the repository's history. Anything that sends something new off your Mac, or stores something new, is called out in the release notes. If what the app sends or who receives it changes, Grayout 2.0 and later ask for your permission again.
 
 Questions: the support address listed on the [privacy page](https://aarushkandukoori.github.io/grayout/privacy.html#changes) (once there is one), [GitHub issues](https://github.com/aarushkandukoori/grayout/issues), or the [support page](https://aarushkandukoori.github.io/grayout/support.html). Security reports: the repository's private vulnerability reporting, described in [SECURITY.md](https://github.com/aarushkandukoori/grayout/blob/main/SECURITY.md).

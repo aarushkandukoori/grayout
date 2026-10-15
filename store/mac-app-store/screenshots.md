@@ -26,7 +26,7 @@ Captions are optional overlays (allowed by 2.3.3). Keep them short and price-fre
 | 1 | The mock video feed full screen, gray with the red border, menu bar icon in its alert state | Drift off task and your Mac goes gray |
 | 2 | Sample code editor and document in color, the Grayout menu open: status line, I'm working, Pause submenu, Check now | Pause, I'm working, or Quit, one click away |
 | 3 | Dashboard "The day": on-task percentage, the check strip, "Everything it flagged" with the synthetic history | See your day. History stays on your Mac |
-| 4 | The consent screen that names OpenAI and lists what is sent, with Allow and continue | Asks before anything leaves your Mac |
+| 4 | The consent screen that names OpenAI and lists what is sent, with Allow and continue | Asks before any screenshot leaves your Mac |
 | 5 | Settings: check interval, the never-trigger and never-capture lists, the camera switch off, Send screenshots for checks | Video calls never trigger it |
 | 6 | Onboarding "See what it does", just after Preview the gray, over a staged desktop | See exactly what it does before you start |
 

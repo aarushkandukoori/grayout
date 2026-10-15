@@ -242,6 +242,20 @@ test.describe('privacy, terms and the purchase pages', () => {
     }
   });
 
+  test('privacy scopes the consent step and its controls to 2.0, and says what still goes out before it', () => {
+    for (const doc of [read('docs/privacy.html'), read('PRIVACY.md')]) {
+      const t = doc.replace(/&rsquo;/g, "'").replace(/<[^>]+>/g, '').replace(/\*\*/g, '');
+      assert.match(t, /Grayout asks first \(2\.0 and later\)\. Before any screenshot leaves your Mac/);
+      assert.match(t, /From Grayout 2\.0, the first time Grayout starts/);
+      assert.match(t, /Grayout 1\.0\.x runs on your own API key and has no consent step, no Send screenshots for checks switch and no erase control/);
+      assert.match(t, /Send screenshots for checks in Settings \(2\.0 and later\)/);
+      assert.match(t, /Erase this Mac's Grayout data in Settings \(2\.0 and later\)/);
+      assert.match(t, /Grayout sends no screenshot, app name, work description or camera frame\. It may still contact the Grayout service to register this Mac or check your plan/);
+      assert.match(t, /the direct download may ask GitHub for the latest version number/);
+      assert.equal(/Before anything leaves your Mac|nothing is captured or sent|nothing more is sent/i.test(t), false, 'the update check and the plan check are not gated on consent');
+    }
+  });
+
   test('terms set a minimum age and say Apple is not a party', () => {
     const t = read('docs/terms.html');
     assert.match(t, /<h2 id="age">/);
