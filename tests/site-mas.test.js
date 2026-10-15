@@ -362,6 +362,44 @@ test.describe('honesty', () => {
   });
 });
 
+test.describe('the App Store package', () => {
+  const notes = fs.readFileSync(path.join(STORE, 'review-notes.txt'), 'utf8');
+
+  test('the review key restores an existing web subscription with the exact App Store steps', () => {
+    assert.match(notes, /restore our existing web subscription: menu bar icon > Settings > Your plan > Connect an existing subscription, paste this key, click Activate: <REVIEWER_LICENSE_KEY>/);
+    assert.match(notes, /The field is optional\./);
+    assert.equal(/task titles/.test(notes), false, 'the App Store edition never sends task titles');
+  });
+
+  test('every page that says to paste a key names the App Store edition\'s extra click', () => {
+    for (const f of ['docs/success.html', 'docs/download.html', 'docs/account.html', 'README.md']) {
+      assert.match(read(f), /Connect an existing subscription/, f);
+    }
+  });
+
+  test('the owner checklist opens the site and checkout before the live purchase and review', () => {
+    const md = fs.readFileSync(path.join(STORE, 'owner-checklist.md'), 'utf8');
+    const steps = [...md.matchAll(/^(\d+)\. (.*)$/gm)].map(m => ({ n: Number(m[1]), text: m[2] }));
+    assert.deepEqual(steps.map(s => s.n), steps.map((_, i) => i + 1), 'numbered 1, 2, 3, ... with no gaps');
+    const at = re => {
+      const s = steps.find(x => re.test(x.text));
+      assert.ok(s, String(re));
+      return s.n;
+    };
+    const release = at(/Publish the 2\.x direct download as GitHub's latest release/);
+    const fill = at(/deploy\.sh live --fill-site/);
+    assert.equal(at(/supportEmail.*checkoutLive: true/), fill);
+    const testflight = at(/TestFlight for Mac/);
+    const purchase = at(/One live purchase through the store build/);
+    const submit = at(/Submit for Review/);
+    assert.ok(release < fill && fill < testflight && testflight < purchase && purchase < submit);
+    assert.match(md, /Settings > Your plan > Connect an existing subscription, paste the key, click Activate/);
+    assert.equal(/probe keychain/.test(md), false, 'the probe cleanup is done');
+    assert.match(md, /invocation logs are now off in `server\/wrangler\.jsonc`/);
+    assert.match(md, /stripe login/);
+  });
+});
+
 test('the App Store listing copy fits Apple\'s limits', () => {
   const { checkAll } = require('../store/mac-app-store/check-lengths');
   const results = checkAll();

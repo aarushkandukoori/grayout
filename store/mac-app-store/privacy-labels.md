@@ -16,7 +16,7 @@ Every type: **Linked to the user: Yes. Used for tracking: No. Purpose: App Funct
 
 | App Store Connect type | What it is in Grayout | Why linked | Notes |
 |---|---|---|---|
-| User Content > Other User Content | The screenshot of each display, the work description, task titles | Requests carry the device id and license; screen content is personal data | Sent at each check after consent |
+| User Content > Other User Content | The screenshot of each display and the work description (this edition sends no task titles) | Requests carry the device id and license; screen content is personal data | Sent at each check after consent |
 | User Content > Photos or Videos | The optional webcam frame | Same | Off by default. Still declared: Apple says data collected on an ongoing basis after an initial permission request must be disclosed |
 | Browsing History | Screenshots show the sites and apps being viewed, and the frontmost app's name is sent each check | Same | **Judgment call.** Keep unless Aarush decides the screenshot is already covered by Other User Content and writes down why |
 | Identifiers > Device ID | The server-issued `dev_...` id and token; for 48 hours a keyed hash of the IP address; network and /48 hashes for free-check limits | Tied to the license once there is one | Apple says to declare IP addresses by how they are used: here, as an identifier for abuse limits |
@@ -30,7 +30,7 @@ Every type: **Linked to the user: Yes. Used for tracking: No. Purpose: App Funct
 
 - Name, phone number, physical address. Stripe and Link collect these as merchant of record on their own web page, outside the app; the service never reads them.
 - Health, fitness, financial info other than the row above, location, sensitive info, contacts, emails or text messages, audio, gameplay content, customer support, search history, other user content, advertising data, other usage data, crash data, performance data, other diagnostic data.
-- Location: **only if** Cloudflare's Workers invocation logs do not keep client IP or location. `server/wrangler.jsonc` turns on `"observability"`. Before submitting, Aarush checks what those logs hold. If they keep IP or geolocation, either turn invocation logs off or declare Coarse Location, and fix the policy's "IP addresses in clear" line to match.
+- Location: **only if** the Worker's stored logs keep no client IP or location. Invocation logs are off in `server/wrangler.jsonc`; before submitting, Aarush verifies in the sandbox that the Worker's own stored log lines carry no client IP either (`owner-checklist.md` step 16). If they do, declare Coarse Location and fix the policy's "IP addresses in clear" line to match.
 - Diagnostics: there is no crash reporter (no `crashReporter` or Sentry), and local logs never leave the Mac.
 
 ## Other answers

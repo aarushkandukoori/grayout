@@ -10,14 +10,14 @@ HOW TO TEST WITHOUT PAYING (about 3 minutes)
 6. In Safari, open a video site and play a video, or open a social media feed. After two checks (usually 1 to 2 minutes) the screen turns gray with a red border.
 7. Switch to a document: color returns at the next check. Or click the menu bar icon, then I'm working (color returns now; it then waits 10 minutes). Restore color now, Pause and Quit also restore color at once.
 Video-call apps (FaceTime, Zoom) never trigger it and password managers are never captured, so test with Safari in front. Checks pause after 10 minutes with no keyboard or mouse input.
-If the free checks run out (they are also capped per network, which a shared review network can hit), open Settings from the menu bar icon, go to Your plan, paste this complimentary review key and click Activate: <REVIEWER_LICENSE_KEY>
-It stays active through review.
+If the free checks run out (also capped per network, which a shared review network can hit), restore our existing web subscription: menu bar icon > Settings > Your plan > Connect an existing subscription, paste this key, click Activate: <REVIEWER_LICENSE_KEY>
+It stays active through review. The field is optional.
 
 WHY SCREEN RECORDING
 The core feature: one screenshot of each display per check, resized to 1366 px wide, sent over HTTPS, and deleted from the Mac right after the check. The camera is optional, off by default, and asked for only if the user turns on the webcam option.
 
 THIRD-PARTY AI (5.1.2(i))
-Screenshots, the frontmost app's name, and the optional webcam frame, work description and task titles go to the Grayout service (a Cloudflare Worker we run), which sends them to OpenAI's API under our account and returns a verdict. The service stores no images. OpenAI does not train on API data and may keep inputs up to 30 days for abuse monitoring. The app names OpenAI and asks for explicit permission on its first screen, before any capture; Not now captures nothing. Settings > Send screenshots for checks withdraws it and stops all checks.
+Screenshots, the frontmost app's name, and the optional webcam frame and work description go to the Grayout service (a Cloudflare Worker we run), which sends them to OpenAI's API under our account and returns a verdict. The service stores no images. OpenAI does not train on API data and may keep inputs up to 30 days for abuse monitoring. The app names OpenAI and asks for explicit permission on its first screen, before any capture; Not now captures nothing. Settings > Send screenshots for checks withdraws it and stops all checks.
 
 PAYMENTS (3.1.1(a), United States storefront only)
 The app is free and has no In-App Purchase. Grayout Pro ($9.99/month or $79/year) is sold on our website through Stripe Checkout. Subscribe opens that page in the default browser; after payment the app unlocks itself, with nothing to type. Under 3.1.1(a) (June 8, 2026), entitlements "are not required for developers to include buttons, external links, or other calls to action in their United States storefront apps". The app is available only in the United States storefront. The reviewer does not need to buy anything.
