@@ -574,7 +574,7 @@ test.describe('the welcome window, run', () => {
     await settle();
     assert.equal(stepOn(doc), 1);
     assert.equal(b.called('grantConsent').length, 0);
-    assert.match($('consent-status').textContent, /Nothing is captured or sent/);
+    assert.match($('consent-status').textContent, /Nothing is captured and no check is sent/);
     // Return on the card never stands in for the click.
     doc.dispatch('keydown', { key: 'Enter', target: $('screens') });
     await settle();
@@ -776,7 +776,7 @@ test.describe('the dashboard, run', () => {
     await settle();
     assert.equal(b.called('revokeConsent').length, 1);
     assert.equal($('f-consent').checked, false);
-    assert.match($('consent-msg').textContent, /Nothing is captured or sent/);
+    assert.match($('consent-msg').textContent, /Nothing is captured and no check is sent/);
     assert.deepEqual(errors, []);
   });
 

@@ -394,7 +394,7 @@ test.describe('the App Store package', () => {
     const submit = at(/Submit for Review/);
     assert.ok(release < fill && fill < testflight && testflight < purchase && purchase < submit);
     assert.match(md, /Settings > Your plan > Connect an existing subscription, paste the key, click Activate/);
-    assert.equal(/probe keychain/.test(md), false, 'the probe cleanup is done');
+    assert.equal(/probe keychain/.test(md), false, 'the probe keychain item that could collide is gone');
     assert.match(md, /invocation logs are now off in `server\/wrangler\.jsonc`/);
     assert.match(md, /stripe login/);
   });

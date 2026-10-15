@@ -229,8 +229,8 @@
 
   function declineConsent() {
     consentStatus(consentOnlyMode
-      ? 'Nothing is captured or sent. Grayout stays paused until you allow this, here or in Settings under Send screenshots for checks.'
-      : 'Nothing is captured or sent. Setup cannot finish without this, because checking your screen is all Grayout does. You can quit Grayout from the menu bar.');
+      ? 'Nothing is captured and no check is sent. Grayout stays paused until you allow this, here or in Settings under Send screenshots for checks.'
+      : 'Nothing is captured and no check is sent. Setup cannot finish without this, because checking your screen is all Grayout does. You can quit Grayout from the menu bar.');
   }
 
   async function moveToApplications() {

@@ -15,7 +15,9 @@ has_key() { /usr/libexec/PlistBuddy -c "Print :$1" "$APP/Contents/Info.plist" >/
 ents() { codesign -d --entitlements - --xml "$1" 2>/dev/null | plutil -convert xml1 -o - - 2>/dev/null || true; }
 is_macho() { file -b "$1" | grep -q 'Mach-O'; }
 # One value (a PlistBuddy path, so dots in keys are fine) from the plist on stdin.
-pval() { /usr/libexec/PlistBuddy -c "Print :$1" /dev/stdin 2>/dev/null || true; }
+# plutil reads stdin to EOF (PlistBuddy on /dev/stdin only sees what is already
+# in the pipe and fails on large or slow input). Dots inside keys are escaped.
+pval() { plutil -extract "$1" raw -o - - 2>/dev/null || true; }
 
 # Prints the first file or link under $1 that carries com.apple.quarantine.
 # Not `xattr -lr | grep -q`: under pipefail grep's early exit killed xattr with
@@ -30,12 +32,12 @@ quarantined() { find "$1" -xattrname com.apple.quarantine -print -quit 2>/dev/nu
 #   check_app_id TEAM BID MAIN_ENTITLEMENTS_XML [DECODED_PROFILE_XML]
 check_app_id() {
   local want="$1.$2" got
-  got=$(printf '%s' "$3" | pval com.apple.application-identifier)
+  got=$(printf '%s' "$3" | pval 'com\.apple\.application-identifier')
   [ -z "$got" ] || [ "$got" = "$want" ] || fail "signed application-identifier $got != $want"
   [ -n "${4:-}" ] || return 0
-  got=$(printf '%s' "$4" | pval TeamIdentifier:0)
+  got=$(printf '%s' "$4" | pval TeamIdentifier.0)
   [ "$got" = "$1" ] || fail "profile team $got != ElectronTeamID $1"
-  got=$(printf '%s' "$4" | pval Entitlements:com.apple.application-identifier)
+  got=$(printf '%s' "$4" | pval 'Entitlements.com\.apple\.application-identifier')
   [ "$got" = "$want" ] || fail "profile application-identifier ${got:-missing} != $want (is MAS_APP_ID set?)"
 }
 

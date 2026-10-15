@@ -91,13 +91,14 @@ function spentToday() {
 // consent wait included), and closed as soon as consent is withdrawn.
 // Cheap and idempotent: create() keeps a window that is already open.
 // `live` is loop.getLive() when the caller already has it.
+let quitting = false; // set on before-quit: never open a camera window mid-quit
 function syncCamera(live) {
   let l = live || null;
   if (!l) { try { l = loop ? loop.getLive() : null; } catch { l = null; } }
   let allowed = false;
   try { allowed = consent.satisfied(); } catch {}
   try {
-    camera.sync({ camera: !!config && config.camera === true, consent: allowed, running: !!l && l.running === true, paused: !l || l.paused !== false });
+    camera.sync({ camera: !quitting && !!config && config.camera === true, consent: allowed, running: !!l && l.running === true, paused: !l || l.paused !== false });
   } catch (e) { log.error('camera', e.message); }
 }
 
@@ -236,6 +237,7 @@ if (!gotLock) {
   // registering any handler that could touch it.
   app.exit(0);
 } else {
+  app.on('before-quit', () => { quitting = true; syncCamera(); });
   app.on('before-quit', hardResetDisplay);
   app.on('will-quit', hardResetDisplay);
   process.on('exit', hardResetDisplay);

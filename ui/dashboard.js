@@ -722,7 +722,7 @@
     }
     setMsg('consent-msg', on
       ? 'On. Grayout can send screenshots for checks again.'
-      : 'Off. Nothing is captured or sent until you turn this back on.', 'ok');
+      : 'Off. Nothing is captured and no check is sent until you turn this back on.', 'ok');
     await refresh();
     loadSettings(false);
   }
