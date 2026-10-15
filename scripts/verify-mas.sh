@@ -18,6 +18,12 @@ has_key() { /usr/libexec/PlistBuddy -c "Print :$1" "$APP/Contents/Info.plist" >/
 ents() { codesign -d --entitlements - --xml "$1" 2>/dev/null | plutil -convert xml1 -o - - 2>/dev/null || true; }
 is_macho() { file -b "$1" | grep -q 'Mach-O'; }
 
+# Prints the first file or link under $1 that carries com.apple.quarantine.
+# Not `xattr -lr | grep -q`: under pipefail grep's early exit killed xattr with
+# SIGPIPE and a fully quarantined bundle passed, and xattr follows symlinks, so
+# it never saw the attribute on a link itself.
+quarantined() { find "$1" -xattrname com.apple.quarantine -print -quit 2>/dev/null || true; }
+
 BID=$(plist CFBundleIdentifier)
 TEAM=$(plist ElectronTeamID)
 EXE=$(plist CFBundleExecutable)
@@ -42,7 +48,8 @@ done
 [ -x "$HELPER" ] || fail "helper/grayout-overlay missing"
 [ ! -e "$APP/Contents/Resources/helper/grayscale" ] || fail "the private-API grayscale helper is in the bundle"
 [ ! -e "$APP/Contents/Resources/app-update.yml" ] || fail "app-update.yml present (set publish: null)"
-if xattr -lr "$APP" 2>/dev/null | grep -q com.apple.quarantine; then fail "com.apple.quarantine xattr present"; fi
+Q=$(quarantined "$APP")
+[ -z "$Q" ] || fail "com.apple.quarantine xattr present on ${Q#"$APP"/}"
 # No Mach-O may even contain the private Color Filters symbol names (2.5.1).
 while IFS= read -r -d '' f; do
   is_macho "$f" || continue
