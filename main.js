@@ -91,6 +91,7 @@ function spentToday() {
 // consent wait included), and closed as soon as consent is withdrawn.
 // Cheap and idempotent: create() keeps a window that is already open.
 // `live` is loop.getLive() when the caller already has it.
+const PRIME_WAIT_MS = 8000; // longest startup waits on the Screen Recording probe
 let quitting = false; // set on before-quit: never open a camera window mid-quit
 function syncCamera(live) {
   let l = live || null;
@@ -408,7 +409,12 @@ if (!gotLock) {
     // prompt if it hasn't been approved yet. Must happen before the first tick.
     // Not before the person has allowed screenshots: on a first run the
     // consent card comes first, and consent:grant primes it (src/ipc.js).
-    if (consent.satisfied()) await permissions.primeScreenPermission();
+    // Bounded: until the prompt is answered (or forever, on a locked screen)
+    // the probe does not settle, and nothing below it, onboarding included,
+    // may wait on it. The loop cannot capture without the grant anyway.
+    if (consent.satisfied()) {
+      await Promise.race([permissions.primeScreenPermission(), new Promise(r => setTimeout(r, PRIME_WAIT_MS).unref())]);
+    }
     await refreshPermState();
     setInterval(() => refreshPermState().then(() => { if (tray) tray.refresh(); }), 60000).unref();
 
