@@ -384,3 +384,47 @@ describe('an unreadable secrets.bin is never overwritten in place', () => {
     secrets._setSafeStorage(identity());
   });
 });
+
+describe('Mac App Store edition: no own model key (no self-hosting)', () => {
+  const channel = require('../src/channel');
+  after(() => { channel._setForTests(null); delete process.env.ANTHROPIC_API_KEY; delete process.env.OPENAI_API_KEY; });
+
+  test('getApiKey is null whatever is stored, held in memory or set in the environment; the license is unaffected', () => {
+    channel._setForTests(null);
+    secrets._setSafeStorage(identity());
+    secrets.setApiKey(KEY);
+    secrets.useSessionKey('sk-ant-api03-session-key');
+    secrets.setLicense('gry_live_ABCDEFGHJKMNPQRSTVWXYZ01');
+    process.env.ANTHROPIC_API_KEY = 'sk-ant-env-key';
+    process.env.OPENAI_API_KEY = 'sk-proj-env-key';
+    channel._setForTests('mas');
+    assert.equal(secrets.getApiKey(), null);
+    assert.equal(secrets.getLicense(), 'gry_live_ABCDEFGHJKMNPQRSTVWXYZ01', 'the subscription credential still works');
+    channel._setForTests(null);
+    assert.equal(secrets.getApiKey(), 'sk-ant-api03-session-key', 'the direct edition still sees it');
+  });
+
+  test('setApiKey and useSessionKey throw SelfHostingUnavailable and write nothing', () => {
+    channel._setForTests(null);
+    secrets.clearApiKey();
+    const before = fs.readFileSync(paths.SECRETS_PATH, 'utf8');
+    channel._setForTests('mas');
+    assert.throws(() => secrets.setApiKey(KEY), e => e instanceof secrets.SelfHostingUnavailable && e.kind === 'unavailable');
+    assert.throws(() => secrets.useSessionKey(KEY), e => e.name === 'SelfHostingUnavailable');
+    assert.equal(fs.readFileSync(paths.SECRETS_PATH, 'utf8'), before);
+    assert.equal(readStore().anthropicApiKey, '');
+  });
+
+  test('forget() drops every credential held in memory', () => {
+    channel._setForTests(null);
+    secrets.useSessionKey('sk-ant-api03-another-session');
+    assert.ok(secrets.getApiKey());
+    fs.rmSync(paths.SECRETS_PATH, { force: true });
+    secrets.forget();
+    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+    assert.equal(secrets.getApiKey(), null);
+    assert.equal(secrets.getLicense(), null);
+    assert.equal(secrets.getDeviceToken(), null);
+  });
+});

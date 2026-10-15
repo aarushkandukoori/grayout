@@ -8,6 +8,7 @@
 const fs = require('fs');
 const paths = require('./paths');
 const log = require('./log');
+const channel = require('./channel');
 
 let safeStorage = null;
 if (paths.IN_ELECTRON) {
@@ -17,6 +18,12 @@ if (paths.IN_ELECTRON) {
 class SecretsUnavailable extends Error {
   constructor(msg) { super(msg || 'secure storage is not available on this Mac'); this.name = 'SecretsUnavailable'; }
 }
+
+// A model API key in a build without self-hosting (the Mac App Store edition).
+class SelfHostingUnavailable extends Error {
+  constructor() { super('your own API key is not available in the Mac App Store edition'); this.name = 'SelfHostingUnavailable'; this.kind = 'unavailable'; }
+}
+const selfHosting = () => channel.features().selfHosting;
 
 let cache = null;          // { anthropicApiKey, canvasToken, grayoutLicense, grayoutDeviceToken } once decrypted
 let sessionKey = null;     // in-memory only, when secure storage is unavailable
@@ -42,6 +49,20 @@ const LICENSE_PREFIX_RE = /^gry_(live|test)_/i;
 const DEVICE_TOKEN_RE = /^[A-Za-z0-9_-]{43}$/;
 
 function _setSafeStorage(fake) { safeStorage = fake; cache = null; loadFailed = false; unreadable = false; }
+
+/**
+ * Drop every credential held in memory (the decrypted store and the session
+ * fallbacks). "Erase this Mac's Grayout data" calls it right after deleting
+ * secrets.bin, so nothing in this process can write the old keys back.
+ */
+function forget() {
+  cache = null;
+  sessionKey = null;
+  sessionLicense = null;
+  sessionDeviceToken = null;
+  loadFailed = false;
+  unreadable = false;
+}
 
 function available() {
   try { return !!(safeStorage && safeStorage.isEncryptionAvailable()); } catch { return false; }
@@ -108,7 +129,10 @@ function normalizeKey(key) {
   return k;
 }
 
+// Without self-hosting there is no model key at all: not a stored one, not a
+// session one, not one from the environment.
 function getApiKey() {
+  if (!selfHosting()) return null;
   if (sessionKey) return sessionKey;
   // A developer running from source may use the environment; a packaged app never does.
   if (!isPackaged()) {
@@ -119,6 +143,7 @@ function getApiKey() {
 }
 
 function setApiKey(key) {
+  if (!selfHosting()) throw new SelfHostingUnavailable();
   const k = normalizeKey(key);
   persist({ ...load(), anthropicApiKey: k });
   sessionKey = null;
@@ -131,7 +156,10 @@ function clearApiKey() {
   try { persist({ ...load(), anthropicApiKey: '' }); } catch {}
 }
 
-function useSessionKey(key) { sessionKey = normalizeKey(key) || null; }
+function useSessionKey(key) {
+  if (!selfHosting()) throw new SelfHostingUnavailable();
+  sessionKey = normalizeKey(key) || null;
+}
 
 /* ---------------- Grayout license ----------------
    The subscription credential. It is not a model key: it identifies a
@@ -244,5 +272,5 @@ module.exports = {
   available, unreadable: isUnreadable, setAsideUnreadable, getApiKey, setApiKey, clearApiKey, useSessionKey, getCanvasToken, setCanvasToken,
   getLicense, setLicense, clearLicense, useSessionLicense, normalizeLicense, maskLicense, isLicense,
   getDeviceToken, setDeviceToken, clearDeviceToken, useSessionDeviceToken,
-  maskKey, SecretsUnavailable, LICENSE_RE, DEVICE_TOKEN_RE, _setSafeStorage
+  maskKey, forget, SecretsUnavailable, SelfHostingUnavailable, LICENSE_RE, DEVICE_TOKEN_RE, _setSafeStorage
 };

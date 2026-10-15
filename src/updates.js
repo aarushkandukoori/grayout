@@ -2,6 +2,13 @@
 // Update check against GitHub Releases. No electron-updater: Squirrel.Mac
 // rejects unsigned/ad-hoc apps. Nothing identifying is sent — the request is
 // an anonymous GET with a User-Agent of "Grayout/<version>".
+//
+// The Mac App Store edition gets its updates from the store only (App Review
+// 2.4.5(vii)), so there createUpdater hands back a stub that never touches the
+// network, and fetchLatest refuses too.
+const channel = require('./channel');
+const updatesAllowed = () => channel.features().updates;
+
 const RELEASES_URL = 'https://api.github.com/repos/aarushkandukoori/grayout/releases/latest';
 const DOWNLOAD_PAGE = 'https://github.com/aarushkandukoori/grayout/releases/latest';
 const CHECK_EVERY_MS = 24 * 3600 * 1000;
@@ -40,6 +47,7 @@ function safeReleaseUrl(value) {
 
 /** Resolve { tag, version, url } or null. Never throws. */
 async function fetchLatest({ fetchImpl = fetch, currentVersion = '0.0.0' } = {}) {
+  if (!updatesAllowed()) return null;
   try {
     const res = await fetchImpl(RELEASES_URL, {
       headers: { 'User-Agent': `Grayout/${currentVersion}`, Accept: 'application/vnd.github+json' },
@@ -54,14 +62,30 @@ async function fetchLatest({ fetchImpl = fetch, currentVersion = '0.0.0' } = {})
   }
 }
 
+const DISABLED = Object.freeze({ checked: false, disabled: true });
+
+/** What createUpdater returns in a build without the update check. */
+function disabledUpdater() {
+  return {
+    check: async () => ({ ...DISABLED }),
+    start() {},
+    stop() {},
+    getAvailable: () => null,
+    dismiss() {},
+    disabled: true
+  };
+}
+
 /**
  * deps: { currentVersion, isEnabled(): bool, state: {get,update}, onAvailable(info), fetchImpl }
  */
 function createUpdater(deps) {
+  if (!updatesAllowed()) return disabledUpdater();
   let timer = null;
   let available = null;
 
   async function check({ manual = false } = {}) {
+    if (!updatesAllowed()) return { ...DISABLED };
     if (!manual && !deps.isEnabled()) return { checked: false };
     const latest = await fetchLatest({ fetchImpl: deps.fetchImpl, currentVersion: deps.currentVersion });
     if (deps.state) deps.state.update(s => { s.lastUpdateCheck = Date.now(); });
@@ -77,6 +101,7 @@ function createUpdater(deps) {
 
   function start() {
     stop();
+    if (!updatesAllowed()) return;
     timer = setTimeout(() => {
       check().catch(() => {});
       timer = setInterval(() => check().catch(() => {}), CHECK_EVERY_MS);
@@ -94,4 +119,4 @@ function createUpdater(deps) {
   return { check, start, stop, getAvailable, dismiss };
 }
 
-module.exports = { isNewer, parseVersion, fetchLatest, safeReleaseUrl, createUpdater, RELEASES_URL, DOWNLOAD_PAGE };
+module.exports = { isNewer, parseVersion, fetchLatest, safeReleaseUrl, createUpdater, disabledUpdater, RELEASES_URL, DOWNLOAD_PAGE };

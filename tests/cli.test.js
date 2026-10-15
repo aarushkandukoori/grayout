@@ -538,3 +538,26 @@ describe('spawning a fake claude', () => {
     assert.equal(gone, true, 'the fake and its grandchild are both dead');
   });
 });
+
+describe('Mac App Store edition: no Claude CLI engine (2.5.2)', () => {
+  const channel = require('../src/channel');
+  after(() => channel._setForTests(null));
+
+  test('resolveEngine is always "api", even for engine "cli" or GRAYOUT_DEV_ENGINE=cli', t => {
+    withEnv(t, { GRAYOUT_DEV_ENGINE: 'cli' });
+    channel._setForTests('mas');
+    assert.equal(analyzer.resolveEngine({ engine: 'cli' }, true), 'api');
+    assert.equal(analyzer.resolveEngine({ engine: 'cli' }, false), 'api');
+    assert.equal(analyzer.resolveEngine({ engine: 'api' }, false), 'api');
+    channel._setForTests(null);
+    assert.equal(analyzer.resolveEngine({ engine: 'cli' }, true), 'cli', 'the direct edition is unchanged');
+  });
+
+  test('analyzeViaCli refuses without spawning anything', async () => {
+    channel._setForTests('mas');
+    const tag = 'mas-refused';
+    try { fs.unlinkSync(recordPath(tag)); } catch {}
+    await assert.rejects(analyzeViaCli(ctxOf(), cliCfg('ok', tag)), e => e.kind === 'cli_missing' && /Mac App Store/.test(e.message));
+    assert.equal(fs.existsSync(recordPath(tag)), false, 'the fake claude never ran');
+  });
+});

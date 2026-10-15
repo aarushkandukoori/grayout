@@ -2,6 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const paths = require('./paths');
+const channel = require('./channel');
 
 /* ---------------- the Grayout service address ----------------
    DEPLOY-TIME CONSTANT (docs/API-CONTRACT.md section 3). This is the one line
@@ -158,6 +159,9 @@ function coerce(cfg) {
   out.cliPath = out.cliPath.trim();
   if (!['auto', 'grayout', 'anthropic', 'openai'].includes(out.provider)) out.provider = 'auto';
   if (!/^(claude-|gpt-|o\d)[a-z0-9.\-]+$/i.test(out.model)) out.model = DEFAULT_CONFIG.model;
+  // No address override in this build (Mac App Store): the one built in is the
+  // only one, so there is nothing to keep or warn about.
+  if (!channel.features().apiBaseOverride) out.apiBase = '';
   // A bad base URL is dropped rather than kept: frames must never be posted to
   // something that is not a plain https endpoint. Dropping it silently would be
   // a privacy surprise, though — an empty apiBase means the address built into
@@ -172,6 +176,15 @@ function coerce(cfg) {
                  (builtIn ? `the Grayout service at ${builtIn}.` : 'nothing: this build has no service address, so no screenshot is sent.'));
   }
   out.workDescription = out.workDescription.slice(0, MAX_WORK_DESCRIPTION);
+
+  // What this edition cannot do, config.json cannot switch on either
+  // (src/channel.js). In the Mac App Store edition that is: the GitHub update
+  // check, an own model key, the Claude CLI engine and a task file path.
+  const f = channel.features();
+  if (!f.updates) out.checkForUpdates = false;
+  if (!f.selfHosting) out.provider = 'grayout';
+  if (!f.cliEngine) { out.engine = 'api'; out.cliPath = ''; out.cliAllowOverage = false; }
+  if (!f.tasksFile) out.tasksFile = '';
 
   const c = cfg.canvas && typeof cfg.canvas === 'object' ? cfg.canvas : {};
   out.canvas = {

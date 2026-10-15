@@ -6,6 +6,11 @@
 // Self-hosters keep the v1 path — set `provider` to anthropic/openai in
 // config.json, or just save a model key, and the app talks to that provider
 // directly and never touches the service.
+//
+// The Mac App Store edition has no self-hosting (channel.features().selfHosting
+// is false): every check goes through the hosted service, whatever config.json
+// or a stored key says.
+const channel = require('./channel');
 
 const HOSTED = 'grayout';
 
@@ -41,9 +46,10 @@ function providerOfModel(model) {
  * Resolve { provider, model } for a config + key. An explicit config.provider
  * wins; otherwise a saved model key means self-hosting on that provider;
  * otherwise the hosted service. The model is used only if it belongs to the
- * provider's family.
+ * provider's family. Always the hosted service in a build without self-hosting.
  */
 function resolve(config, key) {
+  if (!channel.features().selfHosting) return { provider: HOSTED, model: DEFAULT_MODELS[HOSTED] };
   const cfg = config || {};
   const explicit = PROVIDERS.includes(cfg.provider) ? cfg.provider : null;
   if (explicit === HOSTED) return { provider: HOSTED, model: DEFAULT_MODELS[HOSTED] };
