@@ -1406,7 +1406,10 @@ the same transaction that deletes their rows.
   buyer's email and card fingerprint, only to give one free trial per person.
   The hash cannot be turned back into the email or card.
 - **Never stored:** images, prompts, verdicts, IP addresses in clear,
-  names, emails, card details, license keys.
+  names, emails, card details, license keys. This covers Cloudflare's logs
+  too: only the service's own log lines are kept (section 15), and the
+  per-request invocation logs, which would hold each request's headers and
+  client IP, are off (section 13).
 
 ---
 
@@ -1448,8 +1451,13 @@ Two Workers from one `wrangler.jsonc`: the top level is the live Worker
 `grayout-api`; `env.sandbox` is `grayout-api-sandbox` with its own D1
 `grayout-sandbox`, its own rate-limit namespaces and the sandbox product and
 prices. Bindings: `DB`, the seven rate limiters in section 11, the cron
-trigger in 12.4. `observability` stays on: URLs carry no secrets now, and
-request bodies are never logged.
+trigger in 12.4. `observability` stays on for the service's own log lines
+(URLs carry no secrets, and request bodies are never logged), with
+`logs.invocation_logs: false` and `traces.enabled: false`: Cloudflare's
+per-request invocation logs and traces would store each request's metadata
+and headers, the client IP among them, which 12.5 promises is never stored.
+`npx wrangler tail` still streams requests live without storing them. The
+sandbox Worker inherits the same block.
 
 Code constants (server):
 

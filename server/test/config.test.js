@@ -137,6 +137,24 @@ describe('wrangler.jsonc', () => {
   test('the daily cleanup cron is scheduled', () => {
     assert.deepEqual(config.triggers.crons, ['17 4 * * *']);
   });
+
+  test('logs keep our own lines but no per-request invocation logs or traces (they hold the client IP)', () => {
+    assert.equal(config.observability.enabled, true);
+    assert.deepEqual(config.observability.logs, { enabled: true, invocation_logs: false });
+    assert.deepEqual(config.observability.traces, { enabled: false });
+    // wrangler copies the top-level block into an environment that sets none.
+    assert.equal(sandbox.observability, undefined, 'the sandbox inherits the same settings');
+    // The installed wrangler knows the key (a typo would be silently ignored).
+    const schema = JSON.parse(read('node_modules/wrangler/config-schema.json'));
+    assert.ok(schema.definitions.Observability.properties.logs.properties.invocation_logs);
+  });
+
+  test('the go-live step that wrangler.jsonc points at is the README\'s go-live step', () => {
+    const text = read('wrangler.jsonc');
+    const steps = [...text.matchAll(/README step\s+(\d+)/g)].map(m => m[1]);
+    assert.ok(steps.length > 0);
+    for (const n of steps) assert.match(read('README.md'), new RegExp(`^${n}\\. \\*\\*Go live\\.\\*\\*`, 'm'));
+  });
 });
 
 describe('the runbook and example settings', () => {
