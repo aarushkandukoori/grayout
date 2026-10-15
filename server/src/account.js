@@ -2,7 +2,7 @@
 // state, and the billing portal link. Contract sections 6.8 to 6.10.
 
 import { STALE_SYNC_SECONDS, modeAllowed } from './config.js';
-import { ApiError, describeError, fail, logLine } from './http.js';
+import { ApiError, describeError, fail, isAppRequest, logLine } from './http.js';
 import { normalizeLicense, sha256Hex } from './ids.js';
 import { attachLicense, getLicenseByHash } from './db.js';
 import { limit } from './limits.js';
@@ -76,16 +76,19 @@ export async function postStatus(deps, { request, body, ipKey }) {
   const access = await accessFor(deps, license, { maxAge: STALE_SYNC_SECONDS, ipKey });
   const account = await accountObject(deps, access);
   // Made only when asked: the link expires 5 minutes after it is made.
-  const portalUrl = wantsPortal ? await portalUrlOrNull(deps, license.customer_id) : null;
+  const portalUrl = wantsPortal ? await portalUrlOrNull(deps, license.customer_id, { fromApp: isAppRequest(request) }) : null;
   return { ...account, portalUrl };
 }
 
-/** POST /v1/portal: a Stripe billing portal link. */
+/**
+ * POST /v1/portal: a Stripe billing portal link. Its "Return" link goes to
+ * the app's page for a request from the app, and home for a browser.
+ */
 export async function postPortal(deps, { request, body, ipKey }) {
   const { license } = await deviceAndLicense(deps, request, body);
   await limit(deps.env, 'RL_STRIPE_IP', ipKey);
   try {
-    return { url: await createPortalUrl(deps, license.customer_id) };
+    return { url: await createPortalUrl(deps, license.customer_id, { fromApp: isAppRequest(request) }) };
   } catch (err) {
     if (err instanceof ApiError) throw err;
     logLine('portal_failed', { customer: license.customer_id, error: describeError(err) });

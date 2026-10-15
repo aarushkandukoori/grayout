@@ -177,25 +177,5 @@ export function stripeEvent(type, object, { id } = {}) {
   };
 }
 
-/** Parse wrangler.jsonc: JSON with // comments (but "https://" inside strings is kept). */
-export function parseJsonc(text) {
-  let out = '';
-  let inString = false;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (inString) {
-      out += c;
-      if (c === '\\') { out += text[++i]; continue; }
-      if (c === '"') inString = false;
-    } else if (c === '"') {
-      inString = true;
-      out += c;
-    } else if (c === '/' && text[i + 1] === '/') {
-      while (i < text.length && text[i] !== '\n') i++;
-      out += '\n';
-    } else {
-      out += c;
-    }
-  }
-  return JSON.parse(out.replace(/,(\s*[}\]])/g, '$1'));
-}
+/** Parse wrangler.jsonc (JSON with // comments). The same parser deploy.sh uses. */
+export { parseJsonc } from '../scripts/wrangler-var.js';

@@ -15,8 +15,19 @@
   "compatibility_date": "2026-09-01",
   // Insurance for the Stripe SDK; nothing imports a Node built-in today.
   "compatibility_flags": ["nodejs_compat"],
-  // Logs stay on: no URL carries a secret, and request bodies are never logged.
-  "observability": { "enabled": true },
+  // Workers Logs keep the service's own log lines (src/http.js logLine: ids,
+  // routes and error codes; never a request body, a key or an IP address).
+  // Invocation logs are OFF: with them on, Cloudflare stores one extra entry
+  // per request with the request's metadata and headers, the client's IP
+  // address among them, and the privacy policy says the service stores no IP
+  // address in clear. Traces (also per request) stay off for the same reason.
+  // For live debugging, `npx wrangler tail` streams requests without storing
+  // them. The sandbox Worker inherits this block.
+  "observability": {
+    "enabled": true,
+    "logs": { "enabled": true, "invocation_logs": false },
+    "traces": { "enabled": false }
+  },
 
   // The live database. scripts/deploy.sh creates it and writes its id here in
   // place of the placeholder. Tables: migrations/0001_init.sql.
@@ -52,8 +63,9 @@
     "SITE_URL": "https://aarushkandukoori.github.io/grayout",
     // Browser origins allowed to read the CORS routes. The app sends no Origin.
     "SITE_ORIGINS": "https://aarushkandukoori.github.io",
-    // LIVE Grayout Pro product and prices. Empty until go-live (README step
-    // 10); until then the live Worker sells nothing (503 not_configured).
+    // LIVE Grayout Pro product and prices. Empty until go-live
+    // (README step 9, "Go live"); until then the live Worker sells nothing
+    // (503 not_configured).
     "STRIPE_PRODUCT": "",
     "STRIPE_PRICE_MONTHLY": "",
     "STRIPE_PRICE_YEARLY": "",

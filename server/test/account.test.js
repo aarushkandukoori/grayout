@@ -98,7 +98,8 @@ describe('POST /v1/status', () => {
     const res = await h.call('/v1/status', { ...device, license, portal: true });
     assert.equal(res.body.portalUrl, `https://billing.stripe.com/p/session/test_${subscription.customer}`);
     const portal = h.stripe.callsTo('billingPortal.sessions.create').at(-1).args[0];
-    assert.deepEqual(portal, { customer: subscription.customer, return_url: 'https://aarushkandukoori.github.io/grayout/' });
+    // The app sends no Origin header, so the portal returns to the app page.
+    assert.deepEqual(portal, { customer: subscription.customer, return_url: 'https://aarushkandukoori.github.io/grayout/account.html?from=app' });
     h.limiters.RL_STRIPE_IP.max = 0;
     assert.equal((await h.call('/v1/status', { ...device, license, portal: true })).status, 429);
     assert.equal((await h.call('/v1/status', { ...device, license })).status, 200);
@@ -121,6 +122,19 @@ describe('POST /v1/portal', () => {
     const { device, license, subscription } = await subscriber(h);
     const res = await h.call('/v1/portal', { ...device, license });
     assert.deepEqual(res.body, { url: `https://billing.stripe.com/p/session/test_${subscription.customer}` });
+  });
+
+  test('the portal returns the app to account.html?from=app and a browser (it sends Origin) to the home page', async () => {
+    const h = harness();
+    const { device, license } = await subscriber(h);
+    const returnUrl = () => h.stripe.callsTo('billingPortal.sessions.create').at(-1).args[0].return_url;
+    await h.call('/v1/portal', { ...device, license });
+    assert.equal(returnUrl(), 'https://aarushkandukoori.github.io/grayout/account.html?from=app');
+    const browser = { headers: { Origin: 'https://aarushkandukoori.github.io' } };
+    assert.equal((await h.call('/v1/portal', { ...device, license }, browser)).status, 200);
+    assert.equal(returnUrl(), 'https://aarushkandukoori.github.io/grayout/');
+    assert.equal((await h.call('/v1/status', { ...device, license, portal: true }, browser)).status, 200);
+    assert.equal(returnUrl(), 'https://aarushkandukoori.github.io/grayout/');
   });
 
   test('Stripe refusing is 503 not_configured; a revoked license is 403', async () => {

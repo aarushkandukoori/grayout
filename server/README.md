@@ -27,8 +27,11 @@ and the contract wins any disagreement.
 | `src/access.js` | Who gets checks served, and the account object. |
 | `src/cleanup.js` | The daily cron that deletes expired rows. |
 | `migrations/0001_init.sql` | The database tables. |
-| `scripts/deploy.sh` | Every deploy step that needs no secret (`sandbox` or `live`), then a list of what is left. |
+| `scripts/deploy.sh` | Every deploy step that needs no secret (`sandbox` or `live`, plus `--fill-site` once a 2.x release is latest), then a list of what is left. |
+| `scripts/set-secrets.sh` | Sets the five secrets in one go. Only Aarush runs it, in his own Terminal (it refuses to run anywhere else). |
 | `scripts/check-csp.js` | Checks every site page's CSP lets the browser reach the API (deploy.sh runs it). |
+| `scripts/wrangler-var.js` | Prints one Worker's own setting from `wrangler.jsonc` (deploy.sh uses it). |
+| `scripts/stripe-answer.js` | Checks a Stripe CLI answer, which can be an error with exit code 0 (set-secrets.sh uses it). |
 | `scripts/license-key.js` | Re-derive a customer's key, to email it to a buyer who lost it. |
 | `scripts/delete-customer.js` | Print the one command that deletes a customer's record, for a data deletion request. |
 | `test/` | `node --test` against an in-memory SQLite, fake rate limiters and a fake Stripe. No network. |
@@ -170,6 +173,19 @@ takes `--env sandbox`.
    `scripts/license-key.js` needs it to re-send a lost key. Changing
    `DEVICE_SECRET` signs every Mac out of the service (they re-register).
 
+   **Or steps 5 to 7 in one go**, typed by you in your own Terminal window:
+   ```bash
+   bash scripts/set-secrets.sh sandbox https://grayout-api-sandbox.<your-subdomain>.workers.dev
+   ```
+   It asks for the two keys, makes the webhook with the Stripe CLI (logged in
+   with `stripe login`), makes the two random secrets and shows
+   `LICENSE_SECRET` once. It checks every value before storing it (never an
+   empty or malformed one), stops with a plain message if the Stripe CLI
+   answers with an error (which it can do while still exiting 0), keeps
+   every secret off command lines, and refuses to run without a terminal, so
+   the license secret can never be stored unseen. Run it again after fixing
+   a problem: secrets already set are skipped.
+
 8. **Check and test.** Run `bash scripts/deploy.sh sandbox` again; its list should now
    be short. Open `https://grayout-api-sandbox.<subdomain>.workers.dev/v1/health`:
    every `configured` flag must be `true`. Then, in the sandbox, with
@@ -182,14 +198,24 @@ takes `--env sandbox`.
 9. **Go live.** In live mode, repeat step 4, make the live product and prices
    (tax code `txcd_10105003`, tax behavior **exclusive**), put the live
    `prod_…` and both live `price_…` ids in the **top-level** `vars` of
-   `wrangler.jsonc`, and run `bash scripts/deploy.sh live`. That makes the
-   live Worker's **own, empty** database (never copy sandbox rows into it),
-   deploys it, fills its address into `src/config.js` and `docs/config.js`,
-   and stops if any site page's CSP would block that address. Then repeat
-   steps 5 to 7 **without** `--env sandbox`, with live keys (`rk_live_…`, a
+   `wrangler.jsonc` (and the live `SUPPORT_EMAIL`: each Worker has its own),
+   and run `bash scripts/deploy.sh live`. That makes the live Worker's **own,
+   empty** database (never copy sandbox rows into it), deploys it, and fills
+   its address into `src/config.js` for the app. It leaves `docs/config.js`
+   alone on purpose. Then repeat steps 5 to 7 **without** `--env sandbox`
+   (or `bash scripts/set-secrets.sh live …`), with live keys (`rk_live_…`, a
    live endpoint and its `whsec_…`, new random `DEVICE_SECRET` and
-   `LICENSE_SECRET`). Run `bash scripts/deploy.sh live` once more, then
-   commit and publish.
+   `LICENSE_SECRET`). Run `bash scripts/deploy.sh live` once more and commit
+   `src/config.js`.
+
+10. **Give the site the address, last.** Only after a 2.x release is the
+    GitHub "latest" release (every Download button fetches whatever is
+    latest, and a filled-in site promises free checks that 1.x cannot
+    give), run `bash scripts/deploy.sh live --fill-site`. It checks the
+    latest release first and stops while it is still 1.x, then fills the
+    address into `docs/config.js` and stops if any page's CSP would block
+    it. Commit and publish the site, then turn on `supportEmail` and
+    `checkoutLive` in `docs/config.js`.
 
 Things that need you by hand later are in contract section 14.6: clearing a
 revocation, deleting a customer's record, and re-sending a lost key:
@@ -224,7 +250,9 @@ has one regression test for each of the 29 problems found in v2, and
 `test/review-findings.test.js` one for each problem the 2026-10-08 review of
 v3 found, `test/server-fixes.test.js` covers the second pass over that
 review, and `test/third-pass.test.js` the third (each file's header maps every
-finding to its test).
+finding to its test). `test/scripts.test.js` runs `set-secrets.sh` (on a real
+pseudo-terminal, which needs `python3`) and `deploy.sh` end to end against
+stub `npx`, `stripe`, `npm` and `curl` commands.
 
 ## Things worth knowing before you change it
 
@@ -247,5 +275,7 @@ finding to its test).
   engagement" section of `CONTRIBUTING.md` before touching either.
 - **Nothing secret is logged.** Log lines carry ids and codes only, and
   `scrub()` in `src/http.js` masks anything key-shaped as a second guard.
-- **Self-hosting still works.** Setting `provider` to `anthropic` or `openai`
-  in the app's `config.json` bypasses this service entirely.
+- **Self-hosting still works** in the direct download and source builds.
+  Setting `provider` to `anthropic` or `openai` in the app's `config.json`
+  bypasses this service entirely. The Mac App Store edition only talks to
+  this service (contract 16.1).

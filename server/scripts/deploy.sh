@@ -6,8 +6,15 @@
 #
 # There are two Workers, each with its OWN database (wrangler.jsonc):
 #   bash server/scripts/deploy.sh sandbox   # Stripe sandbox, test cards, gry_test_ keys
-#   bash server/scripts/deploy.sh live      # real money, the address the app and site use
+#   bash server/scripts/deploy.sh live      # real money, the address the app uses
+#   bash server/scripts/deploy.sh live --fill-site   # also give the website the address
 #   DRY_RUN=1 bash server/scripts/deploy.sh sandbox   # only print what it would do
+#
+# `live` fills the Worker's address into src/config.js (the app). It leaves
+# docs/config.js (the website) alone unless you pass --fill-site, because the
+# site may only get the address once a 2.x release is the GitHub "latest"
+# release (ORDER MATTERS in docs/config.js): a filled-in site promises free
+# checks, and its Download buttons fetch whatever release is latest.
 #
 # Keeping them apart is what stops a key bought with a test card from ever
 # getting real service: the live Worker never sees the sandbox's rows.
@@ -21,7 +28,15 @@ SERVER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REPO_DIR="$(cd "$SERVER_DIR/.." && pwd)"
 cd "$SERVER_DIR"
 
-TARGET="${1:-}"
+TARGET=""
+FILL_SITE=0
+for arg in "$@"; do
+  case "$arg" in
+    --fill-site) FILL_SITE=1 ;;
+    live|sandbox) [[ -z "$TARGET" ]] && TARGET="$arg" || TARGET="twice" ;;
+    *) TARGET="unknown: $arg" ;;
+  esac
+done
 case "$TARGET" in
   live)
     DB_NAME="grayout"
@@ -36,10 +51,14 @@ case "$TARGET" in
   *)
     echo "Say which Worker to deploy:" >&2
     echo "    bash scripts/deploy.sh sandbox    (do this first)" >&2
-    echo "    bash scripts/deploy.sh live" >&2
+    echo "    bash scripts/deploy.sh live [--fill-site]" >&2
     exit 2
     ;;
 esac
+if [[ "$TARGET" == "sandbox" ]] && (( FILL_SITE )); then
+  echo "--fill-site is only for live: the sandbox address is never written into the public files." >&2
+  exit 2
+fi
 API_PLACEHOLDER="__GRAYOUT_API_BASE__"
 SECRETS=(STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET OPENAI_API_KEY DEVICE_SECRET LICENSE_SECRET)
 TODO=()
@@ -61,6 +80,29 @@ if (( node_major < 22 || (node_major == 22 && node_minor < 13) )); then
   echo "Node 22.13 or newer is needed (you have $(node --version 2>/dev/null || echo none))." >&2
   echo "Install the current LTS from https://nodejs.org, then run this script again." >&2
   exit 1
+fi
+
+# --fill-site: the site may get the address only once a 2.x release is the
+# GitHub "latest" release (ORDER MATTERS in docs/config.js). Checked first, so
+# nothing is deployed on a run that would break that order. Fails closed: if
+# GitHub does not answer, nothing is filled.
+if (( FILL_SITE )); then
+  say "Checking that a 2.x release is the GitHub \"latest\" release (--fill-site)"
+  if [[ "${DRY_RUN:-}" == "1" ]]; then
+    echo "    (dry run) would stop here unless the latest release of aarushkandukoori/grayout is 2.x or newer"
+  else
+    latest="$(curl -fsS --max-time 20 https://api.github.com/repos/aarushkandukoori/grayout/releases/latest 2>/dev/null \
+      | node -e 'let s = ""; process.stdin.on("data", d => s += d).on("end", () => {
+          try { console.log(JSON.parse(s).tag_name || ""); } catch { console.log(""); }
+        });' || true)"
+    major="$(sed -E -n 's/^v?([0-9]+)\..*/\1/p' <<<"$latest")"
+    if [[ -z "$major" || "$major" -lt 2 ]]; then
+      echo "STOP: the GitHub \"latest\" release is '${latest:-unknown}', not 2.x. Publish the 2.x release first," >&2
+      echo "then run: bash scripts/deploy.sh live --fill-site   (without --fill-site, only the app gets the address)" >&2
+      exit 1
+    fi
+    echo "    latest release: $latest"
+  fi
 fi
 
 say "Installing packages"
@@ -142,42 +184,65 @@ if [[ "$TARGET" == "sandbox" ]]; then
     check_csp "$api_base" || echo "    (the site pages above would block this address; fine for app-only sandbox tests)"
   fi
   todo "Test against the sandbox from the app (apiBase in its config.json, or GRAYOUT_API_BASE when running it with npm start) or a local copy of the site. Do NOT commit the sandbox address into src/config.js or docs/config.js."
-elif [[ -n "$api_base" ]]; then
-  say "API address: $api_base"
-  changed=()
-  for f in "$REPO_DIR/src/config.js" "$REPO_DIR/docs/config.js" "$REPO_DIR"/docs/*.html; do
-    [[ -f "$f" ]] && grep -q "$API_PLACEHOLDER" "$f" || continue
-    # Only the one assignment line in each config.js, and only CSP lines in
-    # the HTML pages. Any other mention of the placeholder is left alone.
-    node -e '
-      const fs = require("fs"); const [f, from, to] = process.argv.slice(1);
-      const wanted = /(DEFAULT_API_BASE|window\.GRAYOUT_API_BASE)\s*=|connect-src/;
-      const text = fs.readFileSync(f, "utf8");
-      const next = text.split("\n").map(l => wanted.test(l) ? l.split(from).join(to) : l).join("\n");
-      if (next !== text) { fs.writeFileSync(f, next); process.exit(0); } else process.exit(3);
-    ' "$f" "$API_PLACEHOLDER" "$api_base" && changed+=("${f#"$REPO_DIR"/}") || true
-  done
-  if (( ${#changed[@]} )); then
-    echo "    filled it into: ${changed[*]}"
-    todo "Commit and push ${changed[*]} (they now point at $api_base), then publish the site and rebuild the app."
+else
+  # The app gets the address now. The site only with --fill-site (see the top).
+  files=("$REPO_DIR/src/config.js")
+  if (( FILL_SITE )); then files+=("$REPO_DIR/docs/config.js" "$REPO_DIR"/docs/*.html); fi
+  say "Filling in the API address${api_base:+: $api_base}"
+  if [[ -n "$api_base" ]]; then
+    changed=()
+    for f in "${files[@]}"; do
+      [[ -f "$f" ]] && grep -q "$API_PLACEHOLDER" "$f" || continue
+      # Only the one assignment line in each config.js, and only CSP lines in
+      # the HTML pages. Any other mention of the placeholder is left alone.
+      node -e '
+        const fs = require("fs"); const [f, from, to] = process.argv.slice(1);
+        const wanted = /(DEFAULT_API_BASE|window\.GRAYOUT_API_BASE)\s*=|connect-src/;
+        const text = fs.readFileSync(f, "utf8");
+        const next = text.split("\n").map(l => wanted.test(l) ? l.split(from).join(to) : l).join("\n");
+        if (next !== text) { fs.writeFileSync(f, next); process.exit(0); } else process.exit(3);
+      ' "$f" "$API_PLACEHOLDER" "$api_base" && changed+=("${f#"$REPO_DIR"/}") || true
+    done
+    if (( ${#changed[@]} )); then
+      echo "    filled it into: ${changed[*]}"
+      if (( FILL_SITE )); then
+        todo "Commit and push ${changed[*]} (they now point at $api_base), then publish the site and rebuild the app."
+      else
+        todo "Commit ${changed[*]} (it now points at $api_base) and rebuild the app."
+      fi
+    else
+      echo "    no file still had the placeholder"
+    fi
+  elif [[ "${DRY_RUN:-}" == "1" ]]; then
+    echo "    (dry run) would fill the Worker's address into src/config.js"
+    if (( FILL_SITE )); then
+      echo "    (dry run) would also fill it into docs/config.js and the connect-src lines of docs/*.html"
+    fi
   else
-    echo "    no file still had the placeholder"
+    todo "Find your API address (Cloudflare → Workers & Pages → grayout-api) and put it in src/config.js in place of $API_PLACEHOLDER, then run: node scripts/check-csp.js ../docs <address>"
   fi
+  if (( ! FILL_SITE )); then
+    echo "    left docs/config.js alone: the site gets the address only after a 2.x release is the GitHub \"latest\" release"
+    todo "Once a 2.x release is the GitHub \"latest\" release (not before), run: bash scripts/deploy.sh live --fill-site  (it gives docs/config.js the address; see ORDER MATTERS there)."
+  fi
+
   # Whatever form the pages use (the placeholder, the exact address, or
   # https://*.workers.dev), the result must let the site reach the API.
-  say "Checking the site's CSP allows $api_base"
-  if ! check_csp "$api_base"; then
-    echo "STOP: the site pages above would block the API, so website buyers could not get their key." >&2
-    echo "Fix each page's connect-src (docs/*.html), then run this script again." >&2
-    exit 1
+  # Without --fill-site the site makes no calls yet, so a problem is a to-do
+  # for before --fill-site; with it, the deploy stops.
+  csp_address="${api_base:-https://grayout-api.example.workers.dev}"
+  if [[ -n "$api_base" || "${DRY_RUN:-}" == "1" ]]; then
+    say "Checking the site's CSP allows $csp_address"
+    if check_csp "$csp_address"; then
+      echo "    every page that calls the API allows it"
+    elif (( FILL_SITE )) && [[ "${DRY_RUN:-}" != "1" ]]; then
+      echo "STOP: the site pages above would block the API, so website buyers could not get their key." >&2
+      echo "Fix each page's connect-src (docs/*.html), then run this script again." >&2
+      exit 1
+    else
+      todo "Fix each site page's connect-src listed above (docs/*.html) before running deploy.sh live --fill-site: those pages would block the API."
+    fi
   fi
-  echo "    every page that calls the API allows it"
-else
-  if [[ "${DRY_RUN:-}" == "1" ]]; then
-    say "Checking the site's CSP allows a workers.dev API address"
-    check_csp "https://grayout-api.example.workers.dev" && echo "    every page that calls the API allows it" || true
-  fi
-  todo "Find your API address (Cloudflare → Workers & Pages → grayout-api) and put it in src/config.js and docs/config.js in place of $API_PLACEHOLDER, then run: node scripts/check-csp.js ../docs <address>"
 fi
 
 # ---------------------------------------------------------------- 6. what is still missing
@@ -201,10 +266,14 @@ if [[ -n "$api_base" ]]; then
   echo
 fi
 
-if ! grep -q '"SUPPORT_EMAIL": "[^"]' wrangler.jsonc; then
-  todo "Put your support email in SUPPORT_EMAIL in server/wrangler.jsonc, then run this script again."
+# This Worker's own settings: the top-level vars for live, env.sandbox.vars
+# for the sandbox. One Worker's value never counts for the other.
+var_of() { node "$SERVER_DIR/scripts/wrangler-var.js" "$TARGET" "$1"; }
+if [[ "$TARGET" == "live" ]]; then vars_where="the top-level \"vars\""; else vars_where="\"env\" → \"sandbox\" → \"vars\""; fi
+if [[ -z "$(var_of SUPPORT_EMAIL)" ]]; then
+  todo "Put your support email in SUPPORT_EMAIL in $vars_where of server/wrangler.jsonc (the $TARGET Worker's own copy), then run this script again."
 fi
-if [[ "$TARGET" == "live" ]] && grep -q '"STRIPE_PRODUCT": ""' wrangler.jsonc; then
+if [[ "$TARGET" == "live" ]] && [[ -z "$(var_of STRIPE_PRODUCT)" || -z "$(var_of STRIPE_PRICE_MONTHLY)" || -z "$(var_of STRIPE_PRICE_YEARLY)" ]]; then
   todo "Put the LIVE prod_… and both live price_… ids in the top-level vars of server/wrangler.jsonc (until then the live Worker sells nothing)."
 fi
 

@@ -101,29 +101,44 @@ export function checkoutParams({ env, plan, deviceId, deviceCode, customerId, tr
     client_reference_id: deviceId,
     ...(customerId ? { customer: customerId } : {}),
     ...(trial ? { subscription_data: { trial_period_days: TRIAL_DAYS } } : {}),
+    // A checkout the app started (it has a device code) comes back with
+    // from=app, so the page says "go back to Grayout" instead of offering the
+    // download the buyer already has. The website's own checkouts are unchanged.
     success_url: `${site}/success.html?session_id={CHECKOUT_SESSION_ID}${deviceCode ? '&from=app' : ''}`,
-    cancel_url: `${site}/pricing.html?canceled=1`,
+    cancel_url: `${site}/pricing.html?canceled=1${deviceCode ? '&from=app' : ''}`,
     // The same life as a device code.
     expires_at: now + DEVICE_CODE_TTL_SECONDS
   };
 }
 
-/** A billing portal link for a customer. Throws on any Stripe error. */
-export async function createPortalUrl(deps, customerId) {
+/**
+ * Where the billing portal's "Return" link goes. From the app: the account
+ * page with from=app, which pushes no download (the buyer already has
+ * Grayout). From the website: the home page, as before.
+ */
+export function portalReturnUrl(site, fromApp) {
+  return fromApp ? `${site}/account.html?from=app` : `${site}/`;
+}
+
+/**
+ * A billing portal link for a customer. Throws on any Stripe error.
+ * `fromApp` only picks the return page (portalReturnUrl), never access.
+ */
+export async function createPortalUrl(deps, customerId, { fromApp = false } = {}) {
   const site = siteUrl(deps.env);
   if (!site) fail('not_configured');
   const session = await deps.stripe().billingPortal.sessions.create({
     customer: customerId,
-    return_url: `${site}/`
+    return_url: portalReturnUrl(site, fromApp)
   });
   if (!session || !session.url) throw new Error('billing portal returned no url');
   return session.url;
 }
 
 /** The same, but null instead of an error (for answers where the link is optional). */
-export async function portalUrlOrNull(deps, customerId) {
+export async function portalUrlOrNull(deps, customerId, options) {
   try {
-    return await createPortalUrl(deps, customerId);
+    return await createPortalUrl(deps, customerId, options);
   } catch (err) {
     logLine('portal_failed', { customer: customerId, error: describeError(err) });
     return null;

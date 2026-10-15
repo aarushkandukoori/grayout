@@ -192,7 +192,9 @@ async function checkoutLocked(deps, device, { body, ipKey }) {
       const unpaid = open.status !== 'trialing' && open.status !== 'active';
       fail('already_subscribed', {
         message: unpaid ? PAYMENT_PROBLEM_MESSAGE : undefined,
-        extra: { portalUrl: await portalUrlOrNull(deps, license.customer_id) }
+        // A checkout the app started returns from the portal to a page made
+        // for the app (stripe.js portalReturnUrl); the website's goes home.
+        extra: { portalUrl: await portalUrlOrNull(deps, license.customer_id, { fromApp: deviceCode !== null }) }
       });
     }
   }
