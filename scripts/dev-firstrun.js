@@ -9,6 +9,11 @@
  *
  *   node scripts/dev-firstrun.js          # uses the `claude` CLI engine, no key
  *   OPENAI_API_KEY=... node scripts/dev-firstrun.js --api
+ *
+ * A run from source sets GRAYOUT_PERSONAL=1, because the CLI engine and an
+ * environment key exist only in the personal build (docs/BUILD-SPEC.md
+ * section 27). --packaged runs whatever is in /Applications: a public build
+ * there is pay-only, so --packaged --api needs the personal build.
  */
 const { spawn } = require('child_process');
 const fs = require('fs');
@@ -66,6 +71,7 @@ function restoreRealUserData() {
   stashRealUserData();
   const env = { ...process.env, GRAYOUT_USER_DATA: UD };
   if (!USE_API) env.GRAYOUT_DEV_ENGINE = 'cli';
+  if (!PACKAGED) env.GRAYOUT_PERSONAL = '1';
   const bin = PACKAGED
     ? path.join(APP, 'Contents', 'MacOS', 'Grayout')
     : path.join(ROOT, 'node_modules', '.bin', 'electron');

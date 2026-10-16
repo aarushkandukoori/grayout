@@ -13,6 +13,11 @@
 // No Electron involved. The frame ships as scripts/smoke-frame.jpg; if that file is
 // missing it is redrawn with Python Pillow (`node scripts/smoke-api.js --regen`
 // rewrites it in place). GRAYOUT_MODEL overrides the model (default claude-haiku-4-5).
+//
+// The own-key path exists only in the personal build (docs/BUILD-SPEC.md
+// section 27), so this script sets GRAYOUT_PERSONAL=1 for itself unless the
+// environment already sets it. GRAYOUT_PERSONAL=0 shows what a public build
+// answers instead (testApiKey refuses).
 'use strict';
 const fs = require('fs');
 const os = require('os');
@@ -148,6 +153,7 @@ async function main() {
   console.log(`frame: ${path.basename(FRAME_PATH)} ${frame.length} bytes (1366x768 JPEG, ${b64.length} base64 chars)`);
   console.log(`model: ${model}`);
 
+  process.env.GRAYOUT_PERSONAL = process.env.GRAYOUT_PERSONAL || '1';
   const { testApiKey } = require('../src/analyzer');
   const t0 = Date.now();
   const r = await testApiKey(key, b64, model);
