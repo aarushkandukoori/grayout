@@ -11,9 +11,12 @@ const { DEFAULT_CONFIG, NUMERIC_BOUNDS, coerce, loadConfig, saveConfig, writeCon
 const channel = require('../src/channel');
 
 // Most of this file is about config.json itself, so it runs as the personal
-// build, where no edition rule changes a value (src/channel.js). The public
-// builds' rules have describe blocks of their own at the end.
+// build, where only one edition rule changes a value (src/channel.js): it has
+// no GitHub update check, so checkForUpdates reads false in the config in use
+// while the file keeps what it says. The public builds' rules have describe
+// blocks of their own at the end.
 channel._setPersonalForTests(true);
+const IN_USE_DEFAULTS = { ...DEFAULT_CONFIG, checkForUpdates: false };
 
 after(() => helpers.cleanup(dir));
 
@@ -32,10 +35,11 @@ describe('paths isolation', () => {
 describe('coerce', () => {
   test('defaults applied on an empty object, as an independent copy', () => {
     const c = coerce({});
-    assert.deepEqual(c, DEFAULT_CONFIG);
+    assert.deepEqual(c, IN_USE_DEFAULTS);
     c.alwaysAllowedApps.push('mutated');
     c.canvas.baseUrl = 'x';
-    assert.deepEqual(coerce({}), DEFAULT_CONFIG);
+    assert.deepEqual(coerce({}), IN_USE_DEFAULTS);
+    assert.deepEqual(config.normalize({}), DEFAULT_CONFIG, 'before the edition rules, exactly the defaults');
   });
 
   test('numeric strings are coerced; garbage keeps the default', () => {
@@ -192,11 +196,11 @@ describe('loadConfig', () => {
   test('missing file: defaults written with mode 0600', () => {
     try { fs.unlinkSync(paths.CONFIG_PATH); } catch {}
     const c = loadConfig();
-    assert.deepEqual(c, DEFAULT_CONFIG);
+    assert.deepEqual(c, IN_USE_DEFAULTS);
     assert.equal('_invalid' in c, false);
     assert.ok(fs.existsSync(paths.CONFIG_PATH));
     assert.equal(helpers.fileMode(paths.CONFIG_PATH), 0o600);
-    assert.deepEqual(readJson(), DEFAULT_CONFIG);
+    assert.deepEqual(readJson(), DEFAULT_CONFIG, 'the file gets the defaults, before any edition rule');
     assert.equal(fs.existsSync(paths.CONFIG_PATH + '.tmp'), false);
   });
 
@@ -206,7 +210,7 @@ describe('loadConfig', () => {
     const c = loadConfig();
     assert.equal(c._invalid, true);
     const { _invalid, ...rest } = c;
-    assert.deepEqual(rest, DEFAULT_CONFIG);
+    assert.deepEqual(rest, IN_USE_DEFAULTS);
     assert.equal(fs.readFileSync(paths.CONFIG_PATH + '.invalid', 'utf8'), '{ "checkIntervalSec": 30, oops');
     assert.equal(readRaw(), '{ "checkIntervalSec": 30, oops');
     assert.equal(console.error.mock.callCount(), 1);
@@ -373,7 +377,7 @@ describe('saveConfig', () => {
     const c = saveConfig({ strikes: 4 });
     assert.equal(c.strikes, 4);
     assert.equal(c.checkIntervalSec, 45);
-    assert.deepEqual(readJson(), c);
+    assert.deepEqual(readJson(), { ...c, checkForUpdates: true }, 'the file keeps the default the edition rule hides');
   });
 });
 
@@ -474,18 +478,18 @@ describe('Mac App Store edition: config.json cannot switch on what the edition l
     assert.equal(readJson().strikes, 4);
   });
 
-  test('the personal direct build keeps every hand-edited value as before', () => {
+  test('the personal direct build keeps every hand-edited value but the update check', () => {
     channel._setForTests('direct');
     channel._setPersonalForTests(true);
     const out = coerce(handEdited);
-    assert.equal(out.checkForUpdates, true);
+    assert.equal(out.checkForUpdates, false, 'except the update check: a public release is pay-only');
     assert.equal(out.provider, 'anthropic');
     assert.equal(out.engine, 'cli');
     assert.equal(out.cliPath, '/opt/homebrew/bin/claude');
     assert.equal(out.cliAllowOverage, true);
     assert.equal(out.apiBase, 'https://somebody-else.example');
     assert.equal(out.tasksFile, '/Users/me/todo.md');
-    assert.equal(coerce({}).checkForUpdates, true);
+    assert.equal(coerce({}).checkForUpdates, false);
     assert.equal(coerce({}).provider, 'auto');
   });
 });

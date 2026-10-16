@@ -271,6 +271,21 @@ describe('Mac App Store edition: updates come from the store only (2.4.5(vii))',
     assert.equal(f.calls.length, 0);
   });
 
+  test('the personal build gets the same disabled stub: a public release is pay-only', async () => {
+    channel._setForTests('direct');
+    channel._setPersonalForTests(true);
+    try {
+      const f = fakeFetch(okJson({ tag_name: 'v9.9.9' }));
+      const u = createUpdater({ currentVersion: '1.0.0', isEnabled: () => true, state: null, onAvailable: () => {}, fetchImpl: f });
+      assert.equal(u.disabled, true);
+      assert.deepEqual(await u.check({ manual: true }), { checked: false, disabled: true });
+      assert.equal(await fetchLatest({ fetchImpl: f }), null);
+      assert.equal(f.calls.length, 0);
+    } finally {
+      channel._setPersonalForTests(null);
+    }
+  });
+
   test('the direct edition is unchanged', async () => {
     channel._setForTests('direct');
     const f = fakeFetch(okJson({ tag_name: 'v9.9.9' }));

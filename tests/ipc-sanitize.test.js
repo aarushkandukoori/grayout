@@ -318,8 +318,13 @@ describe('registerIpc with fakes', () => {
     assert.equal(fs.readFileSync(paths.VERDICT_LOG, 'utf8'), '');
   });
 
-  test('updates:check with no updater', async () => {
+  test('updates:check with no updater; the personal build has no update check at all', async t => {
+    const channelMod = require('../src/channel');
+    t.after(() => channelMod._setPersonalForTests(true));
+    channelMod._setPersonalForTests(false);
     assert.deepEqual(await invoke('updates:check'), { checked: false });
+    channelMod._setPersonalForTests(true);
+    assert.deepEqual(await invoke('updates:check'), { checked: false, disabled: true }, 'a public release is pay-only');
   });
 
   test('engine "cli": a settings save keeps engine and cliPath, no key is not "key needed", the CLI is named, no plan is shown', async () => {
@@ -426,7 +431,8 @@ describe('registerIpc with fakes', () => {
     for (const p of payloads) {
       assert.equal(p.channel.name, 'direct');
       assert.equal(p.channel.isMAS, false);
-      assert.equal(p.channel.features.updates, true);
+      assert.equal(p.channel.personal, true);
+      assert.equal(p.channel.features.updates, false, 'the personal build has no update check');
       assert.equal(p.channel.features.grayscaleBackend, 'colorFilters');
       assert.equal(p.channel.features.aiConsentRequired, true);
       assert.deepEqual(p.consent, { granted: false, at: null, version: null, processor: { name: 'OpenAI', via: 'the Grayout service' } });

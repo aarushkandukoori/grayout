@@ -18,7 +18,8 @@
 //   npm run pack:personal   or   npm run dist:personal
 // which passes -c.extraMetadata.grayoutPersonal=true to electron-builder, so
 // the packaged app.asar/package.json carries "grayoutPersonal": true. Only that
-// build gets the own-key mode and the Claude CLI engine back (personal()). The
+// build gets the own-key mode and the Claude CLI engine back (personal()), and
+// it has no GitHub update check, since every public release is pay-only. The
 // plain dist / pack scripts and the release workflow never pass the flag. The
 // Mac App Store edition never gets them, flag or not.
 //
@@ -75,7 +76,10 @@ function features() {
   // The own-key mode and the CLI engine: the personal direct build only.
   const own = !mas && personal();
   return Object.freeze({
-    updates: !mas,             // GitHub release check (2.4.5(vii): MAS updates come from the store)
+    // GitHub release check. MAS: updates come from the store (2.4.5(vii)).
+    // Personal build: every public release is pay-only, so "Update available"
+    // would offer to replace the owner's copy with one; he rebuilds instead.
+    updates: !mas && !personal(),
     selfHosting: own,          // own Anthropic/OpenAI key: personal direct build only (public builds are pay-only)
     cliEngine: own,            // Claude CLI engine: personal direct build only (MAS: spawns outside binaries, 2.5.2)
     // config.json apiBase / GRAYOUT_API_BASE. A public packaged build talks to

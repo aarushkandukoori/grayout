@@ -5,7 +5,9 @@
 //
 // The Mac App Store edition gets its updates from the store only (App Review
 // 2.4.5(vii)), so there createUpdater hands back a stub that never touches the
-// network, and fetchLatest refuses too.
+// network, and fetchLatest refuses too. The personal build gets the same stub:
+// every public release is pay-only, and the owner rebuilds his copy from the
+// new tag instead (docs/BUILD-SPEC.md section 27).
 const channel = require('./channel');
 const updatesAllowed = () => channel.features().updates;
 

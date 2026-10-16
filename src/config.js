@@ -196,7 +196,8 @@ function normalize(cfg) {
  * What this edition cannot do, config.json cannot switch on either
  * (src/channel.js). In every public build that is an own model key and the
  * Claude CLI engine; in the Mac App Store edition also the GitHub update
- * check, a different service address and a task file path.
+ * check, a different service address and a task file path. The personal
+ * build has no GitHub update check either.
  *
  * Applied to the config in use only, never written to config.json: the public
  * direct build and the personal build share one data folder, so running a

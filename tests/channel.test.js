@@ -62,11 +62,15 @@ describe('features', () => {
     'tccResetHint', 'sponsorLink', 'tasksFile', 'canvas', 'licenseInOnboarding'];
   // Off in every public build, direct download included: the build is pay-only.
   const PERSONAL_ONLY = ['selfHosting', 'cliEngine'];
+  // Off in the personal build: every public release is pay-only, so it must
+  // never offer one as an update.
+  const OFF_IN_PERSONAL = ['updates'];
 
-  test('personal direct build: everything on, Color Filters and lsappinfo, consent still required', () => {
+  test('personal direct build: everything on but the update check, Color Filters and lsappinfo, consent still required', () => {
     channel._setPersonalForTests(true);
     const f = channel.features();
-    for (const k of OFF_IN_MAS) assert.equal(f[k], true, k);
+    for (const k of OFF_IN_MAS.filter(k => !OFF_IN_PERSONAL.includes(k))) assert.equal(f[k], true, k);
+    for (const k of OFF_IN_PERSONAL) assert.equal(f[k], false, k);
     assert.equal(f.grayscaleBackend, 'colorFilters');
     assert.equal(f.frontmostBackend, 'lsappinfo');
     assert.equal(f.aiConsentRequired, true);
@@ -88,6 +92,16 @@ describe('features', () => {
     assert.equal(channel.personal(), false);
     assert.equal(channel.features().selfHosting, false);
     assert.equal(channel.features().cliEngine, false);
+    assert.equal(channel.features().updates, true, 'the public direct build checks GitHub for updates');
+  });
+
+  test('updates: the public direct build only; never the personal build or the Mac App Store edition', () => {
+    const cases = [['direct', false, true], ['direct', true, false], ['mas', false, false], ['mas', true, false]];
+    for (const [edition, own, want] of cases) {
+      channel._setForTests(edition);
+      channel._setPersonalForTests(own);
+      assert.equal(channel.features().updates, want, `${edition}, personal=${own}`);
+    }
   });
 
   test('mas: the App Review gates are off, the blend overlay and helper are used, consent is required', () => {
@@ -146,7 +160,7 @@ describe('personal(): the build-time flag only a deliberate build carries', () =
     const f = channel.features();
     assert.equal(f.selfHosting, true);
     assert.equal(f.cliEngine, true, 'the personal build keeps the Claude CLI engine');
-    assert.equal(f.updates, true);
+    assert.equal(f.updates, false, 'and never offers a pay-only public release as an update');
   });
 
   test('packaged: only the boolean true counts', () => {

@@ -397,7 +397,8 @@ function registerIpc(ctx) {
   });
   ipcMain.handle('clipboard:copy', (_e, text) => { clipboard.writeText(str(text, 2000)); return true; });
   ipcMain.handle('updates:check', async () => {
-    // Mac App Store: the store updates the app; no check, no dialog.
+    // Mac App Store: the store updates the app. Personal build: the owner
+    // rebuilds it. Either way no check, no dialog.
     if (!channel.features().updates) return { checked: false, disabled: true };
     if (!updater) return { checked: false };
     const r = await updater.check({ manual: true });
