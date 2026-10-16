@@ -227,6 +227,24 @@ test.describe('billing copy follows the v3 contract (Managed Payments)', () => {
     assert.match(js, /api\.restoreLicense\(\)/);
     assert.match(js, /api\.openExternal\('https:\/\/link\.com'\)/);
   });
+
+  test('"Get a key" opens the chosen provider\'s key page, never the removed README anchor', () => {
+    const js = read('ui/dashboard.js');
+    assert.equal(/#self-hosting/.test(js), false);
+    assert.match(read('ui/dashboard.html'), /id="btn-key-get"[^>]*>Get a key</);
+    assert.match(js, /\$\('btn-key-get'\)\.addEventListener\('click', \(\) => api\.openExternal\(keyUrlFor\(settings\)\)\)/);
+    assert.match(js, /anthropic: 'https:\/\/console\.anthropic\.com\/settings\/keys'/);
+    assert.match(js, /openai: 'https:\/\/platform\.openai\.com\/api-keys'/);
+  });
+
+  test('every https address in the dashboard is on the shell:openExternal allowlist (src/ipc.js)', () => {
+    const list = read('src/ipc.js').match(/const ALLOWED_HOSTS = new Set\(\[([^\]]*)\]\)/);
+    assert.ok(list, 'ALLOWED_HOSTS in src/ipc.js');
+    const hosts = new Set([...list[1].matchAll(/'([^']+)'/g)].map(m => m[1]));
+    const urls = [...read('ui/dashboard.js').matchAll(/'(https:\/\/[^']+)'/g)].map(m => m[1]);
+    assert.ok(urls.length >= 6, String(urls.length));
+    for (const u of urls) assert.ok(hosts.has(new URL(u).hostname), u);
+  });
 });
 
 test.describe('ids are unique, so $() reaches the element it means', () => {

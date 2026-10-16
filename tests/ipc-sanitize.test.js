@@ -173,6 +173,13 @@ describe('registerIpc with fakes', () => {
     assert.equal(opened.length, 1);
   });
 
+  test('"Get a key" (personal build key panel): each provider\'s key page passes the allowlist', () => {
+    const urls = ['https://console.anthropic.com/settings/keys', 'https://platform.openai.com/api-keys'];
+    const before = opened.length;
+    for (const url of urls) assert.equal(invoke('shell:openExternal', url), true, url);
+    assert.deepEqual(opened.slice(before), urls);
+  });
+
   test('clipboard:copy truncates to 2000 chars and ignores non-strings', () => {
     assert.equal(invoke('clipboard:copy', 'x'.repeat(3000)), true);
     assert.equal(copied.at(-1).length, 2000);

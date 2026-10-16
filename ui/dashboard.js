@@ -138,6 +138,20 @@
     anthropic: 'https://console.anthropic.com/settings/billing',
     openai: 'https://platform.openai.com/settings/organization/billing'
   };
+  // "Get a key" in the key panel (personal build only): the key page of the
+  // provider in use. OpenAI when the saved key or config.json points there,
+  // Anthropic otherwise (the default model is Anthropic's).
+  const KEY_URL = {
+    anthropic: 'https://console.anthropic.com/settings/keys',
+    openai: 'https://platform.openai.com/api-keys'
+  };
+  function keyUrlFor(st) {
+    const est = (st && st.estimates) || {};
+    const cfg = (st && st.config) || {};
+    const id = est.provider === 'openai' || est.provider === 'anthropic' ? est.provider
+      : cfg.provider === 'openai' ? 'openai' : 'anthropic';
+    return KEY_URL[id];
+  }
   function providerOf(cfg) {
     const c = cfg || {};
     return {
@@ -1420,7 +1434,7 @@
       setMsg('key-msg', 'Key removed. Checks are paused until you add one.', '');
       scheduleRefresh(300);
     });
-    $('btn-key-get').addEventListener('click', () => api.openExternal('https://github.com/aarushkandukoori/grayout#self-hosting'));
+    $('btn-key-get').addEventListener('click', () => api.openExternal(keyUrlFor(settings)));
   }
 
   /* ---------------- permissions + advanced ---------------- */
