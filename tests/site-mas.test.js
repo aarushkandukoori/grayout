@@ -393,6 +393,11 @@ test.describe('the App Store package', () => {
     const purchase = at(/One live purchase through the store build/);
     const submit = at(/Submit for Review/);
     assert.ok(release < fill && fill < testflight && testflight < purchase && purchase < submit);
+    // Once the service is live, no-JS visitors and link previews must stop
+    // seeing the 1.x own-key text (style.css shows it without data-service).
+    const noJs = at(/data-service="on"` to the `<html>` tag of every page/);
+    assert.ok(fill < noJs && noJs < testflight);
+    assert.match(md, /until steps 26 and 38\./);
     assert.match(md, /Settings > Your plan > Connect an existing subscription, paste the key, click Activate/);
     assert.equal(/probe keychain/.test(md), false, 'the probe keychain item that could collide is gone');
     assert.match(md, /invocation logs are now off in `server\/wrangler\.jsonc`/);
