@@ -1,6 +1,6 @@
 # Grayout privacy policy
 
-Effective 2026-10-15. Covers this website and Grayout for Mac however you got it (GitHub, Homebrew or the Mac App Store), with the Grayout service (the 100 free checks and Grayout Pro) or on your own API key (today's 1.x release, and the direct download and source builds after it). This is the same text as the [privacy page on the site](https://aarushkandukoori.github.io/grayout/privacy.html).
+Effective 2026-10-15. Covers this website and Grayout for Mac however you got it (GitHub, Homebrew or the Mac App Store): Grayout 2.0 and later, which run on the Grayout service (the 100 free checks, the trial and Grayout Pro), and Grayout 1.x, which runs on your own API key. This is the same text as the [privacy page on the site](https://aarushkandukoori.github.io/grayout/privacy.html).
 
 Grayout looks at your screen, so this page is specific about where every byte goes.
 
@@ -8,8 +8,8 @@ Grayout looks at your screen, so this page is specific about where every byte go
 
 - **Grayout asks first** (2.0 and later). Before any screenshot leaves your Mac, the app shows what it sends at each check and who receives it, and asks for your permission. Until you click Allow and continue, it captures nothing and sends no screenshot, app name, work description or camera frame, and you can withdraw it any time in Settings. Grayout 1.0.x, which runs on your own API key, has no such step (see Asking first).
 - **Screenshots are judged and dropped.** Each check sends a resized screenshot for a one-line verdict. Nothing in the chain we run stores it or logs it.
-- **With the Grayout service** (the free checks and Grayout Pro, in either edition), the screenshot goes to the Grayout service, which passes it to OpenAI under Grayout's key and returns the verdict. OpenAI doesn't train on it and may keep it for up to 30 days to check for abuse. The service keeps device and license records and counts of checks. It does not keep the image.
-- **On your own key** (direct download and source builds only), the screenshot goes straight from your Mac to OpenAI or Anthropic under your account. We are not in the path at all.
+- **With the Grayout service** (Grayout 2.0 and later, in either edition: the free checks, the trial and Grayout Pro), the screenshot goes to the Grayout service, which passes it to OpenAI under Grayout's key and returns the verdict. OpenAI doesn't train on it and may keep it for up to 30 days to check for abuse. The service keeps device and license records and counts of checks. It does not keep the image.
+- **On your own key** (Grayout 1.x only; 2.0 and later have no own-key mode), the screenshot goes straight from your Mac to OpenAI or Anthropic under your account. We are not in the path at all.
 - **Payments** are handled by Stripe and sold through Link. Grayout never sees your card number and never stores your email address. To give one free trial per person, the service reads your email and your card's fingerprint from Stripe when a trial starts and keeps only keyed hashes of them.
 - **This website** sets no cookies and runs no analytics.
 
@@ -18,7 +18,7 @@ Grayout looks at your screen, so this page is specific about where every byte go
 From Grayout 2.0, the first time Grayout starts, and once after updating from 1.0.x (which did not ask), it shows a screen before anything is captured. That screen says:
 
 - what is sent at each check: a screenshot of each display, resized; the name of the app in front; your work description and task titles if you add them; and one webcam frame, only if you turn the camera on;
-- who receives it: OpenAI, through the Grayout service, or the provider you chose if you run on your own key or the Claude CLI engine;
+- who receives it: OpenAI, through the Grayout service;
 - that the Grayout service keeps none of it.
 
 **Not now** means nothing is captured and no check is sent, and setup can't finish. **Allow and continue** records your permission, with the date, on your Mac only. To withdraw it, turn off **Send screenshots for checks** in Settings: checks stop at once, and no check is sent until you turn it back on. If what Grayout sends or who receives it ever changes, the app asks again.
@@ -31,7 +31,7 @@ Grayout 1.0.x runs on your own API key and has no consent step, no Send screensh
 
 | What | Goes to | When |
 |---|---|---|
-| A screenshot of each display (up to three), resized to 1366 px wide and compressed | The Grayout service and then OpenAI on the free checks and Pro; your provider on your own key | At each check, while you are at your Mac and Grayout is not paused |
+| A screenshot of each display (up to three), resized to 1366 px wide and compressed | The Grayout service and then OpenAI on the free checks and Pro; your provider on your own key in Grayout 1.x | At each check, while you are at your Mac and Grayout is not paused |
 | One webcam frame, 640 by 480 | Same place as the screenshot | Only if you turned the camera on. It is off by default |
 | Your one-line work description | Same place as the screenshot | At each check, if you wrote one |
 | Titles of your Canvas to-dos, or unchecked lines of your task file | Same place as the screenshot | Only if you set one of them up. Direct download only |
@@ -45,8 +45,6 @@ The prompt asks the model for three fields: whether you are off task, a short ac
 Screenshot files are written to a private temporary folder and deleted right after they are encoded. Webcam frames never touch the disk.
 
 The camera is used only for the optional webcam check. macOS asks for permission the first time you turn it on. Turn it off in Settings, or revoke the permission any time in System Settings > Privacy & Security > Camera, and no frame is taken. The Mac App Store edition asks for the camera only for this option.
-
-Direct download and source builds only: with `engine: "cli"` in config.json (an advanced setting with no switch in the app), neither the Grayout service nor a model provider is contacted by Grayout for checks, and no license key or device token is sent with them. Instead Grayout starts the local `claude` CLI at each check and passes the frames, the work description, task titles and app name on its standard input (the frames are not written to disk for it); the CLI sends them to Anthropic under your own Claude subscription login. It runs with no tools, no MCP servers, no hooks, no auto-memory and no saved session, with only a short allowlist of environment variables (no API keys), and with Claude Code's non-essential traffic (telemetry, error reports, auto-update) turned off. An `@` in your task titles or work description is sent as `＠`, so the CLI never attaches a local file named there. Anthropic's terms for your Claude plan govern those requests.
 
 ## What the Grayout service stores
 
@@ -69,9 +67,9 @@ Requests are also rate limited by network address. Those limits count requests i
 
 With the Grayout service, the service sends the screenshot and the rest of the check to OpenAI's API under Grayout's API key, with no identifier of yours attached, and asks OpenAI not to store the response. OpenAI does not use data sent through its API to train its models. Under its API data policy it may keep API inputs, which here include the images, for up to 30 days to monitor for abuse, and then deletes them unless the law requires it to keep them longer. See [OpenAI's enterprise privacy commitments](https://openai.com/enterprise-privacy/), which cover its API, and [how OpenAI handles API data](https://developers.openai.com/api/docs/guides/your-data).
 
-On your own key (direct download and source builds), your Mac sends the screenshot to OpenAI or Anthropic under your account, and your own terms with that provider apply: see the OpenAI pages above or [Anthropic's privacy policy](https://www.anthropic.com/legal/privacy). With the Claude CLI engine, it goes to Anthropic under your Claude plan's terms.
+In Grayout 1.x, which runs on your own key, your Mac sends the screenshot to OpenAI or Anthropic under your account, and your own terms with that provider apply: see the OpenAI pages above or [Anthropic's privacy policy](https://www.anthropic.com/legal/privacy). Grayout 2.0 and later have no own-key mode.
 
-Apart from a provider you choose yourself, the app's data goes to three service providers only: OpenAI (the AI model), Cloudflare (which runs the Grayout service) and Stripe (payments, through Link). We only use service providers that are bound by written data-protection terms giving your data the same or equal protection as this policy. Each one gets only what its part needs and may use it only to provide that service to us. Stripe, as the merchant of record, also handles your payment details under its own privacy policy. We don't sell your data and we don't share it for advertising.
+Apart from the provider whose key you use in Grayout 1.x, the app's data goes to three service providers only: OpenAI (the AI model), Cloudflare (which runs the Grayout service) and Stripe (payments, through Link). We only use service providers that are bound by written data-protection terms giving your data the same or equal protection as this policy. Each one gets only what its part needs and may use it only to provide that service to us. Stripe, as the merchant of record, also handles your payment details under its own privacy policy. We don't sell your data and we don't share it for advertising.
 
 ## Payments
 
@@ -92,7 +90,7 @@ A link to the Mac App Store, where the site shows one, is a plain link served fr
 Apple distributes and reviews this edition, but Apple is not a party to this policy, and Grayout sends Apple nothing about your checks. Apple's own [privacy policy](https://www.apple.com/legal/privacy/) covers your download and anything you choose to share with developers through Apple, such as crash reports.
 
 - It asks first, sends the same things to the same places, and the Grayout service keeps the same records, all as described above.
-- It always uses the Grayout service. It has no own-key mode and no Claude CLI engine, and it does not read Canvas or a task file.
+- It always uses the Grayout service, and it does not read Canvas or a task file.
 - Grayout Pro is still bought on Stripe's checkout page in your browser, not through Apple, so Apple doesn't see or handle that payment.
 - It gets updates from the App Store and never contacts GitHub.
 - It runs in Apple's App Sandbox and keeps its files in `~/Library/Containers/com.aarushkandukoori.grayout/Data/Library/Application Support/Grayout/`.
@@ -102,7 +100,7 @@ Apple distributes and reviews this edition, but Apple is not a party to this pol
 Everything lives in `~/Library/Application Support/Grayout/` (in the Mac App Store edition, the container folder above), readable only by your user account.
 
 - **config.json:** your settings, including the work description.
-- **secrets.bin:** your license key or API key, your device token, and any Canvas token, encrypted with a key held in your macOS Keychain. There is no plain-text copy.
+- **secrets.bin:** your license key (in Grayout 1.x, your API key), your device token, and any Canvas token, encrypted with a key held in your macOS Keychain. There is no plain-text copy.
 - **verdicts.jsonl:** one line per check with the time, the verdict, the category phrase, the app in front and the number of displays. No screenshots and no on-screen text. Kept for 30 days and deletable any time from Settings. This file never leaves your Mac.
 - **state.json:** your device id, setup progress, whether and when you allowed checks to be sent (from 2.0), and update-check bookkeeping.
 - **logs/grayout.log:** short status lines, capped at a few megabytes. Never images, prompts, task titles, your work description or any key.
@@ -125,7 +123,7 @@ A screenshot can include other people: a call, a shared screen, a chat. Two defa
 
 ## Retention and deletion
 
-- Screenshots and webcam frames: not kept by us. OpenAI (with the Grayout service) may keep them for up to 30 days for abuse monitoring, as described above. On your own key, your provider handles them under its own policy.
+- Screenshots and webcam frames: not kept by us. OpenAI (with the Grayout service) may keep them for up to 30 days for abuse monitoring, as described above. In Grayout 1.x, on your own key, your provider handles them under its own policy.
 - Device records: kept with no end date (there is no automatic deletion yet). They hold a random id and counters, nothing that names you, and the IP address hash in them is cleared after 48 hours.
 - License records: kept while the license exists. Monthly check counts: 13 months.
 - Free-check counts per network: until the month ends. Per IPv6 /48 block: 7 days. Trial hashes: one year. Checkout records and webhook ids: 30 days. App purchase codes: a day after they expire.
