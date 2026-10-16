@@ -11,6 +11,15 @@ const Module = require('module');
 const SRC = path.join(__dirname, '..', 'src');
 const FIXTURES = path.join(__dirname, 'fixtures');
 
+// A developer's shell may export any of these, and each one changes what a run
+// from source does: an own model key, the Claude CLI engine, the personal
+// build, the Mac App Store edition, another service address. Every test file
+// that requires this module starts from a plain public direct run instead, and
+// a test that wants one of them sets it itself. node --test runs each file in
+// its own process, so this never leaks between files.
+const DEVELOPER_ENV = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GRAYOUT_DEV_ENGINE', 'GRAYOUT_PERSONAL', 'GRAYOUT_CHANNEL', 'GRAYOUT_API_BASE'];
+for (const k of DEVELOPER_ENV) delete process.env[k];
+
 /** Create a unique temp userData dir and point GRAYOUT_USER_DATA at it. */
 function freshUserData(name) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), `grayout-test-${name}-`));
@@ -80,4 +89,4 @@ function turns(n = 3) {
   });
 }
 
-module.exports = { SRC, FIXTURES, freshUserData, cleanup, fakeElectron, stubElectron, readJsonl, fileMode, turns };
+module.exports = { SRC, FIXTURES, DEVELOPER_ENV, freshUserData, cleanup, fakeElectron, stubElectron, readJsonl, fileMode, turns };
