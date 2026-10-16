@@ -100,7 +100,7 @@ Apple distributes and reviews this edition, but Apple is not a party to this pol
 Everything lives in `~/Library/Application Support/Grayout/` (in the Mac App Store edition, the container folder above), readable only by your user account.
 
 - **config.json:** your settings, including the work description.
-- **secrets.bin:** your license key (in Grayout 1.x, your API key), your device token, and any Canvas token, encrypted with a key held in your macOS Keychain. There is no plain-text copy.
+- **secrets.bin:** your license key (in Grayout 1.x, your API key), your device token, and any Canvas token, encrypted with a key held in your macOS Keychain. An API key saved by Grayout 1.x stays in this file, encrypted and never read by 2.0, until you use Erase this Mac's Grayout data. There is no plain-text copy.
 - **verdicts.jsonl:** one line per check with the time, the verdict, the category phrase, the app in front and the number of displays. No screenshots and no on-screen text. Kept for 30 days and deletable any time from Settings. This file never leaves your Mac.
 - **state.json:** your device id, setup progress, whether and when you allowed checks to be sent (from 2.0), and update-check bookkeeping.
 - **logs/grayout.log:** short status lines, capped at a few megabytes. Never images, prompts, task titles, your work description or any key.

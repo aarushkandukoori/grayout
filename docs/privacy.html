@@ -145,7 +145,7 @@
         <p>Everything lives in <code class="wrapcode">~/Library/Application Support/Grayout/</code> (in the Mac App Store edition, the container folder above), readable only by your user account.</p>
         <ul>
           <li><strong>config.json:</strong> your settings, including the work description.</li>
-          <li><strong>secrets.bin:</strong> your license key (in Grayout 1.x, your API key), your device token, and any Canvas token, encrypted with a key held in your macOS Keychain. There is no plain-text copy.</li>
+          <li><strong>secrets.bin:</strong> your license key (in Grayout 1.x, your API key), your device token, and any Canvas token, encrypted with a key held in your macOS Keychain. An API key saved by Grayout 1.x stays in this file, encrypted and never read by 2.0, until you use Erase this Mac&rsquo;s Grayout data. There is no plain-text copy.</li>
           <li><strong>verdicts.jsonl:</strong> one line per check with the time, the verdict, the category phrase, the app in front and the number of displays. No screenshots and no on-screen text. Kept for 30 days and deletable any time from Settings. This file never leaves your Mac.</li>
           <li><strong>state.json:</strong> your device id, setup progress, whether and when you allowed checks to be sent (from 2.0), and update-check bookkeeping.</li>
           <li><strong>logs/grayout.log:</strong> short status lines, capped at a few megabytes. Never images, prompts, task titles, your work description or any key.</li>
