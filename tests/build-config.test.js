@@ -274,6 +274,27 @@ test.describe('package.json: the direct build and the scripts', () => {
   });
 });
 
+const GATE_NAME = 'No personal build in the release (hard gate)';
+/** One step of a workflow file, from its "- name:" line to the next step. */
+function stepNamed(wf, name) {
+  const start = wf.indexOf(`      - name: ${name}\n`);
+  if (start === -1) return null;
+  const next = wf.indexOf('\n      - ', start + 1);
+  return wf.slice(start, next === -1 ? undefined : next + 1);
+}
+function withoutStep(wf, name) {
+  const step = stepNamed(wf, name);
+  return step ? wf.replace(step, '') : wf;
+}
+/** The body of a step's `run: |` block, unindented. */
+function runBlock(step) {
+  const lines = step.split('\n');
+  const i = lines.findIndex(l => /^ +run: \|$/.test(l));
+  assert.notEqual(i, -1, 'the step has a run: | block');
+  const indent = lines[i].search(/\S/) + 2;
+  return lines.slice(i + 1).map(l => l.slice(indent)).join('\n');
+}
+
 test.describe('the personal build flag (src/channel.js personal())', () => {
   const FLAG = /grayoutPersonal/;
   const s = pkg.scripts;
@@ -303,11 +324,84 @@ test.describe('the personal build flag (src/channel.js personal())', () => {
 
   test('CI and the release workflow build without it', () => {
     for (const wf of ['.github/workflows/release.yml', '.github/workflows/ci.yml']) {
-      const src = read(wf);
+      // The release gate below names the flag in order to refuse it; nothing
+      // else in either workflow may.
+      const src = wf.endsWith('release.yml') ? withoutStep(read(wf), GATE_NAME) : read(wf);
       assert.equal(FLAG.test(src), false, wf);
       assert.equal(/extraMetadata|:personal/.test(src), false, wf);
     }
     assert.match(read('.github/workflows/release.yml'), /npx electron-builder --mac dmg --arm64 --x64 --publish never\n/);
+  });
+
+  test('the release fails if a built app.asar carries the flag', () => {
+    const wf = read('.github/workflows/release.yml');
+    const gate = stepNamed(wf, GATE_NAME);
+    assert.ok(gate, 'release.yml has the no-personal-build gate');
+    // After the DMGs are built and verified, before anything is published.
+    const at = [/npx electron-builder --mac dmg/, /- name: Verify signatures/, new RegExp(`- name: ${GATE_NAME.replace(/[()]/g, '\\$&')}`), /shasum -a 256/, /gh release create/]
+      .map(re => wf.search(re));
+    assert.ok(at.every(i => i >= 0), String(at));
+    assert.deepEqual([...at].sort((a, b) => a - b), at, 'build, signatures, gate, checksums, release');
+    assert.match(gate, /require\("@electron\/asar"\)/);
+    assert.match(gate, /readdirSync\("dist"\)\.filter\(d => \/\^mac\/\.test\(d\)/, 'every dist/mac*/Grayout.app, arm64 and x64');
+    assert.match(gate, /Contents\/Resources\/app\.asar`, "package\.json"\)/);
+    // electron-builder depends on @electron/asar and the lockfile hoists it, so
+    // npm ci puts it where `node -e` at the repository root finds it.
+    const lock = JSON.parse(read('package-lock.json'));
+    assert.ok(lock.packages['node_modules/@electron/asar'], 'node_modules/@electron/asar in package-lock.json');
+  });
+
+  // Runs the gate's own script on fake builds. Needs @electron/asar, which
+  // npm ci installs (CI and the release run it); skipped without devDependencies.
+  let asarPath = null;
+  try { asarPath = require.resolve('@electron/asar', { paths: [ROOT] }); } catch {}
+  test('the gate passes public builds and stops on a personal one or on no build at all', { skip: !asarPath && 'needs @electron/asar (npm ci)' }, async () => {
+    const asar = require(asarPath);
+    const script = runBlock(stepNamed(read('.github/workflows/release.yml'), GATE_NAME));
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'grayout-gate-'));
+    try {
+      const build = async (root, dir, meta) => {
+        const src = path.join(tmp, 'src-' + path.basename(root) + '-' + dir);
+        fs.mkdirSync(src, { recursive: true });
+        fs.writeFileSync(path.join(src, 'package.json'), JSON.stringify({ name: 'grayout', version: '2.0.0', ...meta }));
+        const res = path.join(root, 'dist', dir, 'Grayout.app', 'Contents', 'Resources');
+        fs.mkdirSync(res, { recursive: true });
+        await asar.createPackage(src, path.join(res, 'app.asar'));
+      };
+      const run = cwd => spawnSync('bash', ['-e', '-c', script], {
+        cwd, encoding: 'utf8',
+        // The node_modules folder @electron/asar was found in, as the
+        // repository root's would be for the real step.
+        env: { ...process.env, NODE_PATH: asarPath.slice(0, asarPath.lastIndexOf(`${path.sep}@electron${path.sep}asar${path.sep}`)) }
+      });
+      const pub = path.join(tmp, 'public');
+      await build(pub, 'mac-arm64', {});
+      await build(pub, 'mac', {});
+      fs.mkdirSync(path.join(pub, 'dist', 'mas-arm64'), { recursive: true });
+      let r = run(pub);
+      assert.equal(r.status, 0, r.stderr);
+      assert.match(r.stdout, /dist\/mac-arm64\/Grayout\.app: public build/);
+      assert.match(r.stdout, /dist\/mac\/Grayout\.app: public build/);
+
+      const mixed = path.join(tmp, 'mixed');
+      await build(mixed, 'mac-arm64', {});
+      await build(mixed, 'mac', { grayoutPersonal: true });
+      r = run(mixed);
+      assert.equal(r.status, 1);
+      assert.match(r.stderr, /dist\/mac\/Grayout\.app is a personal build/);
+
+      const odd = path.join(tmp, 'odd');
+      await build(odd, 'mac-arm64', { grayoutPersonal: false });
+      assert.equal(run(odd).status, 1, 'any grayoutPersonal field fails, whatever its value');
+
+      const empty = path.join(tmp, 'empty');
+      fs.mkdirSync(path.join(empty, 'dist'), { recursive: true });
+      r = run(empty);
+      assert.equal(r.status, 1, 'no app to check is a failure, not a pass');
+      assert.match(r.stderr, /no dist\/mac\*\/Grayout\.app to check/);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
   });
 });
 

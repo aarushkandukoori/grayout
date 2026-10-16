@@ -1,5 +1,6 @@
 # Tag v*.*.* -> universal helper -> arm64 + x64 DMGs (retried: hdiutil is flaky on
-# hosted runners) -> signature gate -> SHA256SUMS.txt -> GitHub Release via gh.
+# hosted runners) -> signature gate -> no-personal-build gate -> SHA256SUMS.txt ->
+# GitHub Release via gh.
 # Only the two DMGs and the checksum file are attached (no blockmaps, no yml).
 name: Release
 on:
@@ -42,6 +43,24 @@ jobs:
             codesign -d -r- "$a" 2>&1 | grep -q 'identifier "com.aarushkandukoori.grayout"'
           done
           lipo -info "dist/mac-arm64/Grayout.app/Contents/Resources/helper/grayscale" | grep -q x86_64
+      - name: No personal build in the release (hard gate)
+        # The owner's personal build (docs/BUILD-SPEC.md section 27) has
+        # "grayoutPersonal" in its app.asar package.json and keeps the own-key
+        # mode and the Claude CLI engine. Release builds are pay-only, so fail
+        # if any built app has it. @electron/asar comes with electron-builder.
+        run: |
+          node -e '
+            const fs = require("fs");
+            const asar = require("@electron/asar");
+            const apps = fs.readdirSync("dist").filter(d => /^mac/.test(d) && fs.existsSync(`dist/${d}/Grayout.app`));
+            if (apps.length === 0) { console.error("no dist/mac*/Grayout.app to check"); process.exit(1); }
+            for (const d of apps) {
+              const app = `dist/${d}/Grayout.app`;
+              const pkg = JSON.parse(asar.extractFile(`${app}/Contents/Resources/app.asar`, "package.json").toString("utf8"));
+              if ("grayoutPersonal" in pkg) { console.error(`${app} is a personal build`); process.exit(1); }
+              console.log(`${app}: public build`);
+            }
+          '
       - run: cd dist && shasum -a 256 Grayout-arm64.dmg Grayout-x64.dmg > SHA256SUMS.txt
       - run: gh release create "$GITHUB_REF_NAME" dist/Grayout-arm64.dmg dist/Grayout-x64.dmg dist/SHA256SUMS.txt --title "Grayout for Mac $GITHUB_REF_NAME" --generate-notes
         env:
