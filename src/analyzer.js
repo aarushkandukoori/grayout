@@ -13,7 +13,9 @@ const CLI_MAX_OUTPUT = 10 * 1024 * 1024;
 const MAX_OUTPUT_TOKENS = 200; // the verdict is ~40 tokens
 const MAX_SERVICE_DISPLAYS = 3;
 const MAX_SERVICE_TASKS = 20;
-const UNAVAILABLE_KEY_MESSAGE = 'Your own API key is not available in the Mac App Store edition.';
+// Public builds (both editions) are pay-only: only the personal build takes an
+// own key (src/channel.js personal()).
+const UNAVAILABLE_KEY_MESSAGE = 'Your own API key is not available in this version of Grayout.';
 
 const VERDICT_SCHEMA = {
   type: 'object',
@@ -386,10 +388,11 @@ function readCliResult(stdout, stderr, code, model, bin) {
  * opts.timeoutMs exists for tests.
  */
 function analyzeViaCli(ctx, config, opts = {}) {
-  // The Mac App Store edition never runs code outside its bundle (2.5.2).
+  // Only the personal build has the CLI engine: public builds are pay-only, and
+  // the Mac App Store edition never runs code outside its bundle (2.5.2).
   // resolveEngine already says 'api' there; this is the backstop.
   if (!channel.features().cliEngine) {
-    return Promise.reject(claudecli.cliError('cli_missing', 'the Claude CLI engine is not available in the Mac App Store edition'));
+    return Promise.reject(claudecli.cliError('cli_missing', 'the Claude CLI engine is not available in this version of Grayout'));
   }
   const timeoutMs = opts.timeoutMs || CLI_TIMEOUT_MS;
   let bin;
@@ -466,9 +469,10 @@ function isPackaged() {
   try { return !!require('electron').app.isPackaged; } catch { return false; }
 }
 
-// config.engine 'cli' selects the local `claude` CLI in any build that has the
-// CLI engine (not the Mac App Store edition). The GRAYOUT_DEV_ENGINE=cli
-// override still works for an unpackaged run only.
+// config.engine 'cli' selects the local `claude` CLI in a build that has the
+// CLI engine: the personal build only (src/channel.js), never a public one and
+// never the Mac App Store edition. The GRAYOUT_DEV_ENGINE=cli override still
+// works for an unpackaged run only, and only with GRAYOUT_PERSONAL=1.
 // Anything else ('api', 'auto') is the API engine: the hosted service, or the
 // provider a self-hosted model key belongs to (providers.resolve).
 function resolveEngine(config, packaged = isPackaged()) {
@@ -504,7 +508,8 @@ async function analyze(ctx, config) {
  * { ok:true, verdict, usage, costUsd, model } or { ok:false, kind, message }.
  */
 async function testApiKey(apiKey, syntheticFrameB64, model, provider) {
-  // No own key in a build without self-hosting: refuse before any network.
+  // No own key in a build without self-hosting (every public build): refuse
+  // before any network.
   if (!channel.features().selfHosting) {
     return { ok: false, kind: 'unavailable', message: UNAVAILABLE_KEY_MESSAGE };
   }

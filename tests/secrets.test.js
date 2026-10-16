@@ -12,6 +12,12 @@ delete process.env.ANTHROPIC_API_KEY;
 const dir = helpers.freshUserData('secrets');
 const paths = require('../src/paths');
 const secrets = require('../src/secrets');
+const channel = require('../src/channel');
+
+// The model key exists only in the personal build (src/channel.js). Most of
+// this file tests the store itself, so it runs as that build; the public
+// builds have describe blocks of their own at the end.
+channel._setPersonalForTests(true);
 
 after(() => {
   if (SAVED_ENV_KEY !== undefined) process.env.ANTHROPIC_API_KEY = SAVED_ENV_KEY;
@@ -386,8 +392,7 @@ describe('an unreadable secrets.bin is never overwritten in place', () => {
 });
 
 describe('Mac App Store edition: no own model key (no self-hosting)', () => {
-  const channel = require('../src/channel');
-  after(() => { channel._setForTests(null); delete process.env.ANTHROPIC_API_KEY; delete process.env.OPENAI_API_KEY; });
+  after(() => { channel._setForTests(null); channel._setPersonalForTests(true); delete process.env.ANTHROPIC_API_KEY; delete process.env.OPENAI_API_KEY; });
 
   test('getApiKey is null whatever is stored, held in memory or set in the environment; the license is unaffected', () => {
     channel._setForTests(null);
@@ -400,8 +405,10 @@ describe('Mac App Store edition: no own model key (no self-hosting)', () => {
     channel._setForTests('mas');
     assert.equal(secrets.getApiKey(), null);
     assert.equal(secrets.getLicense(), 'gry_live_ABCDEFGHJKMNPQRSTVWXYZ01', 'the subscription credential still works');
+    channel._setPersonalForTests(true);
+    assert.equal(secrets.getApiKey(), null, 'the personal flag changes nothing in this edition');
     channel._setForTests(null);
-    assert.equal(secrets.getApiKey(), 'sk-ant-api03-session-key', 'the direct edition still sees it');
+    assert.equal(secrets.getApiKey(), 'sk-ant-api03-session-key', 'the personal direct build still sees it');
   });
 
   test('setApiKey and useSessionKey throw SelfHostingUnavailable and write nothing', () => {
@@ -426,5 +433,35 @@ describe('Mac App Store edition: no own model key (no self-hosting)', () => {
     assert.equal(secrets.getApiKey(), null);
     assert.equal(secrets.getLicense(), null);
     assert.equal(secrets.getDeviceToken(), null);
+  });
+});
+
+describe('public direct build: no own model key (pay-only)', () => {
+  const LICENSE = 'gry_live_ABCDEFGHJKMNPQRSTVWXYZ01';
+  after(() => { channel._setForTests(null); channel._setPersonalForTests(true); delete process.env.ANTHROPIC_API_KEY; delete process.env.OPENAI_API_KEY; });
+
+  test('a key saved by 1.x stays in secrets.bin, unread; the environment is ignored; the license works', () => {
+    channel._setForTests('direct');
+    channel._setPersonalForTests(true);
+    secrets._setSafeStorage(identity());
+    secrets.setApiKey(KEY);
+    secrets.setLicense(LICENSE);
+    process.env.ANTHROPIC_API_KEY = 'sk-ant-env-key';
+    process.env.OPENAI_API_KEY = 'sk-proj-env-key';
+    channel._setPersonalForTests(false);
+    assert.equal(secrets.getApiKey(), null);
+    assert.equal(secrets.getLicense(), LICENSE, 'the subscription credential still works');
+    assert.equal(readStore().anthropicApiKey, KEY, 'nothing is deleted: the personal build can still use it');
+    channel._setPersonalForTests(true);
+    assert.equal(secrets.getApiKey(), 'sk-ant-env-key', 'the personal build, run from source, reads the environment');
+  });
+
+  test('setApiKey and useSessionKey throw SelfHostingUnavailable, with wording that fits this edition', () => {
+    channel._setForTests('direct');
+    channel._setPersonalForTests(false);
+    const before = fs.readFileSync(paths.SECRETS_PATH, 'utf8');
+    assert.throws(() => secrets.setApiKey('sk-ant-api03-another-key-0123456789'), e => e instanceof secrets.SelfHostingUnavailable && e.kind === 'unavailable' && !/App Store/.test(e.message));
+    assert.throws(() => secrets.useSessionKey(KEY), e => e.name === 'SelfHostingUnavailable');
+    assert.equal(fs.readFileSync(paths.SECRETS_PATH, 'utf8'), before, 'nothing written');
   });
 });

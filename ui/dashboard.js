@@ -49,10 +49,11 @@
      dash:get and settings:get carry channel: { name, isMAS, features }
      (src/channel.js) and consent: { granted, at, version, processor }
      (src/consent.js). A main process from before either existed sends
-     neither: that reads as the direct build with consent not given yet.
+     neither: that reads as the public direct build with consent not given
+     yet, so no own-key or Claude CLI affordance (personal build only).
      Elements a build does not use are hidden, never removed. */
 
-  const DIRECT_FEATURES = { updates: true, selfHosting: true, cliEngine: true, tccResetHint: true, manualLicenseEntry: true, canvas: true, tasksFile: true };
+  const DIRECT_FEATURES = { updates: true, selfHosting: false, cliEngine: false, tccResetHint: true, manualLicenseEntry: true, canvas: true, tasksFile: true };
   const MAS_FEATURES = { updates: false, selfHosting: false, cliEngine: false, tccResetHint: false, manualLicenseEntry: true, canvas: false, tasksFile: false };
   function channelOf() {
     for (const src of [lastData, settings]) {
@@ -153,8 +154,8 @@
     const live = d.live || {};
     const who = providerOf(d.config);
     const out = [];
-    // The App Store build has no model key and no Claude CLI, so none of
-    // their banners can apply there.
+    // Public builds (both editions) have no model key and no Claude CLI, so
+    // none of their banners can apply there; only the personal build shows them.
     const ownModel = feature('selfHosting') || feature('cliEngine');
 
     // Consent comes first: without it nothing else on this page can happen.
@@ -436,7 +437,7 @@
         ? 'No checks while screenshots are off. Turn them on under Privacy below.'
         : d.live && d.live.needsSubscription
         ? 'No checks yet. Sort out the plan below to start.'
-        : d.live && d.live.needsKey
+        : d.live && d.live.needsKey && feature('selfHosting')
           ? 'No checks yet. Add a model key below to start.'
           : 'No checks recorded for this day yet.';
       $('cost').textContent = '';
@@ -802,7 +803,8 @@
       setMsg('key-msg', 'Secure storage is not available on this Mac, so a key cannot be saved here.', 'err');
       $('btn-key-save').disabled = true;
     }
-    if (st.version) $('version-line').textContent = `Grayout ${st.version}${st.isPackaged === false ? ' (running from source)' : ''}`;
+    const personalBuild = !!(st.channel && st.channel.personal === true);
+    if (st.version) $('version-line').textContent = `Grayout ${st.version}${personalBuild ? ' (personal build)' : ''}${st.isPackaged === false ? ' (running from source)' : ''}`;
   }
 
   function readForm() {

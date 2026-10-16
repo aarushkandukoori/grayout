@@ -8,6 +8,12 @@ const dir = helpers.freshUserData('config');
 const paths = require('../src/paths');
 const config = require('../src/config');
 const { DEFAULT_CONFIG, NUMERIC_BOUNDS, coerce, loadConfig, saveConfig, writeConfig, reloadAction } = config;
+const channel = require('../src/channel');
+
+// Most of this file is about config.json itself, so it runs as the personal
+// build, where no edition rule changes a value (src/channel.js). The public
+// builds' rules have describe blocks of their own at the end.
+channel._setPersonalForTests(true);
 
 after(() => helpers.cleanup(dir));
 
@@ -423,8 +429,7 @@ describe('v2 keys', () => {
 });
 
 describe('Mac App Store edition: config.json cannot switch on what the edition lacks', () => {
-  const channel = require('../src/channel');
-  after(() => channel._setForTests(null));
+  after(() => { channel._setForTests(null); channel._setPersonalForTests(true); });
 
   const handEdited = {
     checkForUpdates: true, provider: 'anthropic', engine: 'cli', cliPath: '/opt/homebrew/bin/claude', cliAllowOverage: true,
@@ -446,20 +451,32 @@ describe('Mac App Store edition: config.json cannot switch on what the edition l
     assert.equal(coerce({}).provider, 'grayout');
   });
 
-  test('loadConfig rewrites a hand-edited file to what the edition can do; saveConfig cannot turn it back', () => {
+  test('the personal flag changes nothing in this edition', () => {
+    channel._setForTests('mas');
+    channel._setPersonalForTests(true);
+    const out = coerce(handEdited);
+    assert.equal(out.provider, 'grayout');
+    assert.equal(out.engine, 'api');
+    assert.equal(out.cliPath, '');
+    assert.equal(out.apiBase, '');
+  });
+
+  test('loadConfig and saveConfig hand back what the edition can do; the file keeps what it says', () => {
     channel._setForTests('mas');
     writeRaw(JSON.stringify(handEdited));
     const loaded = loadConfig();
     assert.equal(loaded.engine, 'api');
-    assert.equal(readJson().provider, 'grayout');
+    assert.equal(loaded.provider, 'grayout');
+    assert.equal(readJson().provider, 'anthropic', 'the edition rule is applied in memory, never written');
     const saved = saveConfig({ checkForUpdates: true, strikes: 4 });
-    assert.equal(saved.checkForUpdates, false);
+    assert.equal(saved.checkForUpdates, false, 'saveConfig cannot turn it back on');
     assert.equal(saved.strikes, 4);
-    assert.equal(readJson().checkForUpdates, false);
+    assert.equal(readJson().strikes, 4);
   });
 
-  test('the direct edition keeps every hand-edited value as before', () => {
+  test('the personal direct build keeps every hand-edited value as before', () => {
     channel._setForTests('direct');
+    channel._setPersonalForTests(true);
     const out = coerce(handEdited);
     assert.equal(out.checkForUpdates, true);
     assert.equal(out.provider, 'anthropic');
@@ -470,5 +487,68 @@ describe('Mac App Store edition: config.json cannot switch on what the edition l
     assert.equal(out.tasksFile, '/Users/me/todo.md');
     assert.equal(coerce({}).checkForUpdates, true);
     assert.equal(coerce({}).provider, 'auto');
+  });
+});
+
+describe('public direct build: pay-only, whatever config.json says', () => {
+  const analyzer = require('../src/analyzer');
+  const providers = require('../src/providers');
+  after(() => { channel._setForTests(null); channel._setPersonalForTests(true); });
+  const publicDirect = () => { channel._setForTests('direct'); channel._setPersonalForTests(false); };
+
+  // The owner's own config.json: his personal build runs on a Claude CLI
+  // failover wrapper. Both builds share ~/Library/Application Support/Grayout.
+  const owners = { engine: 'cli', cliPath: '~/bin/claude-failover', cliAllowOverage: true, provider: 'anthropic', model: 'claude-haiku-4-5', strikes: 3 };
+
+  test('coerce forces the hosted provider and the API engine; the rest of the direct edition is unchanged', () => {
+    publicDirect();
+    const out = coerce({ ...owners, checkForUpdates: true, tasksFile: '/Users/me/todo.md', apiBase: 'https://grayout-api.sub.workers.dev' });
+    assert.equal(out.provider, 'grayout');
+    assert.equal(out.engine, 'api');
+    assert.equal(out.cliPath, '');
+    assert.equal(out.cliAllowOverage, false);
+    assert.equal(out.checkForUpdates, true, 'updates stay on in the direct edition');
+    assert.equal(out.tasksFile, '/Users/me/todo.md');
+    assert.equal(out.strikes, 3, 'ordinary settings are untouched');
+    assert.equal(coerce({}).provider, 'grayout', 'the default is the hosted service too');
+  });
+
+  test('provider "anthropic" or "openai" and a 1.x key cannot re-enable own-key checks', () => {
+    publicDirect();
+    for (const provider of ['anthropic', 'openai', 'auto']) {
+      const cfg = coerce({ provider });
+      assert.equal(providers.resolve(cfg, 'sk-ant-a-key-saved-by-1x').provider, 'grayout', provider);
+      assert.equal(providers.resolve({ provider }, 'sk-proj-a-key-saved-by-1x').provider, 'grayout', `${provider}, even uncoerced`);
+    }
+  });
+
+  test('engine "cli" cannot re-enable the CLI', () => {
+    publicDirect();
+    assert.equal(analyzer.resolveEngine(coerce(owners), true), 'api');
+    assert.equal(analyzer.resolveEngine({ engine: 'cli' }, true), 'api', 'even uncoerced');
+  });
+
+  test('running a public build once leaves the owner\'s config.json intact for his personal build', () => {
+    publicDirect();
+    writeRaw(JSON.stringify(owners));
+    const inUse = loadConfig();
+    assert.equal(inUse.engine, 'api');
+    assert.equal(inUse.provider, 'grayout');
+    const disk = readJson();
+    assert.equal(disk.engine, 'cli', 'loadConfig never writes the edition rule');
+    assert.equal(disk.cliPath, '~/bin/claude-failover');
+    assert.equal(disk.provider, 'anthropic');
+    const saved = saveConfig({ strikes: 4 });
+    assert.equal(saved.engine, 'api');
+    assert.equal(readJson().engine, 'cli', 'nor does a settings save');
+    assert.equal(readJson().cliPath, '~/bin/claude-failover');
+    assert.equal(readJson().cliAllowOverage, true);
+    assert.equal(readJson().strikes, 4);
+
+    channel._setPersonalForTests(true);
+    const personal = loadConfig();
+    assert.equal(personal.engine, 'cli');
+    assert.equal(personal.cliPath, '~/bin/claude-failover');
+    assert.equal(analyzer.resolveEngine(personal, true), 'cli', 'the personal build keeps the CLI');
   });
 });

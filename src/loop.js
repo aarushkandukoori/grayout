@@ -530,15 +530,18 @@ function createLoop(deps) {
           s.holdLine = true;
           s.lastLine = CLI_MISSING_LINE;
           s.backoffUntil = d.now() + 15 * 60000;
-        } else if (kind === 'key_rejected' || kind === 'no_key') {
+        } else if (!hosted && (kind === 'key_rejected' || kind === 'no_key')) {
+          // Own-key lines only where a model key is in play (the personal
+          // build). On the hosted plan, the only path a public build has, a
+          // plan problem is one of SUBSCRIPTION_LINES above, never "API key".
           s.needsKey = true;
           s.lastLine = kind === 'no_key' ? 'API key needed — open Settings' : `${who} rejected the API key — fix in Settings`;
           // Don't re-send a dead key every tick; saving a new key resets this.
           if (kind === 'key_rejected') s.backoffUntil = d.now() + 15 * 60000;
-        } else if (kind === 'no_credit') {
+        } else if (!hosted && kind === 'no_credit') {
           s.lastLine = `${who} account has no credit — add credit at ${BILLING_URL[provider] || BILLING_URL.anthropic}`;
           s.backoffUntil = d.now() + 15 * 60000; // don't hammer a dead account
-        } else if (kind === 'bad_model') {
+        } else if (!hosted && kind === 'bad_model') {
           s.lastLine = `model not available on this ${who} account — check config.json`;
           s.backoffUntil = d.now() + 15 * 60000;
         } else if (kind === 'rate_limited' || kind === 'overloaded' || kind === 'network' || kind === 'not_configured') {

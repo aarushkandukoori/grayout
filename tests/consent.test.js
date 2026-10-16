@@ -106,7 +106,9 @@ describe('src/consent.js', () => {
   });
 
   test('processor names who receives screenshots under the engine and provider in use', t => {
-    t.after(() => { channel._setForTests(null); secrets.useSessionKey(''); });
+    t.after(() => { channel._setForTests(null); channel._setPersonalForTests(true); secrets.useSessionKey(''); channel._setPersonalForTests(null); });
+    // The own key and the CLI exist only in the personal build (src/channel.js).
+    channel._setPersonalForTests(true);
     assert.deepEqual(consent.processor(configMod.coerce({})), { name: 'OpenAI', via: 'the Grayout service' });
     assert.deepEqual(consent.processor(configMod.coerce({ provider: 'grayout' }), 'sk-ant-x'), { name: 'OpenAI', via: 'the Grayout service' });
     assert.deepEqual(consent.processor(configMod.coerce({}), 'sk-proj-own-key'), { name: 'OpenAI', via: 'your own API key' });
@@ -117,6 +119,10 @@ describe('src/consent.js', () => {
     assert.deepEqual(consent.processor(configMod.coerce({})), { name: 'OpenAI', via: 'your own API key' }, 'reads the key in use');
     channel._setForTests('mas');
     assert.deepEqual(consent.processor({ engine: 'cli', provider: 'anthropic' }, 'sk-ant-x'), { name: 'OpenAI', via: 'the Grayout service' }, 'the store edition has only the service');
+    channel._setForTests('direct');
+    channel._setPersonalForTests(false);
+    assert.deepEqual(consent.processor({ engine: 'cli', provider: 'anthropic' }, 'sk-ant-x'), { name: 'OpenAI', via: 'the Grayout service' }, 'so does the public direct build');
+    assert.deepEqual(consent.processor(configMod.coerce({})), { name: 'OpenAI', via: 'the Grayout service' }, 'a key held in memory is not read either');
   });
 
   test('payload is get() plus the processor', () => {

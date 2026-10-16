@@ -497,10 +497,13 @@ function fakeBridge(preloadFile, impl = {}, { omit = [] } = {}) {
 }
 
 const channel = require('../src/channel');
-function channelPayload(n) {
+// What src/ipc.js channelPayload() sends. `personal` true is the personal build
+// (src/channel.js); left out, the build is public, as every release is.
+function channelPayload(n, personal = false) {
   channel._setForTests(n);
-  try { return { name: channel.name(), isMAS: channel.isMAS(), features: { ...channel.features() } }; }
-  finally { channel._setForTests(null); }
+  channel._setPersonalForTests(personal);
+  try { return { name: channel.name(), isMAS: channel.isMAS(), personal: channel.personal(), features: { ...channel.features() } }; }
+  finally { channel._setForTests(null); channel._setPersonalForTests(null); }
 }
 
 const pricing = require('../src/pricing');
@@ -802,6 +805,43 @@ test.describe('the dashboard, run', () => {
       assert.equal($('erase-status').classList.contains('status-bad'), true);
       assert.equal($('btn-erase').disabled, false, 'the button comes back for another try');
     }
+  });
+
+  test('public direct build: no key panel and no own-key or Claude CLI banners, whatever the live state says', async () => {
+    const consent = { granted: true, at: '2026-10-15T12:00:00Z', version: 1, processor: HOSTED_PROCESSOR };
+    // The last payload has no channel at all: the fallback is the public build too.
+    for (const ch of [channelPayload('direct'), undefined]) {
+      for (const live of [{ needsKey: true }, { needsKey: true, errorKind: 'key_rejected' }, { errorKind: 'cli_auth' }, { errorKind: 'cli_missing' }, { errorKind: 'no_credit' }, { errorKind: 'bad_model' }]) {
+        const b = fakeBridge(PRELOAD, {
+          get: () => dashData({ channel: ch, consent, live, selfHosted: true, hasKey: true, keyMasked: 'sk-ant-…abcd' }),
+          getSettings: () => dashSettings({ channel: ch, consent, selfHosted: true, hasKey: true, keyMasked: 'sk-ant-…abcd' })
+        });
+        const { $, errors } = await runWindow('dashboard', b.api);
+        const why = JSON.stringify({ channel: !!ch, live });
+        assert.deepEqual(errors, [], why);
+        assert.equal(hidden($('key-panel')), true, why);
+        assert.equal(/model key|Claude CLI|credit|config\.json/.test($('banner-slot').textContent), false, why);
+        assert.equal(/model key/.test($('headline').textContent), false, why);
+        assert.equal(/personal build/.test($('version-line').textContent), false, why);
+      }
+    }
+  });
+
+  test('personal build: the key panel is there and the version line says which build it is', async () => {
+    const ch = channelPayload('direct', true);
+    assert.equal(ch.features.selfHosting, true);
+    const consent = { granted: true, at: '2026-10-15T12:00:00Z', version: 1, processor: { name: 'Anthropic', via: 'your own API key' } };
+    const b = fakeBridge(PRELOAD, {
+      get: () => dashData({ channel: ch, consent, live: { needsKey: true }, selfHosted: true, config: { checkIntervalSec: 45, strikes: 2, engine: 'api', provider: 'anthropic', providerLabel: 'Anthropic', model: 'claude-haiku-4-5' } }),
+      getSettings: () => dashSettings({ channel: ch, consent, selfHosted: true })
+    });
+    const { $, errors } = await runWindow('dashboard', b.api);
+    assert.deepEqual(errors, []);
+    assert.equal(hidden($('key-panel')), false);
+    assert.match($('banner-slot').textContent, /No model key for the self-hosted provider/);
+    assert.equal($('version-line').textContent, 'Grayout 2.0.0 (personal build)');
+    // Personal on the Mac App Store edition gets nothing.
+    assert.equal(channelPayload('mas', true).features.selfHosting, false);
   });
 
   test('Mac App Store: no update toggle or banner, no key panel, no Terminal fix, license under "Connect an existing subscription"', async () => {

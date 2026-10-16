@@ -26,6 +26,8 @@
     "icons": "bash scripts/make-icons.sh",
     "pack": "npm run helper && electron-builder --mac dir --arm64 --publish never",
     "dist": "npm run helper && electron-builder --mac dmg --arm64 --x64 --publish never",
+    "pack:personal": "npm run helper && electron-builder --mac dir --arm64 --publish never -c.extraMetadata.grayoutPersonal=true",
+    "dist:personal": "npm run helper && electron-builder --mac dmg --arm64 --publish never -c.extraMetadata.grayoutPersonal=true -c.mac.artifactName='${productName}-personal-${arch}.${ext}'",
     "verify:dmg": "bash scripts/verify-dmg.sh",
     "mas:dev": "npm run helper && electron-builder --config electron-builder.mas.cjs --mac mas-dev --arm64 --publish never && bash scripts/verify-mas.sh dist/mas-dev-arm64/Grayout.app",
     "mas": "npm run helper && electron-builder --config electron-builder.mas.cjs --mac mas --arm64 --publish never && bash scripts/verify-mas.sh dist/mas-arm64/Grayout.app \"dist/mas-arm64/Grayout-$npm_package_version-mas.pkg\"",

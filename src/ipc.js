@@ -33,12 +33,12 @@ const PAYMENT_HOSTS = new Set(['checkout.stripe.com', 'billing.stripe.com', 'pay
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1']);
 const PLANS_PAYLOAD = { plans: pricing.PLANS, freeChecks: pricing.FREE_CHECKS, includedChecks: pricing.INCLUDED_CHECKS };
 const NO_ACCOUNT = { ok: false, kind: 'unknown', message: 'The Grayout service is not available in this build.' };
-// What every key:* handler answers in a build without self-hosting (Mac App Store).
+// What every key:* handler answers in a build without self-hosting (every public build).
 const KEY_UNAVAILABLE = Object.freeze({ ok: false, kind: 'unavailable', message: UNAVAILABLE_KEY_MESSAGE });
 
 /** Which edition this is and what it may do; the windows hide what it cannot. */
 function channelPayload() {
-  return { name: channel.name(), isMAS: channel.isMAS(), features: { ...channel.features() } };
+  return { name: channel.name(), isMAS: channel.isMAS(), personal: channel.personal(), features: { ...channel.features() } };
 }
 
 /**
@@ -308,8 +308,8 @@ function registerIpc(ctx) {
   });
   ipcMain.handle('perm:recheck', () => loop.recheckPermission());
 
-  // No own model key in the Mac App Store edition: every key:* handler says
-  // so before touching secrets or the network.
+  // No own model key in a public build (either edition): every key:* handler
+  // says so before touching secrets or the network.
   ipcMain.handle('key:test', async (_e, key, frameB64) => {
     if (selfHostingOff()) return { ...KEY_UNAVAILABLE };
     const k = str(key, 400).trim();

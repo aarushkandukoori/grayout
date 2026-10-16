@@ -274,6 +274,43 @@ test.describe('package.json: the direct build and the scripts', () => {
   });
 });
 
+test.describe('the personal build flag (src/channel.js personal())', () => {
+  const FLAG = /grayoutPersonal/;
+  const s = pkg.scripts;
+
+  test('the repository package.json never carries the flag, so a plain build is public', () => {
+    assert.equal('grayoutPersonal' in pkg, false);
+    assert.equal(FLAG.test(JSON.stringify(pkg.build)), false, 'no build.extraMetadata turning it on');
+    const mas = loadMas();
+    assert.equal(FLAG.test(JSON.stringify(mas)), false, 'nor the Mac App Store config');
+  });
+
+  test('dist, pack, mas:dev and mas stay public', () => {
+    for (const k of ['dist', 'pack', 'mas:dev', 'mas']) assert.equal(FLAG.test(s[k]), false, k);
+  });
+
+  test('pack:personal and dist:personal pass it as electron-builder extraMetadata, arm64, never published', () => {
+    for (const k of ['pack:personal', 'dist:personal']) {
+      assert.match(s[k], /^npm run helper && electron-builder --mac (dir|dmg) --arm64 --publish never /, k);
+      assert.match(s[k], / -c\.extraMetadata\.grayoutPersonal=true( |$)/, k);
+      assert.equal(/--config/.test(s[k]), false, `${k} is a direct build, never the MAS config`);
+    }
+    assert.match(s['pack:personal'], /--mac dir /);
+    assert.match(s['dist:personal'], /--mac dmg /);
+    // A personal DMG must never pass for a release asset (Grayout-arm64.dmg).
+    assert.match(s['dist:personal'], /-c\.mac\.artifactName='\$\{productName\}-personal-\$\{arch\}\.\$\{ext\}'$/);
+  });
+
+  test('CI and the release workflow build without it', () => {
+    for (const wf of ['.github/workflows/release.yml', '.github/workflows/ci.yml']) {
+      const src = read(wf);
+      assert.equal(FLAG.test(src), false, wf);
+      assert.equal(/extraMetadata|:personal/.test(src), false, wf);
+    }
+    assert.match(read('.github/workflows/release.yml'), /npx electron-builder --mac dmg --arm64 --x64 --publish never\n/);
+  });
+});
+
 test.describe('scripts/verify-mas.sh', () => {
   const src = read('scripts/verify-mas.sh');
 

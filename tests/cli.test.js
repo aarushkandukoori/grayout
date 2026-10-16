@@ -13,6 +13,12 @@ const dir = helpers.freshUserData('cli');
 const claudecli = require('../src/claudecli');
 const analyzer = require('../src/analyzer');
 const { analyze, analyzeViaCli, readCliResult, classifyCliFailure, classifyApiError, buildPromptText } = analyzer;
+const channel = require('../src/channel');
+
+// The CLI engine exists only in the personal build (src/channel.js). Most of
+// this file tests the engine itself, so it runs as that build. The public
+// builds' refusal has describe blocks of its own at the end.
+channel._setPersonalForTests(true);
 
 after(() => helpers.cleanup(dir));
 
@@ -540,24 +546,83 @@ describe('spawning a fake claude', () => {
 });
 
 describe('Mac App Store edition: no Claude CLI engine (2.5.2)', () => {
-  const channel = require('../src/channel');
-  after(() => channel._setForTests(null));
+  after(() => { channel._setForTests(null); channel._setPersonalForTests(true); });
 
-  test('resolveEngine is always "api", even for engine "cli" or GRAYOUT_DEV_ENGINE=cli', t => {
+  test('resolveEngine is always "api", even for engine "cli" or GRAYOUT_DEV_ENGINE=cli, personal flag or not', t => {
     withEnv(t, { GRAYOUT_DEV_ENGINE: 'cli' });
     channel._setForTests('mas');
-    assert.equal(analyzer.resolveEngine({ engine: 'cli' }, true), 'api');
-    assert.equal(analyzer.resolveEngine({ engine: 'cli' }, false), 'api');
-    assert.equal(analyzer.resolveEngine({ engine: 'api' }, false), 'api');
+    for (const personal of [true, false]) {
+      channel._setPersonalForTests(personal);
+      assert.equal(analyzer.resolveEngine({ engine: 'cli' }, true), 'api', `personal ${personal}`);
+      assert.equal(analyzer.resolveEngine({ engine: 'cli' }, false), 'api', `personal ${personal}`);
+      assert.equal(analyzer.resolveEngine({ engine: 'api' }, false), 'api', `personal ${personal}`);
+    }
     channel._setForTests(null);
-    assert.equal(analyzer.resolveEngine({ engine: 'cli' }, true), 'cli', 'the direct edition is unchanged');
+    channel._setPersonalForTests(true);
+    assert.equal(analyzer.resolveEngine({ engine: 'cli' }, true), 'cli', 'the personal direct build keeps the CLI');
   });
 
   test('analyzeViaCli refuses without spawning anything', async () => {
     channel._setForTests('mas');
     const tag = 'mas-refused';
     try { fs.unlinkSync(recordPath(tag)); } catch {}
-    await assert.rejects(analyzeViaCli(ctxOf(), cliCfg('ok', tag)), e => e.kind === 'cli_missing' && /Mac App Store/.test(e.message));
+    await assert.rejects(analyzeViaCli(ctxOf(), cliCfg('ok', tag)), e => e.kind === 'cli_missing' && /not available in this version of Grayout/.test(e.message));
+    assert.equal(fs.existsSync(recordPath(tag)), false, 'the fake claude never ran');
+  });
+});
+
+describe('public direct build: no Claude CLI engine (pay-only)', () => {
+  after(() => { channel._setForTests(null); channel._setPersonalForTests(true); });
+  const publicDirect = () => { channel._setForTests('direct'); channel._setPersonalForTests(false); };
+
+  test('resolveEngine is always "api", even for engine "cli" or GRAYOUT_DEV_ENGINE=cli', t => {
+    withEnv(t, { GRAYOUT_DEV_ENGINE: 'cli' });
+    publicDirect();
+    assert.equal(channel.features().cliEngine, false);
+    assert.equal(analyzer.resolveEngine({ engine: 'cli' }, true), 'api', 'packaged');
+    assert.equal(analyzer.resolveEngine({ engine: 'cli' }, false), 'api', 'unpackaged');
+    assert.equal(analyzer.resolveEngine({ engine: 'api' }, false), 'api', 'GRAYOUT_DEV_ENGINE=cli alone does nothing');
+  });
+
+  test('running from source is the public build unless GRAYOUT_PERSONAL=1 (exactly)', t => {
+    withEnv(t, { GRAYOUT_DEV_ENGINE: undefined, GRAYOUT_PERSONAL: undefined });
+    channel._setForTests('direct');
+    channel._setPersonalForTests(null); // the real answer: plain node is unpackaged
+    assert.equal(analyzer.resolveEngine({ engine: 'cli' }), 'api');
+    process.env.GRAYOUT_PERSONAL = 'true';
+    assert.equal(analyzer.resolveEngine({ engine: 'cli' }), 'api', 'only the value 1 counts');
+    process.env.GRAYOUT_PERSONAL = '1';
+    assert.equal(analyzer.resolveEngine({ engine: 'cli' }), 'cli', 'the personal build, run from source');
+  });
+
+  test('config.json with engine "cli" and a cliPath cannot reach the CLI', () => {
+    publicDirect();
+    const { coerce } = require('../src/config');
+    const cfg = coerce({ engine: 'cli', cliPath: SHIM, cliAllowOverage: true });
+    assert.equal(cfg.engine, 'api');
+    assert.equal(cfg.cliPath, '');
+    assert.equal(cfg.cliAllowOverage, false);
+    assert.equal(analyzer.resolveEngine(cfg, true), 'api');
+  });
+
+  test('analyzeViaCli refuses without spawning anything', async () => {
+    publicDirect();
+    const tag = 'public-refused';
+    try { fs.unlinkSync(recordPath(tag)); } catch {}
+    await assert.rejects(analyzeViaCli(ctxOf(), cliCfg('ok', tag)), e => e.kind === 'cli_missing' && /not available in this version of Grayout/.test(e.message));
+    assert.equal(fs.existsSync(recordPath(tag)), false, 'the fake claude never ran');
+  });
+
+  test('analyze() with engine "cli" goes to the hosted service instead, never the binary', async () => {
+    publicDirect();
+    const tag = 'public-analyze';
+    try { fs.unlinkSync(recordPath(tag)); } catch {}
+    let checks = 0;
+    const account = { check: async () => { checks++; return { ok: true, data: { verdict: { off_task: false, activity: 'writing', confidence: 'high' }, plan: 'free', service: true } }; } };
+    const r = await analyze(ctxOf({ account, apiKey: 'sk-ant-a-saved-1x-key' }), { ...cliCfg('ok', tag), provider: 'anthropic' });
+    assert.equal(r.engine, 'api');
+    assert.equal(r.provider, 'grayout');
+    assert.equal(checks, 1);
     assert.equal(fs.existsSync(recordPath(tag)), false, 'the fake claude never ran');
   });
 });

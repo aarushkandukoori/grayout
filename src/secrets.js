@@ -1,6 +1,6 @@
 'use strict';
-// The Grayout license key and this Mac's device token — plus, for
-// self-hosters, a model API key and an optional Canvas token — live in
+// The Grayout license key and this Mac's device token — plus, in the personal
+// build, a model API key, and an optional Canvas token — live in
 // secrets.bin, encrypted with Electron's safeStorage (macOS Keychain-backed,
 // item "Grayout Safe Storage").
 // There is deliberately NO plaintext fallback: if encryption is unavailable a
@@ -19,9 +19,10 @@ class SecretsUnavailable extends Error {
   constructor(msg) { super(msg || 'secure storage is not available on this Mac'); this.name = 'SecretsUnavailable'; }
 }
 
-// A model API key in a build without self-hosting (the Mac App Store edition).
+// A model API key in a build without self-hosting: every public build, both
+// editions. Only the personal build has it (src/channel.js personal()).
 class SelfHostingUnavailable extends Error {
-  constructor() { super('your own API key is not available in the Mac App Store edition'); this.name = 'SelfHostingUnavailable'; this.kind = 'unavailable'; }
+  constructor() { super('your own API key is not available in this version of Grayout'); this.name = 'SelfHostingUnavailable'; this.kind = 'unavailable'; }
 }
 const selfHosting = () => channel.features().selfHosting;
 
@@ -129,8 +130,9 @@ function normalizeKey(key) {
   return k;
 }
 
-// Without self-hosting there is no model key at all: not a stored one, not a
-// session one, not one from the environment.
+// Without self-hosting (every public build) there is no model key at all: not
+// a stored one, not a session one, not one from the environment. A key a 1.x
+// install saved stays in secrets.bin untouched, and is simply never read.
 function getApiKey() {
   if (!selfHosting()) return null;
   if (sessionKey) return sessionKey;

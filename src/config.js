@@ -127,7 +127,11 @@ const NUMERIC_BOUNDS = {
 
 const MAX_WORK_DESCRIPTION = 500;
 
-function coerce(cfg) {
+/**
+ * A config.json object -> a complete, validated config, before any edition
+ * rule (forEdition). This is the form that is written back to disk.
+ */
+function normalize(cfg) {
   const out = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
 
   for (const key of Object.keys(DEFAULT_CONFIG)) {
@@ -159,9 +163,6 @@ function coerce(cfg) {
   out.cliPath = out.cliPath.trim();
   if (!['auto', 'grayout', 'anthropic', 'openai'].includes(out.provider)) out.provider = 'auto';
   if (!/^(claude-|gpt-|o\d)[a-z0-9.\-]+$/i.test(out.model)) out.model = DEFAULT_CONFIG.model;
-  // No address override in this build (Mac App Store): the one built in is the
-  // only one, so there is nothing to keep or warn about.
-  if (!channel.features().apiBaseOverride) out.apiBase = '';
   // A bad base URL is dropped rather than kept: frames must never be posted to
   // something that is not a plain https endpoint. Dropping it silently would be
   // a privacy surprise, though — an empty apiBase means the address built into
@@ -169,22 +170,15 @@ function coerce(cfg) {
   // screenshots there instead of to the endpoint they asked for. Say so.
   const rawApiBase = typeof out.apiBase === 'string' ? out.apiBase.trim() : '';
   out.apiBase = normalizeBase(out.apiBase) || '';
-  if (rawApiBase && !out.apiBase) {
+  // No address override in this build: the one built in is the only one in
+  // use (forEdition), so there is nothing to warn about.
+  if (rawApiBase && !out.apiBase && channel.features().apiBaseOverride) {
     const builtIn = normalizeBase(DEFAULT_API_BASE);
     console.warn(`[config] apiBase ${JSON.stringify(rawApiBase.slice(0, 200))} is not a usable endpoint ` +
                  '(https, or http only for localhost). Ignoring it and using ' +
                  (builtIn ? `the Grayout service at ${builtIn}.` : 'nothing: this build has no service address, so no screenshot is sent.'));
   }
   out.workDescription = out.workDescription.slice(0, MAX_WORK_DESCRIPTION);
-
-  // What this edition cannot do, config.json cannot switch on either
-  // (src/channel.js). In the Mac App Store edition that is: the GitHub update
-  // check, an own model key, the Claude CLI engine and a task file path.
-  const f = channel.features();
-  if (!f.updates) out.checkForUpdates = false;
-  if (!f.selfHosting) out.provider = 'grayout';
-  if (!f.cliEngine) { out.engine = 'api'; out.cliPath = ''; out.cliAllowOverage = false; }
-  if (!f.tasksFile) out.tasksFile = '';
 
   const c = cfg.canvas && typeof cfg.canvas === 'object' ? cfg.canvas : {};
   out.canvas = {
@@ -194,6 +188,32 @@ function coerce(cfg) {
   };
 
   return out;
+}
+
+/**
+ * What this edition cannot do, config.json cannot switch on either
+ * (src/channel.js). In every public build that is an own model key and the
+ * Claude CLI engine; in the Mac App Store edition also the GitHub update
+ * check, a different service address and a task file path.
+ *
+ * Applied to the config in use only, never written to config.json: the public
+ * direct build and the personal build share one data folder, so running a
+ * public build once must not wipe engine "cli" and cliPath from the file.
+ */
+function forEdition(cfg) {
+  const out = { ...cfg };
+  const f = channel.features();
+  if (!f.apiBaseOverride) out.apiBase = '';
+  if (!f.updates) out.checkForUpdates = false;
+  if (!f.selfHosting) out.provider = 'grayout';
+  if (!f.cliEngine) { out.engine = 'api'; out.cliPath = ''; out.cliAllowOverage = false; }
+  if (!f.tasksFile) out.tasksFile = '';
+  return out;
+}
+
+/** config.json object -> the config in use: normalize, then the edition rules. */
+function coerce(cfg) {
+  return forEdition(normalize(cfg));
 }
 
 function writeConfig(cfg) {
@@ -217,9 +237,9 @@ function loadConfig({ onCanvasToken } = {}) {
   try {
     raw = fs.readFileSync(paths.CONFIG_PATH, 'utf8');
   } catch {
-    const fresh = coerce({});
+    const fresh = normalize({});
     try { writeConfig(fresh); } catch {}
-    return fresh;
+    return forEdition(fresh);
   }
 
   let parsed;
@@ -234,7 +254,8 @@ function loadConfig({ onCanvasToken } = {}) {
     return { ...coerce({}), _invalid: true };
   }
 
-  const merged = coerce(parsed);
+  // The file keeps what it says; the edition rules apply to the returned copy.
+  const merged = normalize(parsed);
 
   // One-time migration: the Canvas token used to live in plaintext here.
   if (merged.canvas.token) {
@@ -251,7 +272,7 @@ function loadConfig({ onCanvasToken } = {}) {
   if (next !== raw && next.trim() !== raw.trim()) {
     try { writeConfig(merged); } catch {}
   }
-  return merged;
+  return forEdition(merged);
 }
 
 /**
@@ -266,9 +287,9 @@ function saveConfig(partial, fallback) {
   if (!current || typeof current !== 'object' || Array.isArray(current)) {
     current = fallback && typeof fallback === 'object' && !fallback._invalid ? fallback : {};
   }
-  const merged = coerce({ ...current, ...partial, canvas: { ...(current.canvas || {}), ...((partial && partial.canvas) || {}) } });
+  const merged = normalize({ ...current, ...partial, canvas: { ...(current.canvas || {}), ...((partial && partial.canvas) || {}) } });
   writeConfig(merged);
-  return merged;
+  return forEdition(merged);
 }
 
 /**
@@ -283,6 +304,6 @@ function reloadAction(current, next) {
 }
 
 module.exports = {
-  DEFAULT_CONFIG, NUMERIC_BOUNDS, MAX_WORK_DESCRIPTION, coerce, loadConfig, saveConfig, writeConfig, reloadAction,
+  DEFAULT_CONFIG, NUMERIC_BOUNDS, MAX_WORK_DESCRIPTION, coerce, normalize, forEdition, loadConfig, saveConfig, writeConfig, reloadAction,
   DEFAULT_API_BASE, LOCAL_HOSTS, normalizeBase
 };

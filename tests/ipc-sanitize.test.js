@@ -25,6 +25,11 @@ const configMod = require('../src/config');
 const ipc = require('../src/ipc');
 const { sanitizeSettings, ALLOWED_HOSTS, INTERVAL_CHOICES, registerIpc } = ipc;
 
+// The key:* handlers and the CLI engine work only in the personal build
+// (src/channel.js), so this file runs as that build. The public builds get
+// their own tests under "editions and consent".
+require('../src/channel')._setPersonalForTests(true);
+
 after(() => helpers.cleanup(dir));
 
 describe('electron stub', () => {
@@ -466,10 +471,55 @@ describe('registerIpc with fakes', () => {
     assert.deepEqual(invoke('key:set', 'sk-ant-api03-x'), { ...ipc.KEY_UNAVAILABLE });
     assert.deepEqual(invoke('key:session', 'sk-ant-api03-x'), { ...ipc.KEY_UNAVAILABLE });
     assert.deepEqual(invoke('key:clear'), { ...ipc.KEY_UNAVAILABLE });
-    assert.match(ipc.KEY_UNAVAILABLE.message, /Mac App Store/);
+    assert.match(ipc.KEY_UNAVAILABLE.message, /not available in this version of Grayout/);
     assert.equal(secretsMod.getApiKey(), null);
     assert.equal(fs.existsSync(paths.SECRETS_PATH), false);
     assert.equal(calls.filter(c => c.name === 'reload').length, reloads, 'the loop is not reloaded');
+  });
+
+  test('public direct build: every key:* handler answers unavailable and touches nothing', async t => {
+    t.after(() => { channel._setForTests(null); channel._setPersonalForTests(true); });
+    channel._setForTests('direct');
+    channel._setPersonalForTests(false);
+    const reloads = calls.filter(c => c.name === 'reload').length;
+    assert.deepEqual(await invoke('key:test', 'sk-ant-api03-x', 'AAAA'), { ok: false, kind: 'unavailable', message: ipc.KEY_UNAVAILABLE.message });
+    assert.deepEqual(invoke('key:set', 'sk-ant-api03-x'), { ...ipc.KEY_UNAVAILABLE });
+    assert.deepEqual(invoke('key:session', 'sk-ant-api03-x'), { ...ipc.KEY_UNAVAILABLE });
+    assert.deepEqual(invoke('key:clear'), { ...ipc.KEY_UNAVAILABLE });
+    assert.doesNotMatch(ipc.KEY_UNAVAILABLE.message, /App Store/, 'the wording fits the direct download too');
+    assert.equal(secretsMod.getApiKey(), null);
+    assert.equal(fs.existsSync(paths.SECRETS_PATH), false);
+    assert.equal(calls.filter(c => c.name === 'reload').length, reloads, 'the loop is not reloaded');
+  });
+
+  test('public direct build: a 1.x key and provider, or engine "cli", land on the hosted plan in every payload', async t => {
+    t.after(() => { channel._setForTests(null); channel._setPersonalForTests(true); invoke('key:clear'); cfg = configMod.coerce({}); });
+    channel._setForTests(null);
+    channel._setPersonalForTests(true);
+    invoke('key:session', 'sk-ant-api03-held-in-memory');
+    channel._setForTests('direct');
+    channel._setPersonalForTests(false);
+    for (const raw of [{ provider: 'anthropic' }, { engine: 'cli', cliPath: '/opt/homebrew/bin/claude' }]) {
+      cfg = configMod.coerce(raw);
+      const d = invoke('dash:get');
+      const st = await invoke('settings:get');
+      const onb = await invoke('onb:getState');
+      for (const p of [d, st, onb]) {
+        assert.equal(p.channel.name, 'direct');
+        assert.equal(p.channel.personal, false);
+        assert.equal(p.channel.features.selfHosting, false);
+        assert.equal(p.channel.features.cliEngine, false);
+        assert.equal(p.channel.features.updates, true, 'the rest of the direct edition is unchanged');
+        assert.equal(p.selfHosted, false, JSON.stringify(raw));
+        assert.deepEqual(p.consent.processor, { name: 'OpenAI', via: 'the Grayout service' });
+      }
+      assert.equal(d.hasKey, false);
+      assert.equal(d.live.needsKey, false, 'never "API key needed"');
+      assert.equal(d.config.provider, 'grayout');
+      assert.equal(d.config.engine, 'api');
+      assert.equal(st.estimates.hosted, true);
+      assert.equal(onb.engine, 'api');
+    }
   });
 
   test('Mac App Store: updates:check is disabled with no dialog and no request', async t => {

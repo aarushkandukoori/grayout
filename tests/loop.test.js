@@ -12,6 +12,12 @@ const {
 } = require('../src/loop');
 const { DEFAULT_CONFIG } = require('../src/config');
 const { NoKeyError } = require('../src/analyzer');
+const channel = require('../src/channel');
+
+// The default deps below self-host on an Anthropic key, which only the
+// personal build can do (src/channel.js), so this file runs as that build.
+// "13. the hosted plan" also covers the public, pay-only build.
+channel._setPersonalForTests(true);
 
 after(() => helpers.cleanup(dir));
 
@@ -1513,6 +1519,42 @@ describe('13. the hosted plan', () => {
     await h.step({ throw: Object.assign(new Error('nope'), { kind: 'key_rejected' }) });
     assert.equal(h.live().lastLine, 'Anthropic rejected the API key — fix in Settings');
     assert.equal(h.live().needsSubscription, false);
+  });
+
+  describe('public build (pay-only): an upgrade from 1.x lands on the hosted plan', () => {
+    after(() => { channel._setForTests(null); channel._setPersonalForTests(true); });
+    const publicDirect = () => { channel._setForTests('direct'); channel._setPersonalForTests(false); };
+
+    test('a 1.x config (provider "anthropic") with a key still on file checks through the service', async () => {
+      publicDirect();
+      // The worst case: something still hands the loop the old key.
+      const h = hosted({ cfg: { provider: 'anthropic' }, deps: { secrets: { getApiKey: () => KEY, getCanvasToken: () => '' } } });
+      await h.step(hostedOk('free'));
+      assert.equal(h.calls.analyze.length, 1);
+      assert.equal(h.live().needsKey, false);
+      assert.doesNotMatch(h.live().lastLine, /API key/);
+    });
+
+    test('free checks used up: the plan line, never "API key needed"', async t => {
+      t.mock.method(console, 'error', () => {});
+      publicDirect();
+      const h = hosted({ cfg: { provider: 'anthropic' } });
+      await h.step({ throw: serviceErr('free_exhausted') });
+      assert.equal(h.live().lastLine, 'free checks used up — subscribe in Settings');
+      assert.equal(h.live().needsSubscription, true);
+      assert.equal(h.live().needsKey, false);
+    });
+
+    test('an own-key error kind on the hosted path never shows own-key copy', async t => {
+      t.mock.method(console, 'error', () => {});
+      for (const kind of ['no_key', 'key_rejected', 'no_credit', 'bad_model']) {
+        publicDirect();
+        const h = hosted({ cfg: { provider: 'anthropic' }, deps: { secrets: { getApiKey: () => KEY, getCanvasToken: () => '' } } });
+        await h.step({ throw: Object.assign(new Error('nope'), { kind }) });
+        assert.equal(h.live().needsKey, false, kind);
+        assert.doesNotMatch(h.live().lastLine, /API key|console\.anthropic|credit|config\.json/, kind);
+      }
+    });
   });
 });
 

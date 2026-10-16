@@ -253,7 +253,10 @@ describe('dispatch', () => {
     assert.equal(r.service.plan, 'trialing');
   });
 
-  test('an explicit self-hosted provider never touches the service', async () => {
+  test('personal build: an explicit self-hosted provider never touches the service', async t => {
+    const channel = require('../src/channel');
+    channel._setPersonalForTests(true);
+    t.after(() => channel._setPersonalForTests(null));
     const calls = stubFetch({ body: { verdict: VERDICT } });
     await assert.rejects(analyze(ctx({ apiKey: null }), { provider: 'anthropic', model: 'claude-haiku-4-5' }), analyzer.NoKeyError);
     assert.equal(calls.length, 0);
@@ -289,6 +292,39 @@ describe('Mac App Store edition: every check goes through the Grayout service', 
     const calls = stubFetch({ body: {} });
     const r = await analyzer.testApiKey('sk-ant-api03-x', 'AAAA', 'claude-haiku-4-5', 'anthropic');
     assert.deepEqual(r, { ok: false, kind: 'unavailable', message: analyzer.UNAVAILABLE_KEY_MESSAGE });
+    assert.equal(calls.length, 0);
+  });
+});
+
+describe('public direct build (pay-only): every check goes through the Grayout service', () => {
+  const channel = require('../src/channel');
+  after(() => { channel._setForTests(null); channel._setPersonalForTests(null); });
+  const publicDirect = () => { channel._setForTests('direct'); channel._setPersonalForTests(false); };
+
+  test('providers.resolve is always the hosted service, whatever config.json or a key says', () => {
+    publicDirect();
+    for (const [cfg, key] of [[{ provider: 'anthropic' }, null], [{ provider: 'openai', model: 'gpt-5-mini' }, 'sk-proj-x'], [{ provider: 'auto' }, 'sk-ant-key'], [{}, null]]) {
+      assert.deepEqual(providers.resolve(cfg, key), { provider: 'grayout', model: 'grayout' }, JSON.stringify(cfg));
+      assert.equal(providers.isHosted(cfg, key), true);
+    }
+  });
+
+  test('analyze() with a 1.x provider, a key and engine "cli" still posts to the service', async () => {
+    publicDirect();
+    const calls = stubFetch({ body: { verdict: VERDICT, usage: USAGE, plan: 'free', service: true } });
+    const r = await analyze(ctx({ apiKey: 'sk-ant-api03-saved-by-1x' }), { provider: 'anthropic', engine: 'cli', model: 'claude-haiku-4-5' });
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, `${BASE}/v1/check`);
+    assert.equal(r.engine, 'api');
+    assert.equal(r.provider, 'grayout');
+  });
+
+  test('testApiKey refuses without any network, in words that fit this edition', async () => {
+    publicDirect();
+    const calls = stubFetch({ body: {} });
+    const r = await analyzer.testApiKey('sk-ant-api03-x', 'AAAA', 'claude-haiku-4-5', 'anthropic');
+    assert.deepEqual(r, { ok: false, kind: 'unavailable', message: analyzer.UNAVAILABLE_KEY_MESSAGE });
+    assert.doesNotMatch(analyzer.UNAVAILABLE_KEY_MESSAGE, /App Store/);
     assert.equal(calls.length, 0);
   });
 });

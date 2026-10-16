@@ -66,9 +66,10 @@ function notify(title, body, onClick) {
 
 // True when checks do not go through the hosted service: this Mac runs them
 // on its own model key, or through the local Claude CLI (engine "cli"), where
-// no plan and no key apply. Both are documented in the README, never in the UI.
-// Never true in the Mac App Store edition (src/channel.js: no self-hosting,
-// no CLI engine; providers.resolve and resolveEngine already say so).
+// no plan and no key apply. Both exist only in the personal build. Never true
+// in a public build, either edition (src/channel.js: no self-hosting, no CLI
+// engine; providers.resolve and resolveEngine already say so), so a 1.x
+// install with a saved key lands on the hosted plan.
 function selfHosted() {
   try { return resolveEngine(config) === 'cli' || !providers.isHosted(config, secrets.getApiKey()); } catch { return false; }
 }
@@ -272,7 +273,7 @@ if (!gotLock) {
     config = loadConfigWithMigration();
     state.get();
     const engine = resolveEngine(config);
-    log.info('app', `Grayout ${app.getVersion()} starting (channel=${channel.name()}, packaged=${app.isPackaged}, engine=${engine}, provider=${engine === 'cli' ? 'claude-cli' : providers.resolve(config, secrets.getApiKey()).provider}, consent=${consent.satisfied() ? 'yes' : 'no'})`);
+    log.info('app', `Grayout ${app.getVersion()} starting (channel=${channel.name()}, personal=${channel.personal()}, packaged=${app.isPackaged}, engine=${engine}, provider=${engine === 'cli' ? 'claude-cli' : providers.resolve(config, secrets.getApiKey()).provider}, consent=${consent.satisfied() ? 'yes' : 'no'})`);
     if (config._invalid) log.warn('config', 'config.json is invalid — checks paused until it is fixed');
 
     session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) => cb(permission === 'media'));

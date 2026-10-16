@@ -7,6 +7,11 @@ const dir = helpers.freshUserData('verdict');
 const analyzer = require('../src/analyzer');
 const { coerceVerdict, extractJson, classifyApiError, resolveEngine, analyze, NoKeyError, VERDICT_SCHEMA } = analyzer;
 
+// "engine and key guard" exercises the own-key and CLI paths, which only the
+// personal build has (src/channel.js). The public builds' refusals are tested
+// in tests/channel.test.js, cli.test.js, hosted.test.js and config.test.js.
+require('../src/channel')._setPersonalForTests(true);
+
 after(() => helpers.cleanup(dir));
 
 describe('coerceVerdict', () => {

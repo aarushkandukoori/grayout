@@ -234,7 +234,11 @@ describe('the payload every window reads', () => {
     assert.equal(loopCalls.includes('reload'), false);
   });
 
-  test('on the CLI engine, or with config.json invalid, opening Settings never asks the service', async () => {
+  test('on the CLI engine, or with config.json invalid, opening Settings never asks the service', async t => {
+    // The CLI engine exists only in the personal build (src/channel.js).
+    const channel = require('../src/channel');
+    channel._setPersonalForTests(true);
+    t.after(() => channel._setPersonalForTests(null));
     const saved = cfg;
     try {
       for (const c of [configMod.coerce({ engine: 'cli' }), { ...configMod.coerce({}), _invalid: true }]) {
@@ -252,6 +256,26 @@ describe('the payload every window reads', () => {
     const main = fs.readFileSync(path.join(paths.APP_ROOT, 'main.js'), 'utf8');
     assert.match(main, /if \(!selfHosted\(\) && !config\._invalid\) \{\s*account\.refresh\(\{ force: true \}\)/, 'nor the launch refresh');
     assert.match(main, /function selfHosted\(\) \{\s*try \{ return resolveEngine\(config\) === 'cli' \|\|/);
+  });
+
+  test('public build: engine "cli" in config.json is the hosted plan, so Settings re-reads it', async t => {
+    const channel = require('../src/channel');
+    channel._setForTests('direct');
+    channel._setPersonalForTests(false);
+    t.after(() => { channel._setForTests(null); channel._setPersonalForTests(null); });
+    const saved = cfg;
+    try {
+      cfg = configMod.coerce({ engine: 'cli', cliPath: '/opt/homebrew/bin/claude', provider: 'anthropic' });
+      calls.length = 0;
+      const s = await invoke('settings:get');
+      await helpers.turns(5);
+      assert.equal(calls.filter(x => x[0] === 'refresh').length, 1, 'the plan is read like any hosted install');
+      assert.equal(s.selfHosted, false, 'the plan panel shows');
+      assert.equal(s.channel.personal, false);
+      assert.equal(s.channel.features.selfHosting, false);
+      assert.equal(s.channel.features.cliEngine, false);
+      assert.equal(s.estimates.engine, 'api');
+    } finally { cfg = saved; }
   });
 
   test('a fresh "served" answer lifts the loop\'s plan wait; a cached or free answer does not', async () => {

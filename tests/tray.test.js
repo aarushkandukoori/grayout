@@ -1,8 +1,9 @@
 'use strict';
 // The menu bar menu (src/tray.js), built from a snapshot without a menu bar.
-// The direct edition's menu is unchanged; the Mac App Store edition drops the
-// update check, the Terminal fix command, the sponsor link, the CLI and key
-// items, and the Color Filters note.
+// The direct edition's menu is unchanged, except that the CLI and key items
+// appear only in the personal build (public builds are pay-only); the Mac App
+// Store edition also drops the update check, the Terminal fix command, the
+// sponsor link and the Color Filters note.
 const { test, describe, after, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
 const helpers = require('./helpers');
@@ -22,7 +23,7 @@ const { TCC_RESET_CMD } = require('../src/permissions');
 
 const SAVED_BACKEND = process.env.GRAYOUT_GRAYSCALE_BACKEND;
 delete process.env.GRAYOUT_GRAYSCALE_BACKEND;
-afterEach(() => { channel._setForTests(null); delete process.env.GRAYOUT_GRAYSCALE_BACKEND; opened.length = 0; copied.length = 0; });
+afterEach(() => { channel._setForTests(null); channel._setPersonalForTests(null); delete process.env.GRAYOUT_GRAYSCALE_BACKEND; opened.length = 0; copied.length = 0; });
 after(() => {
   if (SAVED_BACKEND !== undefined) process.env.GRAYOUT_GRAYSCALE_BACKEND = SAVED_BACKEND;
   helpers.cleanup(dir);
@@ -102,7 +103,8 @@ describe('direct edition (unchanged)', () => {
     assert.deepEqual(opened, ['https://github.com/aarushkandukoori/grayout/releases/latest']);
   });
 
-  test('CLI and key problems are shown, and a sponsor link when one is passed', () => {
+  test('personal build: CLI and key problems are shown, and a sponsor link when one is passed', () => {
+    channel._setPersonalForTests(true);
     const r = recorder();
     let l = labels(tray.buildTemplate(r.ctx, view({}, { errorKind: 'cli_missing' })));
     assert.ok(l.includes('Claude CLI not found: set cliPath in config.json'));
@@ -117,6 +119,37 @@ describe('direct edition (unchanged)', () => {
   test('a usable display shows no grayscale note at all', () => {
     const l = labels(tray.buildTemplate(recorder().ctx, view()));
     assert.equal(l.some(x => /red border only/.test(x)), false);
+  });
+});
+
+describe('public direct build (pay-only)', () => {
+  test('no CLI or API key items, whatever the live state says; the plan is offered instead', () => {
+    channel._setForTests('direct');
+    channel._setPersonalForTests(false);
+    for (const liveOver of [{ errorKind: 'cli_missing' }, { errorKind: 'cli_auth' }, { needsKey: true }, { errorKind: 'key_rejected', needsKey: true }]) {
+      const l = labels(tray.buildTemplate(recorder().ctx, view({ needsKey: true }, liveOver)));
+      assert.equal(l.some(x => /Claude CLI|API key/.test(x)), false, JSON.stringify(liveOver));
+      assert.ok(l.includes('Manage subscription…'), JSON.stringify(liveOver));
+    }
+    assert.ok(labels(tray.buildTemplate(recorder().ctx, view())).includes('Check for updates'), 'the rest of the direct menu is unchanged');
+  });
+
+  test('snapshot(): a 1.x config with engine "cli" is not "key needed"', () => {
+    channel._setForTests('direct');
+    channel._setPersonalForTests(false);
+    const r = recorder();
+    const v = tray.snapshot({
+      ...r.ctx,
+      getConfig: () => ({ engine: 'cli', provider: 'anthropic', grayscale: true }),
+      onboardingDone: () => true,
+      permState: () => ({ screen: 'granted', camera: 'granted' }),
+      spentToday: () => ({ cost: 0, checks: 0 }),
+      selfHosted: () => false,
+      updater: { getAvailable: () => null }
+    });
+    assert.equal(v.needsKey, false);
+    assert.equal(v.features.selfHosting, false);
+    assert.equal(v.features.cliEngine, false);
   });
 });
 

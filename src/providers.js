@@ -7,9 +7,9 @@
 // config.json, or just save a model key, and the app talks to that provider
 // directly and never touches the service.
 //
-// The Mac App Store edition has no self-hosting (channel.features().selfHosting
-// is false): every check goes through the hosted service, whatever config.json
-// or a stored key says.
+// Only the personal build has self-hosting (channel.features().selfHosting).
+// Every public build, direct download and Mac App Store alike, sends every
+// check through the hosted service, whatever config.json or a stored key says.
 const channel = require('./channel');
 
 const HOSTED = 'grayout';
