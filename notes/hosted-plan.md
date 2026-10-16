@@ -16,7 +16,7 @@ The binding technical document is [API-CONTRACT.md](../docs/API-CONTRACT.md). Pr
 | Pro monthly | $9.99 / month, 7-day free trial | 10,000 checks a month |
 | Pro yearly | $79 / year (34% off monthly) | 10,000 checks a month |
 
-The app holds a Grayout license key and talks only to `api.grayout.app`. Self-hosting on your own Anthropic or OpenAI key stays supported and documented in the README, because the repository is MIT and pretending otherwise would be dishonest.
+The app holds a Grayout license key and talks only to `api.grayout.app`. From 2.0, release builds are pay-only; the own-key code stays in the MIT source for the personal build (docs/BUILD-SPEC.md section 27).
 
 ## Why $9.99
 
@@ -92,4 +92,4 @@ None of these can be done by a contributor, an agent, or from this repository. R
 
 ## Not in this plan
 
-Accounts beyond a license key, a web dashboard, team or employer features, telemetry of any kind, a locked mode, and any change that makes self-hosting harder than it is today. Those are out for the same reasons they were out at 1.0.
+Accounts beyond a license key, a web dashboard, team or employer features, telemetry of any kind, and a locked mode. Those are out for the same reasons they were out at 1.0.
