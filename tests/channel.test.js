@@ -74,7 +74,7 @@ describe('features', () => {
     assert.equal(f.manualLicenseEntry, true);
   });
 
-  test('public direct build: no own key and no Claude CLI; everything else as before', () => {
+  test('public direct build, run from source: no own key and no Claude CLI; everything else as before', () => {
     channel._setPersonalForTests(false);
     const f = channel.features();
     for (const k of PERSONAL_ONLY) assert.equal(f[k], false, k);
@@ -178,5 +178,43 @@ describe('personal(): the build-time flag only a deliberate build carries', () =
     assert.equal(channel.personal(), false);
     channel._setPersonalForTests(null);
     assert.equal(channel.personal(), true, 'back to the real answer');
+  });
+});
+
+describe('apiBaseOverride: a public packaged build talks only to the address built in', () => {
+  const accountMod = require('../src/account');
+  const BASE = 'https://grayout-api.test-sub.workers.dev';
+  const ELSEWHERE = 'https://my-own-grayout.example';
+
+  test('public packaged direct build: off, so config.json apiBase is ignored', () => {
+    electron.app.isPackaged = true;
+    assert.equal(channel.personal(), false);
+    assert.equal(channel.features().apiBaseOverride, false);
+    assert.equal(accountMod.apiBaseFrom({ apiBase: ELSEWHERE }, BASE), BASE);
+    assert.equal(accountMod.apiBaseFrom({ apiBase: ELSEWHERE }, '__GRAYOUT_API_BASE__'), null, 'an unfilled build stays not connected');
+    const cfg = require('../src/config').coerce({ apiBase: ELSEWHERE });
+    assert.equal(cfg.apiBase, '', 'nor does the config in use carry it');
+  });
+
+  test('personal packaged build: on', () => {
+    electron.app.isPackaged = true;
+    channel._setMetadataForTests({ name: 'grayout', grayoutPersonal: true });
+    assert.equal(channel.features().apiBaseOverride, true);
+    assert.equal(accountMod.apiBaseFrom({ apiBase: ELSEWHERE }, BASE), ELSEWHERE);
+  });
+
+  test('running from source: on, flag or not', () => {
+    for (const p of [false, true]) {
+      channel._setPersonalForTests(p);
+      assert.equal(channel.features().apiBaseOverride, true, `personal ${p}`);
+    }
+  });
+
+  test('Mac App Store: off, flag or not', () => {
+    channel._setForTests('mas');
+    for (const p of [false, true]) {
+      channel._setPersonalForTests(p);
+      assert.equal(channel.features().apiBaseOverride, false, `personal ${p}`);
+    }
   });
 });

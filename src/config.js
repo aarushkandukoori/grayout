@@ -59,7 +59,9 @@ const DEFAULT_CONFIG = {
   // Hosted service base URL. Empty means the address built into this app
   // (DEFAULT_API_BASE above; none at all until the deploy step fills it in).
   // Accepts https anywhere, http only for localhost. GRAYOUT_API_BASE overrides
-  // it when running unpackaged.
+  // it when running unpackaged. A public packaged build and the Mac App Store
+  // edition ignore both (channel.features().apiBaseOverride); the personal
+  // build honors it.
   apiBase: '',
   // Self-hosting only: used if it belongs to the active provider's family;
   // otherwise the provider default applies (claude-haiku-4-5 / gpt-5-mini).

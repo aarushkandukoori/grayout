@@ -7,7 +7,8 @@
 //
 // Both public editions are pay-only: every check goes through the hosted
 // Grayout service (free checks, trial, subscription). Neither offers an own
-// API key or the Claude CLI engine.
+// API key, the Claude CLI engine or, once packaged, a different service
+// address (config.json apiBase).
 //
 // The Mac App Store edition runs inside Apple's App Sandbox and has to follow
 // App Review rules, so more is off there: no private grayscale API, no
@@ -77,7 +78,11 @@ function features() {
     updates: !mas,             // GitHub release check (2.4.5(vii): MAS updates come from the store)
     selfHosting: own,          // own Anthropic/OpenAI key: personal direct build only (public builds are pay-only)
     cliEngine: own,            // Claude CLI engine: personal direct build only (MAS: spawns outside binaries, 2.5.2)
-    apiBaseOverride: !mas,     // config.json apiBase / GRAYOUT_API_BASE
+    // config.json apiBase / GRAYOUT_API_BASE. A public packaged build talks to
+    // the address built in and nothing else, so it cannot be pointed at a copy
+    // of server/ someone runs themselves to skip the plan. Running from source
+    // (unpackaged) and the personal build still can.
+    apiBaseOverride: !mas && (own || !isPackaged()),
     loginItemFallback: !mas,   // ~/Library/LaunchAgents fallback (sandbox denies it)
     moveToApplications: !mas,  // the store installs the app itself
     tccResetHint: !mas,        // "run tccutil" help; store signing keeps grants stable

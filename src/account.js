@@ -109,9 +109,10 @@ function isPackaged() {
  * Order: GRAYOUT_API_BASE (unpackaged builds only), then `apiBase` in
  * config.json, then the address the deploy step built in (DEFAULT_API_BASE).
  * null means "not connected": no request is ever made.
- * The Mac App Store edition has no override (2.3.1, 5.1.2): only the address
- * built in, so a config file or an environment variable can never send
- * screenshots anywhere else.
+ * The Mac App Store edition has no override (2.3.1, 5.1.2), and neither has a
+ * public packaged direct build (it is pay-only; channel.features()
+ * apiBaseOverride): only the address built in, so a config file or an
+ * environment variable can never send screenshots anywhere else.
  */
 function apiBaseFrom(config, builtIn = DEFAULT_API_BASE) {
   if (!channel.features().apiBaseOverride) return normalizeBase(builtIn) || null;
