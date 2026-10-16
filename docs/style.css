@@ -303,6 +303,15 @@ html:not(.js) .faq__a{grid-template-rows:1fr;opacity:1}
   .plan--own .plan__feats{grid-area:3 / 2 / 5 / 3;align-self:start}
 }
 @media (max-width:640px){.plans{grid-template-columns:1fr}.plan--own{grid-column:auto}}
+/* Service on (the 2.0 era): "Your own key" is a 1.x card and hides
+   (data-when="noservice"), so the free taste and Pro share one row at the
+   same card width, and the comparison table on pricing.html loses that column. */
+html[data-service="on"] .plans{grid-template-columns:repeat(2,minmax(0,1fr));max-width:660px}
+@media (max-width:640px){html[data-service="on"] .plans{grid-template-columns:1fr}}
+@media (max-width:767px){
+  html[data-service="on"] .compare{min-width:480px}
+  html[data-service="on"] .compare tr>:nth-child(3){padding-right:var(--gutter)}
+}
 
 /* rolling digits (K2) */
 /* The roll is decoration (aria-hidden); the real price is the .sr-only span

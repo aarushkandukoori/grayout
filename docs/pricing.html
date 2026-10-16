@@ -6,7 +6,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://*.workers.dev; base-uri 'self'; form-action 'none'; object-src 'none'; frame-src 'none'; manifest-src 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <title>Pricing | Grayout for Mac</title>
-<meta name="description" content="Grayout Pro is $9.99 a month or $79 a year, plus tax where it applies, with 10,000 checks a month and a 7-day free trial for new subscribers. Or run it free on your own API key.">
+<meta name="description" content="Grayout Pro is $9.99 a month or $79 a year, plus tax where it applies, with 10,000 checks a month and a 7-day free trial for new subscribers.">
 <link rel="canonical" href="https://aarushkandukoori.github.io/grayout/pricing.html">
 <meta name="theme-color" content="#DDE2EE">
 <meta name="color-scheme" content="light">
@@ -16,7 +16,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Grayout">
 <meta property="og:title" content="Grayout pricing">
-<meta property="og:description" content="Grayout Pro is $9.99 a month or $79 a year, plus tax where it applies, with 10,000 checks a month and a 7-day free trial for new subscribers. Or run it free on your own API key.">
+<meta property="og:description" content="Grayout Pro is $9.99 a month or $79 a year, plus tax where it applies, with 10,000 checks a month and a 7-day free trial for new subscribers.">
 <meta property="og:url" content="https://aarushkandukoori.github.io/grayout/pricing.html">
 <meta property="og:image" content="https://aarushkandukoori.github.io/grayout/img/og.png">
 <meta property="og:image:width" content="1200">
@@ -24,7 +24,7 @@
 <meta property="og:image:alt" content="Grayout: a Mac desktop half in color and half in gray, with a red border on the gray side.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Grayout pricing">
-<meta name="twitter:description" content="Grayout Pro is $9.99 a month or $79 a year, plus tax where it applies, with 10,000 checks a month and a 7-day free trial for new subscribers. Or run it free on your own API key.">
+<meta name="twitter:description" content="Grayout Pro is $9.99 a month or $79 a year, plus tax where it applies, with 10,000 checks a month and a 7-day free trial for new subscribers.">
 <meta name="twitter:image" content="https://aarushkandukoori.github.io/grayout/img/og.png">
 <link rel="preload" href="fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css">
@@ -110,12 +110,12 @@
             <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg>Cancel any time from the menu bar</li>
           </ul>
         </article>
-        <article class="plan plan--own dl-2" data-reveal="snap">
+        <article class="plan plan--own dl-2" data-reveal="snap" data-when="noservice">
           <div class="plan__top"><h3>Your own key</h3><span class="chip chip--green" data-when="noservice"><span class="dot dot--green"></span>Available today</span></div>
           <div class="plan__price">$0<small>plus your API costs</small></div>
           <p class="plan__note">Your OpenAI or Anthropic account pays for each check, a fraction of a cent.</p>
           <div class="plan__cta"><a class="btn btn-light" href="api-key.html">Read the guide</a></div>
-          <p class="plan__desc">Open source under the MIT license.<span data-when="mas"> Direct download and source builds only.</span></p>
+          <p class="plan__desc">Grayout 1.0.1, today&rsquo;s direct download. Open source under the MIT license.</p>
           <ul class="plan__feats">
             <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg>Your OpenAI or Anthropic key</li>
             <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg>Screenshots go straight to your provider</li>
@@ -123,7 +123,7 @@
           </ul>
         </article>
       </div>
-      <p class="fine">Prices in US dollars, plus sales tax or VAT where it applies, worked out at checkout. You may see your local currency there. Payments are processed by Stripe and sold through Link, so your statement shows LINK.COM*. Grayout never sees your card number.</p>
+      <p class="fine"><span data-when="service">Every Grayout download runs on the Grayout service: after the 100 free checks it needs Grayout Pro, and the monthly plan starts with a 7-day free trial for new subscribers. </span>Prices in US dollars, plus sales tax or VAT where it applies, worked out at checkout. You may see your local currency there. Payments are processed by Stripe and sold through Link, so your statement shows LINK.COM*. Grayout never sees your card number.</p>
     </div>
   </section>
 
@@ -156,7 +156,7 @@
       <div class="sec-head center">
         <h2 id="compare-title" class="h2" data-reveal><span class="grad">Compare plans</span></h2>
       </div>
-      <p class="compare-hint">Swipe the table sideways to see all three plans.</p>
+      <p class="compare-hint">Swipe the table sideways to see every plan.</p>
       <div class="compare-wrap" data-reveal>
         <table class="compare">
           <thead>
@@ -164,20 +164,20 @@
               <th scope="col"><span class="sr-only">Feature</span></th>
               <th scope="col"><span class="t">Free taste</span><span class="p">Free</span><a class="btn btn-light btn-sm" href="download.html" data-when="service">Download</a><span class="chip chip--amber" data-when="noservice">Opens soon</span></th>
               <th scope="col" data-checkout-scope><span class="t">Pro</span><span class="p"><span data-plan-show="monthly">$9.99 a month</span><span data-plan-show="yearly">$79 a year</span> plus tax</span><button class="btn btn-dark btn-sm" type="button" data-buy="auto" data-when="live"><span data-btn-label><span data-plan-show="monthly">Start trial</span><span data-plan-show="yearly">Subscribe</span></span></button><a class="btn btn-dark btn-sm" href="download.html" data-when="soon">Download free</a><span class="chip chip--amber" data-when="noservice">Opens soon</span><span class="plan__msg" data-checkout-msg role="status" aria-live="polite"></span></th>
-              <th scope="col"><span class="t">Your own key</span><span class="p">$0 plus API costs</span><a class="btn btn-light btn-sm" href="api-key.html">Read the guide</a></th>
+              <th scope="col" data-when="noservice"><span class="t">Your own key</span><span class="p">$0 plus API costs</span><a class="btn btn-light btn-sm" href="api-key.html">Read the guide</a></th>
             </tr>
           </thead>
           <tbody>
-            <tr><th scope="row">Price</th><td>Free</td><td>$9.99 a month or $79 a year, plus tax where it applies</td><td>$0, plus what your provider charges per check</td></tr>
-            <tr><th scope="row">Checks</th><td>100 in total</td><td>10,000 a month, then one every 10 minutes</td><td>Whatever your key pays for</td></tr>
-            <tr><th scope="row">Card needed</th><td>No</td><td>Yes. Monthly starts with a 7-day trial (up to 1,000 checks) for new subscribers</td><td>No</td></tr>
-            <tr><th scope="row">Account</th><td>None</td><td>None. A license key unlocks the app</td><td>None</td></tr>
-            <tr><th scope="row">API key needed</th><td>No</td><td>No</td><td>Yes, OpenAI or Anthropic</td></tr>
-            <tr><th scope="row">Gray screen and red border</th><td><span class="y"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg><span class="sr-only">Included</span></span></td><td><span class="y"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg><span class="sr-only">Included</span></span></td><td><span class="y"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg><span class="sr-only">Included</span></span></td></tr>
-            <tr><th scope="row">Dashboard and 30-day log</th><td><span class="y"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg><span class="sr-only">Included</span></span></td><td><span class="y"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg><span class="sr-only">Included</span></span></td><td><span class="y"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg><span class="sr-only">Included</span></span></td></tr>
-            <tr><th scope="row">Up to three displays</th><td><span class="y"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg><span class="sr-only">Included</span></span></td><td><span class="y"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg><span class="sr-only">Included</span></span></td><td><span class="y"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg><span class="sr-only">Included</span></span></td></tr>
-            <tr><th scope="row">Where screenshots go</th><td>Grayout service, then the AI model</td><td>Grayout service, then the AI model</td><td>Straight to your provider</td></tr>
-            <tr><th scope="row">Support</th><td>GitHub</td><td>GitHub<span data-when="support">, plus email</span></td><td>GitHub</td></tr>
+            <tr><th scope="row">Price</th><td>Free</td><td>$9.99 a month or $79 a year, plus tax where it applies</td><td data-when="noservice">$0, plus what your provider charges per check</td></tr>
+            <tr><th scope="row">Checks</th><td>100 in total</td><td>10,000 a month, then one every 10 minutes</td><td data-when="noservice">Whatever your key pays for</td></tr>
+            <tr><th scope="row">Card needed</th><td>No</td><td>Yes. Monthly starts with a 7-day trial (up to 1,000 checks) for new subscribers</td><td data-when="noservice">No</td></tr>
+            <tr><th scope="row">Account</th><td>None</td><td>None. A license key unlocks the app</td><td data-when="noservice">None</td></tr>
+            <tr data-when="noservice"><th scope="row">API key needed</th><td>No</td><td>No</td><td data-when="noservice">Yes, OpenAI or Anthropic</td></tr>
+            <tr><th scope="row">Gray screen and red border</th><td><span class="y"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg><span class="sr-only">Included</span></span></td><td><span class="y"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg><span class="sr-only">Included</span></span></td><td data-when="noservice"><span class="y"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg><span class="sr-only">Included</span></span></td></tr>
+            <tr><th scope="row">Dashboard and 30-day log</th><td><span class="y"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg><span class="sr-only">Included</span></span></td><td><span class="y"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg><span class="sr-only">Included</span></span></td><td data-when="noservice"><span class="y"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg><span class="sr-only">Included</span></span></td></tr>
+            <tr><th scope="row">Up to three displays</th><td><span class="y"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg><span class="sr-only">Included</span></span></td><td><span class="y"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg><span class="sr-only">Included</span></span></td><td data-when="noservice"><span class="y"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.2 8.4 3 3 6.6-6.8"/></svg><span class="sr-only">Included</span></span></td></tr>
+            <tr><th scope="row">Where screenshots go</th><td>Grayout service, then the AI model</td><td>Grayout service, then the AI model</td><td data-when="noservice">Straight to your provider</td></tr>
+            <tr><th scope="row">Support</th><td>GitHub</td><td>GitHub<span data-when="support">, plus email</span></td><td data-when="noservice">GitHub</td></tr>
           </tbody>
         </table>
       </div>
@@ -249,7 +249,7 @@
             <li><a href="privacy.html">Privacy</a></li>
             <li><a href="terms.html">Terms</a></li>
             <li><a href="refunds.html">Refunds</a></li>
-            <li><a href="api-key.html">Use your own key</a></li>
+            <li data-when="noservice"><a href="api-key.html">Use your own key</a></li>
             <li><a href="https://github.com/aarushkandukoori/grayout">Source code</a></li>
           </ul>
         </div>

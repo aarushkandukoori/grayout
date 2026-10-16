@@ -108,8 +108,8 @@
         <p>Looking to manage a subscription instead? <a class="inline-link" href="account.html">Manage it here</a>. Or see the <a class="inline-link" href="pricing.html">plans</a>.</p>
       </div>
 
-      <div data-claim-state="off" hidden>
-        <p>Grayout Pro opens soon. Today&rsquo;s release is free and runs on your own OpenAI or Anthropic key.</p>
+      <div data-claim-state="off" data-when="noservice" hidden>
+        <p>Grayout Pro opens soon. Today&rsquo;s release, Grayout 1.0.1, is free and runs on your own OpenAI or Anthropic key.</p>
         <p><a class="btn btn-primary" href="download.html"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 13h10"/></svg>Download Grayout</a></p>
       </div>
     </div>
@@ -147,7 +147,7 @@
             <li><a href="privacy.html">Privacy</a></li>
             <li><a href="terms.html">Terms</a></li>
             <li><a href="refunds.html">Refunds</a></li>
-            <li><a href="api-key.html">Use your own key</a></li>
+            <li data-when="noservice"><a href="api-key.html">Use your own key</a></li>
             <li><a href="https://github.com/aarushkandukoori/grayout">Source code</a></li>
           </ul>
         </div>
