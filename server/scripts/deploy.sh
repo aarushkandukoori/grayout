@@ -183,7 +183,7 @@ if [[ "$TARGET" == "sandbox" ]]; then
     say "Sandbox API address: $api_base"
     check_csp "$api_base" || echo "    (the site pages above would block this address; fine for app-only sandbox tests)"
   fi
-  todo "Test against the sandbox from the app (apiBase in its config.json, or GRAYOUT_API_BASE when running it with npm start) or a local copy of the site. Do NOT commit the sandbox address into src/config.js or docs/config.js."
+  todo "Test the sandbox from source (GRAYOUT_API_BASE=<sandbox url> npm start) or with the personal build (apiBase in its config.json); a public packaged build ignores apiBase. A local copy of the site works too. Do NOT commit the sandbox address into src/config.js or docs/config.js."
 else
   # The app gets the address now. The site only with --fill-site (see the top).
   files=("$REPO_DIR/src/config.js")

@@ -95,8 +95,10 @@ takes `--env sandbox`.
    --remote --env sandbox`, and `npx wrangler deploy --env sandbox`. It prints
    the sandbox address but **does not** write it into `src/config.js` or
    `docs/config.js`: the repo is public, and those must only ever point at the
-   live Worker. Test the sandbox with the app (`apiBase` in its
-   `config.json`) or a local copy of the site. It ends with a numbered list of
+   live Worker. Test the sandbox from source (`GRAYOUT_API_BASE=<sandbox url>
+   npm start` in the repo root) or with the personal build (`apiBase` in its
+   `config.json`); a public packaged build ignores `apiBase`. A local copy of
+   the site works too. It ends with a numbered list of
    what is left. Until the secrets are set, every endpoint answers
    `503 not_configured`, so nothing can be bought or forged in the meantime.
 
@@ -275,7 +277,9 @@ stub `npx`, `stripe`, `npm` and `curl` commands.
   engagement" section of `CONTRIBUTING.md` before touching either.
 - **Nothing secret is logged.** Log lines carry ids and codes only, and
   `scrub()` in `src/http.js` masks anything key-shaped as a second guard.
-- **Self-hosting still works** in the direct download and source builds.
-  Setting `provider` to `anthropic` or `openai` in the app's `config.json`
-  bypasses this service entirely. The Mac App Store edition only talks to
-  this service (contract 16.1).
+- **Self-hosting is in the source, not in release builds.** The own-key
+  mode (`provider` set to `anthropic` or `openai` in the app's `config.json`,
+  which bypasses this service entirely) exists only in a run from source with
+  `GRAYOUT_PERSONAL=1` and in the owner's personal build
+  (`docs/BUILD-SPEC.md` section 27). Public builds, direct and Mac App Store,
+  send checks only to this service (contract 16.1).

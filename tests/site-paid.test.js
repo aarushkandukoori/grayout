@@ -268,6 +268,28 @@ test.describe('the repository docs describe pay-only release builds', () => {
     assert.match(readme, /Neither has an own-key mode or a Claude CLI engine/);
   });
 
+  test('README edition table: "Runs on" is labelled 2.0, since today\'s download is 1.0.1 on your own key', () => {
+    const readme = read('README.md');
+    assert.match(readme, /^\| Available \| Yes \(1\.0\.1 today, which runs on your own API key\) \|/m);
+    assert.match(readme, /^\| Runs on \(2\.0\) \| The Grayout service/m);
+  });
+
+  test('contributor docs, GitHub templates and owner runbooks make no self-hosting promise', () => {
+    assert.equal(fs.existsSync(path.join(ROOT, '.github/DISCUSSION_TEMPLATE/hosted-waitlist.yml')), false, 'the waitlist template is gone (CHANGELOG)');
+    const promises = /#self-hosting|will not be removed|self-hosting harder|Are you self-hosting|Run Grayout on your own API key|still works and bypasses|Self-hosting still works|README's Self-hosting section|point `apiBase` at an unreachable host/;
+    for (const f of ['CONTRIBUTING.md', '.github/ISSUE_TEMPLATE/config.yml', '.github/ISSUE_TEMPLATE/install-problem.yml', 'server/README.md', 'server/scripts/deploy.sh', 'docs/API-CONTRACT.md', 'scripts/stranger-test.md']) {
+      assert.equal(promises.test(read(f)), false, f);
+    }
+    const contributing = read('CONTRIBUTING.md');
+    assert.match(contributing, /From 2\.0, release builds are pay-only/);
+    assert.match(contributing, /only together with it does `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` supply a key/);
+    // Testing the sandbox Worker: a public packaged build ignores apiBase.
+    for (const f of ['server/README.md', 'server/scripts/deploy.sh']) {
+      assert.match(read(f).replace(/\s+/g, ' '), /GRAYOUT_API_BASE=<sandbox url> npm start/, f);
+      assert.match(read(f).replace(/\s+/g, ' '), /a public packaged build ignores `?apiBase/, f);
+    }
+  });
+
   test('SECURITY.md and the privacy policy offer no self-hosting way out and no CLI engine', () => {
     for (const f of ['SECURITY.md', 'PRIVACY.md', 'docs/privacy.html']) {
       const t = read(f);

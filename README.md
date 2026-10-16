@@ -52,7 +52,7 @@ shasum -a 256 ~/Downloads/Grayout-arm64.dmg
 | First launch | Three extra clicks while it is not notarized | No warning |
 | Updates | "Update available" in the menu, or `brew upgrade` | The App Store |
 | The gray | macOS's Color Filters switch, through a small helper | A click-through overlay window from a sandboxed helper that exits with the app |
-| Runs on | The Grayout service: 100 free checks, then the 7-day trial or Grayout Pro | The same |
+| Runs on (2.0) | The Grayout service: 100 free checks, then the 7-day trial or Grayout Pro | The same |
 | Canvas, task file | Yes | No |
 | Grayout Pro | Bought on the web through Stripe | The same, never through Apple |
 | Data folder | `~/Library/Application Support/Grayout/` | `~/Library/Containers/com.aarushkandukoori.grayout/Data/Library/Application Support/Grayout/` |

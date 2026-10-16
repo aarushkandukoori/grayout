@@ -97,14 +97,15 @@ body:
         - "No, somewhere else"
         - Not sure
   - type: dropdown
-    id: selfhosted
+    id: edition
     attributes:
-      label: Are you self-hosting?
-      description: Self-hosting means provider is set to anthropic or openai in config.json and the app runs on your own key.
+      label: Which version and edition?
+      description: 1.x runs on your own API key; 2.0 and later run on the Grayout service. The exact number goes in Grayout version above.
       options:
-        - "No, I am using the subscription or the free checks"
-        - "Yes, provider is anthropic"
-        - "Yes, provider is openai"
+        - "1.x, direct download (GitHub or Homebrew)"
+        - "2.0 or later, direct download (GitHub or Homebrew)"
+        - "2.0 or later, Mac App Store edition"
+        - Built from source
         - Not sure
   - type: textarea
     id: checksum

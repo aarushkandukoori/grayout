@@ -41,6 +41,8 @@ Grayout becomes a subscription product. It used to ask every person for their ow
 - Past the monthly allowance the service stretches the interval rather than cutting anyone off.
 - `SECURITY.md` gains the service in its threat model: the shared model key in Worker secrets, license keys as bearer credentials, images in transit, webhook signature verification, and the rate limits.
 - Release builds show checks used against the allowance instead of a per-check cost, because the per-check price is ours to worry about, not yours.
+- `CONTRIBUTING.md`, the issue forms, `server/README.md`, `docs/API-CONTRACT.md` and the stranger test describe pay-only release builds. The own-key and Claude CLI code stays in the MIT source for a personal build (`docs/BUILD-SPEC.md` section 27), the sandbox Worker is tested from source with `GRAYOUT_API_BASE`, and the install form asks which version and edition you run instead of whether you self-host.
+- The release workflow fails if any built app is a personal build (`grayoutPersonal` in its `app.asar` `package.json`).
 - `notes/hosted-plan.md` became the operator notes. It moved out of `docs/`, so GitHub Pages no longer publishes it. Parts of it still describe the v2 design (KV, `api.grayout.app`); `docs/API-CONTRACT.md` v3 is the authority.
 
 ### Fixed
@@ -50,7 +52,7 @@ Grayout becomes a subscription product. It used to ask every person for their ow
 ### Removed
 
 - The API-key onboarding screen, the key test, and the bring-your-own-key framing throughout the app's first run and the site. Own-key mode and the Claude CLI engine are out of every public build (see Breaking), and the README no longer documents how to turn them on.
-- The hosted-plan waitlist. The hosted plan is the product.
+- The hosted-plan waitlist. The hosted plan is the product. Its discussion form (`.github/DISCUSSION_TEMPLATE/hosted-waitlist.yml`), later reused for pricing feedback, is gone too, as is the own-key link in the issue picker.
 
 ## [1.0.1] - 2026-09-22
 

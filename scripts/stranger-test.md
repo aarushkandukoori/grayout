@@ -102,7 +102,7 @@ Checks the observer makes during the run, without speaking:
 | Pause and Quit | Trigger, then Pause: color restored. Trigger, then Quit: color restored | [ ] | |
 | Change-gating | With `changeGating` back on, leave one still screen in front for five minutes. Checks are skipped, the app still reports a state, and a real check runs at least every `forceCheckSec` | [ ] | |
 | Gating cannot hide slacking | Open a feed and leave it still. `forceCheckSec` forces a real check and the flag still lands | [ ] | |
-| Service down fails closed | Trigger the gray, then break the connection (turn off Wi-Fi, or point `apiBase` at an unreachable host). Color comes back, no new alert fires, the menu bar says why, and nothing is gray when the connection returns | [ ] | |
+| Service down fails closed | Trigger the gray, then break the connection (turn off Wi-Fi). Color comes back, no new alert fires, the menu bar says why, and nothing is gray when the connection returns | [ ] | |
 | License survives a relaunch | Quit and reopen. No checkout, no re-entry, watching within seconds | [ ] | |
 | License survives an update | Install a second build (bump the version, `npm run dist`) by dragging over the first. Relaunch. Still subscribed, Screen Recording still granted without a new prompt, captures not blank, Keychain not prompted again | [ ] | |
 | Cancel | Settings > Manage subscription opens Stripe's portal; cancel there. The app keeps watching until the period ends and says so. Nothing goes gray because of it | [ ] | |
@@ -137,14 +137,16 @@ The stale-grant fix:
 tccutil reset ScreenCapture com.aarushkandukoori.grayout
 ```
 
-## Self-hosting gate (owner, once per release)
+## Pay-only and personal build gate (owner, once per release)
 
-Self-hosting is a documented promise, so it gets tested like one.
+Release builds are pay-only, and the own-key mode lives only in the personal build (`docs/BUILD-SPEC.md` section 27). Both halves get tested.
 
-- [ ] Follow the README's Self-hosting section exactly, from a clean clone, without reading any other file.
-- [ ] With `provider` set to `openai` or `anthropic`, checks run on the personal key, and a network monitor shows **no connection to the Grayout service at all** — not for a license check, not for anything.
+- [ ] In the release DMG, with `provider` set to `openai` or `anthropic` and `apiBase` set in config.json: checks still go through the Grayout service, Settings shows no key panel, and the log's starting line says `personal=false`.
+- [ ] Build the personal copy with `npm run pack:personal` from the release tag. The log's starting line says `personal=true`.
+- [ ] In the personal build, with `provider` set to `openai` or `anthropic`, checks run on the personal key, and a network monitor shows **no connection to the Grayout service at all**: not for a license check, not for anything.
 - [ ] Removing the license from that install changes nothing; it never needed one.
 - [ ] Setting `provider` back to `grayout` returns to the subscription path.
+- [ ] The personal build never shows "Update available".
 
 ## After the test
 

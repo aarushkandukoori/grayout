@@ -102,7 +102,7 @@ grayout/
 │   │   ├── stuck-gray.yml              # "My screen is stuck gray"
 │   │   ├── install-problem.yml         # Gatekeeper / permission / key problems
 │   │   └── config.yml                  # blank_issues_enabled: false, links to Discussions
-│   ├── DISCUSSION_TEMPLATE/hosted-waitlist.yml
+│   ├── DISCUSSION_TEMPLATE/hosted-waitlist.yml  # removed in 2.0: the hosted plan shipped
 │   └── FUNDING.yml                     # created only when Aarush enrolls (owner TODO); absent in v1.0.0
 ├── .gitignore                          # node_modules/ dist/ data/ config.json secrets.bin *.p12 helper/grayscale *.dmg .DS_Store
 ├── .nvmrc                              # 22
@@ -663,7 +663,7 @@ Sections: What Grayout collects about you (nothing; there is no server); What th
 - **SECURITY.md**: how to report (GitHub private vulnerability reporting enabled on the repo; email once a support address exists); threat model summary (assets: screen contents, key, webcam; adversaries: curious housemate, same-user malware, malicious web page or task file, Anthropic outage; mitigations: 0600 files, Keychain-encrypted key, fenced untrusted context, "anything not exactly true is on-task", two high-confidence strikes, watchdog; residual: the verdict log is a plaintext list of category phrases, disclosed).
 - **CONTRIBUTING.md**: `npm ci`, `npm test`, `npm run check`, `npm start`; PR expectations; "never loosen the prompt for engagement".
 - **Issue templates**: wrong-call (fields: what you were doing, the verdict line from the dashboard's Copy button, macOS version; explicit "do not attach screenshots"), stuck-gray, install-problem.
-- **`.github/DISCUSSION_TEMPLATE/hosted-waitlist.yml`** and a pinned thread created via `gh` after enabling Discussions.
+- **`.github/DISCUSSION_TEMPLATE/hosted-waitlist.yml`** and a pinned thread created via `gh` after enabling Discussions. (Removed in 2.0, when the hosted plan shipped.)
 
 ---
 

@@ -2,12 +2,12 @@
 
 Thanks for looking. Grayout is a small project with one maintainer, so the bar is: does it make a stranger's first ten minutes fail less, or does it fix something that is wrong. Both are welcome.
 
-Grayout is a paid product built in the open. The app is MIT, the service in `server/` is MIT, and self-hosting on your own API key is a supported path that will not be removed. None of that is in tension with charging for the hosted version, and pull requests are read the same way whether or not you pay for it.
+Grayout is a paid product built in the open. The app is MIT and the service in `server/` is MIT. From 2.0, release builds are pay-only: they run only on the Grayout service (the free checks, the trial, then a subscription). The own-key and Claude CLI code stays in the source for personal builds (`docs/BUILD-SPEC.md` section 27). Pull requests are read the same way whether or not you pay.
 
 ## The two halves
 
-- **`src/`, `ui/`, `main.js`** — the Electron app that runs on someone's Mac. It holds a Grayout license key and talks to the service. It never holds a model key unless someone is self-hosting.
-- **`server/`** — the Cloudflare Worker that is the Grayout service (its address is the one line in `src/config.js`). It holds the model key, owns the prompt, checks licenses, counts checks, and talks to Stripe.
+- **`src/`, `ui/`, `main.js`** - the Electron app that runs on someone's Mac. It holds a Grayout license key and talks to the service. It never holds a model key in a 2.0 release build.
+- **`server/`** - the Cloudflare Worker that is the Grayout service (its address is the one line in `src/config.js`). It holds the model key, owns the prompt, checks licenses, counts checks, and talks to Stripe.
 
 [`docs/API-CONTRACT.md`](docs/API-CONTRACT.md) is binding for both, and for the site. Endpoints, payloads, error codes, storage keys, pricing, and the security rules are settled there. A pull request that changes any of them changes that file first, in the same PR, or it does not land.
 
@@ -28,7 +28,7 @@ Running from source uses the same data folder as the packaged app, `~/Library/Ap
 GRAYOUT_USER_DATA=/tmp/grayout-dev npm start
 ```
 
-Two more environment variables work unpackaged and are ignored by the packaged app: `GRAYOUT_API_BASE` points the app at a service other than production, and `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` supplies a key for the self-hosting path (`provider` set to `anthropic` or `openai`).
+A few more environment variables work unpackaged and are ignored by the packaged app. `GRAYOUT_API_BASE` points the app at a service other than production. `GRAYOUT_PERSONAL=1` runs the source as the personal build (`docs/BUILD-SPEC.md` section 27), and only together with it does `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` supply a key for the own-key path (`provider` set to `anthropic` or `openai`), or `GRAYOUT_DEV_ENGINE=cli` select the Claude CLI engine.
 
 The service is its own package:
 
@@ -58,7 +58,7 @@ Nothing in a test may make a real network call, charge a real card, or touch a r
 - One change per PR, with the reason in the description. Link the issue if there is one.
 - New behavior in `src/` or `server/` comes with a test. The loop, analyzer, config, stats, and updates modules are pure and mockable on purpose; keep the Worker's handlers that way too.
 - Copy follows the house style: plain, second person, no exclamation marks, "gray" not "grey", no marketing language in the repository. Commands go in fenced `bash` blocks. Never claim a number the project cannot show you the measurement for.
-- Product copy talks about Grayout and the subscription. Copy that names Anthropic and OpenAI belongs to the self-hosting sections; do not reintroduce bring-your-own-key framing into the first run.
+- Product copy talks about Grayout and the subscription. Release builds have no own-key mode, so do not reintroduce bring-your-own-key framing into the app or the site.
 - Renderer pages keep the rules in `ui/preload/*.js`: no inline scripts, no `require`, no remote resources, a strict CSP, and untrusted strings rendered with `textContent`.
 - Anything that changes what leaves the user's Mac, or what the service stores, updates **both** `PRIVACY.md` and `docs/privacy.html` in the same PR, and they stay identical in content.
 - Anything that changes the threat model updates `SECURITY.md`.
@@ -86,7 +86,6 @@ No key, token, price id, webhook secret, or license key belongs in this reposito
 - Team, parent, or employer features. Grayout reports to nobody but the person using it.
 - A locked or unbypassable mode. Quit stays one click away.
 - Weakening any escape hatch, the watchdog, or the fail-closed handling of errors and billing states.
-- Anything that makes self-hosting harder, slower, or less documented, including quietly letting it rot.
 - Storing images, prompt text, activity phrases, or anything else about what a person was doing, anywhere in the service.
 - Fingerprinting a machine to protect the free taste. It is a taste, not a security boundary.
 - Dark patterns around cancellation. The billing portal link stays where it is.

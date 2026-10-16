@@ -139,8 +139,11 @@ Rules:
 - **Never default to `api.grayout.app`.** It is not owned. When it is bought and
   pointed at the Worker, it becomes the value of these two lines; nothing else
   changes.
-- **Overrides (app only):** `apiBase` in `config.json` (https anywhere, http only
-  for localhost) and `GRAYOUT_API_BASE` in the environment for unpackaged builds.
+- **Overrides (app only: direct-edition runs from source and the personal build):**
+  `apiBase` in `config.json` (https anywhere, http only for localhost), and
+  `GRAYOUT_API_BASE` in the environment when unpackaged. Public packaged builds
+  and the Mac App Store edition use `DEFAULT_API_BASE` only
+  (`src/channel.js` `features().apiBaseOverride`).
 - **Site CSP:** every page that loads `config.js` or `app.js` must allow the API
   origin in `connect-src`: either `https://*.workers.dev`, the exact origin, or
   the `__GRAYOUT_API_BASE__` placeholder (which the deploy step fills on
@@ -2026,10 +2029,15 @@ verdict stands. A real check is forced at least every `forceCheckSec` (default
 180). This roughly halves both the bill and the latency of an idle desk, and is
 what makes $9.99 work.
 
-**Self-hosting.** The repo is MIT. Setting `provider` to `anthropic` or
-`openai` in `config.json`, with a key in the keychain, still works and bypasses
-the service entirely. It is documented in the README, never in the product UI.
-The Mac App Store edition has no own-key mode (16.1).
+**Pay-only release builds (changed in 2.0).** The repo is MIT, but public
+packaged builds (direct and Mac App Store) force provider `grayout`, engine
+`api` and the built-in API address (`src/channel.js`, `config.forEdition`).
+Own-key mode (`provider` set to `anthropic` or `openai`, which bypasses the
+service entirely) and the Claude CLI engine stay in the source, but only a run
+from source with `GRAYOUT_PERSONAL=1` or a personal build made with
+`npm run pack:personal` or `npm run dist:personal` has them
+(`docs/BUILD-SPEC.md` section 27). The README does not document them and
+public builds never show them. The Mac App Store edition never has them (16.1).
 
 ---
 
