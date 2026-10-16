@@ -249,10 +249,13 @@ test.describe('nothing says a 1.x key carries over into 2.0', () => {
     }
   });
 
-  test('the 2.0 changelog entry says own-key mode and the Claude CLI engine are not in the download', () => {
+  test('the 2.0 changelog entry says own-key mode is not in the download, and never names the CLI engine', () => {
     const html = read('docs/changelog.html');
     const v2 = html.slice(html.indexOf('aria-labelledby="v2"'), html.indexOf('aria-labelledby="v101"'));
-    assert.match(v2, /own-key mode of Grayout 1\.x and the Claude CLI engine are not in the 2\.0 download/);
+    assert.match(v2, /own-key mode of Grayout 1\.x is not in the 2\.0 download/);
+    // No public release ever had the Claude CLI engine, and the site never
+    // describes it, so a visitor would get an unexplained name.
+    assert.equal(/Claude CLI/.test(v2), false);
     assert.match(v2, /100 free checks/);
     assert.match(v2, /7-day trial or Grayout Pro/);
   });
