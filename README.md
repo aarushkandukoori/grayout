@@ -6,7 +6,7 @@ Grayout is a menu-bar app. Every 45 seconds it looks at your screen and asks one
 
 **$9.99 a month or $79 a year, plus tax where it applies. 100 checks free first, no card.** The app is the whole product; there is nothing to configure and no API key to get.
 
-> **Status (2026-10-15): subscriptions are not open yet.** This README describes Grayout 2.0, which is built in this repository but not released. The latest release, 1.0.1, runs on your own OpenAI or Anthropic key (see Self-hosting). The Grayout service is not deployed yet either: until the deploy step fills in its address (`DEFAULT_API_BASE` in [`src/config.js`](src/config.js)), a 2.0 build says "not connected to the Grayout service yet" and sends nothing to it. A Mac App Store edition for the United States is built from the same code; it is not on the App Store yet.
+> **Status (2026-10-15): subscriptions are not open yet.** This README describes Grayout 2.0, which is built in this repository but not released. The latest release, 1.0.1, runs on your own OpenAI or Anthropic key; 2.0 does not (see [Pay-only release builds](#pay-only-release-builds)). The Grayout service is not deployed yet either: until the deploy step fills in its address (`DEFAULT_API_BASE` in [`src/config.js`](src/config.js)), a 2.0 build says "not connected to the Grayout service yet" and sends nothing to it. A Mac App Store edition for the United States is built from the same code; it is not on the App Store yet.
 
 ![The Grayout dashboard from the 1.x release: a 68% on-task figure, the day's spend on your own API key, the day as one block per check with the off-task ones in red, and a table of everything it flagged](docs/img/dashboard.png)
 
@@ -48,11 +48,12 @@ shasum -a 256 ~/Downloads/Grayout-arm64.dmg
 | | Direct download | Mac App Store edition |
 |---|---|---|
 | Where | Everywhere | United States storefront only |
-| Available | Yes (1.0.1 today) | Not listed yet |
+| Available | Yes (1.0.1 today, which runs on your own API key) | Not listed yet |
 | First launch | Three extra clicks while it is not notarized | No warning |
 | Updates | "Update available" in the menu, or `brew upgrade` | The App Store |
 | The gray | macOS's Color Filters switch, through a small helper | A click-through overlay window from a sandboxed helper that exits with the app |
-| Own API key, Claude CLI engine, Canvas, task file | Yes | No, always the Grayout service |
+| Runs on | The Grayout service: 100 free checks, then the 7-day trial or Grayout Pro | The same |
+| Canvas, task file | Yes | No |
 | Grayout Pro | Bought on the web through Stripe | The same, never through Apple |
 | Data folder | `~/Library/Application Support/Grayout/` | `~/Library/Containers/com.aarushkandukoori.grayout/Data/Library/Application Support/Grayout/` |
 
@@ -130,7 +131,7 @@ Nothing below runs until you allow it: onboarding shows what is sent at each che
 6. A strike is counted only when `off_task` is exactly `true` with `high` confidence. Anything else, including an error, a refusal, an expired subscription, or a malformed answer, resets the strike count to zero. Grayout fails toward leaving you alone.
 7. Two strikes in a row: a red border on every display and grayscale (macOS's Color Filters switch on the direct download; a click-through overlay window on the Mac App Store edition). The next on-task verdict, I'm working, Pause, Quit, or the 20-minute watchdog restores color.
 
-The prompt tells the model that a video call or screen share is work, that anything ambiguous is work, and to name only the category of what it sees, never on-screen text. The self-hosted prompt, which is the same shape, is in [`src/analyzer.js`](src/analyzer.js).
+The prompt tells the model that a video call or screen share is work, that anything ambiguous is work, and to name only the category of what it sees, never on-screen text.
 
 ## What leaves your Mac
 
@@ -149,7 +150,7 @@ The only other connections are an anonymous version check against `api.github.co
 
 Stored on your Mac in `~/Library/Application Support/Grayout/` (Mac App Store edition: `~/Library/Containers/com.aarushkandukoori.grayout/Data/Library/Application Support/Grayout/`): your settings, whether and when you allowed checks, the encrypted license key, a 30-day log of short category phrases like "code editor and terminal" (one line per check, deletable from Settings), and a rotating app log that never contains prompt text, images, or your key.
 
-The full policy is in [PRIVACY.md](PRIVACY.md). If you would rather send nothing to us at all, see Self-hosting.
+The full policy is in [PRIVACY.md](PRIVACY.md).
 
 ## Escape hatches for a stuck gray screen
 
@@ -188,42 +189,13 @@ Nothing to do with billing can leave your screen gray. A license that lapses, a 
 
 If none of these work, open an issue with the "My screen is stuck gray" template.
 
-## Self-hosting
+## Pay-only release builds
 
-**Direct download and source builds only.** The Mac App Store edition always uses the Grayout service: it has no own-key mode or Claude CLI engine, ignores `provider`, `apiBase` and `engine`, and does not read Canvas or a task file.
+**Every 2.0 release build runs only on the Grayout service.** The direct download (GitHub or Homebrew) and the Mac App Store edition both start with 100 free checks, then need the 7-day trial or a Grayout Pro subscription. Neither has an own-key mode or a Claude CLI engine, and `config.json` or environment variables can't turn either on in a packaged build.
 
-**Grayout is MIT-licensed and the whole app is in this repository.** If you would rather not pay a subscription, or would rather no screenshot ever passed through a machine of ours, you can run it against your own Anthropic or OpenAI key. This is a build-from-source path, it is not what the packaged app is set up for, and it gets no support beyond the repository. It is not going away.
+**Grayout 1.x was different.** 1.0.0 and 1.0.1 ran only on your own OpenAI or Anthropic key, paid to your provider directly. Updating a 1.x Mac to 2.0 moves it onto the Grayout service and stops using the saved key; you can revoke that key in your provider's console.
 
-Set `provider` in `~/Library/Application Support/Grayout/config.json` to the provider whose key you hold. That disables the Grayout service entirely: no license check, no call to the Grayout service, no subscription, and the app calls the provider directly under your key.
-
-```jsonc
-{
-  "provider": "openai",          // or "anthropic"; "grayout" forces the subscription
-  "model": "gpt-5-mini",         // or "claude-haiku-4-5" with an Anthropic key
-  "changeGating": true,          // keeps your own bill down too
-  "forceCheckSec": 180
-}
-```
-
-The default, `"auto"`, does this on its own: a Mac with a model key saved self-hosts on that key's provider, and a Mac without one uses the subscription. Setting `provider` explicitly is how you stop that from depending on what happens to be in your Keychain.
-
-Then run it from source with the key in the environment:
-
-```bash
-git clone https://github.com/aarushkandukoori/grayout && cd grayout && npm ci && npm run helper
-OPENAI_API_KEY=sk-... npm start       # or ANTHROPIC_API_KEY=sk-ant-...
-```
-
-Costs you pay directly to the provider, at list prices as of 2026-09-22, for one display with change-gating on:
-
-| Provider and model | Per check | A month of watched work (about 4,000 checks) |
-|---|---|---|
-| OpenAI, `gpt-5-mini` | about $0.0007 | about $3 |
-| Anthropic, `claude-haiku-4-5` | about $0.0025 | about $10 |
-
-The webcam adds about 15%. Each additional display roughly doubles the per-check cost. `dailyCheckCap` (1,200 checks) is the hard stop. A workspace spend limit at console.anthropic.com, or a project budget at platform.openai.com, is the simplest real cap.
-
-You can also run the service yourself: `server/` is the Cloudflare Worker, and `apiBase` points the app at your own deployment. Endpoints and payloads are in [docs/API-CONTRACT.md](docs/API-CONTRACT.md).
+The source code, the service in `server/` included, is MIT licensed, so developers can read it and build it themselves; this repository supports the release builds only.
 
 ## Settings and advanced config
 
@@ -253,19 +225,13 @@ The common settings are in the dashboard (menu bar > Settings…). Everything li
 | `checkForUpdates` | `true` | boolean | Anonymous daily version check against api.github.com. Direct download only; the Mac App Store edition never checks. |
 | `historyDays` | `30` | 1 to 365 | `verdicts.jsonl` is pruned to this many days at launch and once a day. |
 
-Advanced keys with no UI, edited in `config.json` directly. Apart from `schemaVersion`, they are for the direct download and source builds only; the Mac App Store edition ignores them.
+Advanced keys with no UI, edited in `config.json` directly. Apart from `schemaVersion`, they are for the direct download only; the Mac App Store edition ignores them.
 
 | Key | Default | Range or type | What it does |
 |---|---|---|---|
-| `provider` | `"auto"` | `auto`, `grayout`, `anthropic`, or `openai` | Where checks go. `auto` means the subscription, unless a model key is saved on this Mac, in which case it self-hosts on that key's provider. `grayout` forces the subscription and ignores any saved key. `anthropic` and `openai` force self-hosting on that provider. |
-| `apiBase` | `""` | https URL, or empty | The Grayout service to talk to. Empty means the address built into the app (`DEFAULT_API_BASE` in `src/config.js`, filled in at deploy time; a build where it was never filled in is "not connected" and sends nothing). Only https is accepted, except `http://localhost`, and anything else is ignored rather than used. Change it only to point at a deployment of `server/` that you run. |
-| `model` | `"claude-haiku-4-5"` | any `claude-*` or `gpt-*` model your key can use | Self-hosting only. If it does not belong to the active provider's family, the provider default applies: `claude-haiku-4-5` for Anthropic, `gpt-5-mini` for OpenAI. On the subscription the service picks the model. |
 | `canvas.baseUrl` | `"https://canvas.cmu.edu"` | https URL | Your Canvas LMS host. |
 | `canvas.token` | `""` | string | A Canvas API token. Paste it here once; on the next load Grayout moves it into the Keychain and blanks this field. Titles of your to-do and planner items (up to 20) are then sent with each check as fenced, untrusted context, refreshed every 10 minutes. |
 | `tasksFile` | `""` | absolute path | A Markdown file. Its unchecked lines (`- [ ] task`, up to 20) are sent with each check as fenced, untrusted context. |
-| `engine` | `"api"` | `api` or `cli` | `api` is the subscription or your own key, as `provider` decides. `cli` runs each check through the local `claude` CLI (Claude Code) on its Claude subscription login instead: no Grayout plan, no model key, no per-check charge inside the Claude plan, and each check counts toward that plan's usage limits. The Grayout service is never contacted for checks, and `provider`, a saved key and a license are all ignored; a CLI failure never falls back to any of them. Frames go to the CLI over stdin, never to disk, and it runs with no tools, no MCP servers, no hooks, no user settings, no auto-memory and no saved session, in an empty folder of its own. Its environment is only `HOME`, `USER`, `LOGNAME`, `SHELL`, `TMPDIR`, the locale and proxy variables: API keys, `ANTHROPIC_BASE_URL`, Bedrock/Vertex switches and OAuth token overrides are never passed on. `@` in your work description, task titles and app names is sent as a fullwidth `＠` so the CLI cannot read it as a file to attach. Change-gating applies as usual. Each check starts a CLI process of about 250 MB that uses about 4 CPU-seconds, roughly 8% of one core at the default 45-second interval; `checkIntervalSec` of 60 to 90 halves that. |
-| `cliPath` | `""` | full path, `~/` allowed | The `claude` binary, or a drop-in wrapper, for `engine: "cli"`. Empty searches `~/.local/bin`, `/opt/homebrew/bin` and `/usr/local/bin` and uses that claude's own login (the one `claude auth login` set up). A path that is missing or not executable is kept as written, and checks stop with "Claude CLI not found" until you fix it, rather than switching to another binary. A wrapper that fails over between accounts can only do so if it handles `-p --input-format stream-json` with piped stdin as a one-shot run; Grayout sets `CLAUDE_FAILOVER_ONESHOT_STDIN=1` for wrappers that support it. If the CLI is logged out, the status line says how to log it back in (`claude auth login` for a plain `claude`), then Check now. |
-| `cliAllowOverage` | `false` | boolean | `engine: "cli"` only. When the Claude plan's limit is used up and the account has extra usage turned on, the CLI keeps answering and each check is billed at API prices. Off: after the first such check (logged with its cost), checks pause until the limit resets. On: they keep running and the cost meter counts them. |
 | `schemaVersion` | `1` | | Leave as `1`. |
 
 If `config.json` stops being valid JSON while Grayout runs, it keeps the last good settings and tells you once. If it is invalid at launch, checks stay paused (and Settings won't save over it) until the file parses again, rather than running on the defaults; Grayout reloads it on its own.
@@ -280,7 +246,7 @@ Needs Node 22 and the Xcode Command Line Tools (for `clang` and `swiftc`, which 
 git clone https://github.com/aarushkandukoori/grayout && cd grayout && npm ci && npm run helper && npm start
 ```
 
-Running from source uses the same data folder as the packaged app. Point it somewhere else with `GRAYOUT_USER_DATA` if you would rather not touch your real settings. Unpackaged, `GRAYOUT_API_BASE` overrides `apiBase`, and `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` supply a self-hosting key; the packaged app ignores all three.
+Running from source uses the same data folder as the packaged app. Point it somewhere else with `GRAYOUT_USER_DATA` if you would rather not touch your real settings. Unpackaged, `GRAYOUT_API_BASE` points the app at a development copy of the service (`npm --prefix server run dev`); the packaged app ignores it.
 
 To try the Mac App Store edition's rules without packaging it, run `GRAYOUT_CHANNEL=mas npm start`: every App Store gate applies, though the app is not sandboxed. `GRAYOUT_GRAYSCALE_BACKEND=blend npm start` tries only the overlay gray in the direct build. A packaged app ignores both; a Mac App Store build is decided by Electron's `process.mas` alone. How that build is packaged and checked is in [docs/BUILD-SPEC.md](docs/BUILD-SPEC.md), section 27.
 
@@ -300,7 +266,7 @@ The service is a separate package in `server/`: `npm --prefix server test`, `npm
 
 **Mac App Store edition.** Updates come through the App Store like any other app. Your license and settings survive, and it never checks GitHub.
 
-**Direct download.** Download the new DMG, drag it over the old app, relaunch. Your license and your settings survive. Coming from 1.x with an API key already saved: that key is still there and still used, because `provider` defaults to `auto`. Set `provider` to `grayout` to move onto the subscription, or leave it alone to keep paying your provider directly. The tray shows "Update available" when a newer release exists. macOS may ask for Screen Recording again after an update; if the toggle is on but captures are blank, use Permissions > Copy the fix command.
+**Direct download.** Download the new DMG, drag it over the old app, relaunch. Your license and your settings survive. Coming from 1.x: 1.x ran on your own API key, and 2.0 runs on the Grayout service instead and no longer uses a saved key. After the update you start with the 100 free checks, then need the 7-day trial or Grayout Pro. The tray shows "Update available" when a newer release exists. macOS may ask for Screen Recording again after an update; if the toggle is on but captures are blank, use Permissions > Copy the fix command.
 
 ## Uninstall
 

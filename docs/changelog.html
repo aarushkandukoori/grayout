@@ -69,6 +69,7 @@
           <ul>
             <li><strong>Grayout Pro:</strong> $9.99 a month with a 7-day free trial (1,000 checks) for new subscribers, or $79 a year, plus tax where it applies. It includes 10,000 checks a month; past that, one check every 10 minutes until the month resets.</li>
             <li><strong>100 free checks</strong> on a new install, with no card, no account and no key.</li>
+            <li><strong>Runs only on the Grayout service.</strong> After the free checks, Grayout needs the 7-day trial or a Grayout Pro subscription. The own-key mode of Grayout 1.x and the Claude CLI engine are not in the 2.0 download, direct or Mac App Store.</li>
             <li><strong>The Grayout service</strong> makes the model call, so the app never holds a model key. Screenshots are judged, then dropped without being stored or logged.</li>
             <li><strong>Skips unchanged screens.</strong> If nothing on any display changed, Grayout keeps the last answer and spends no check, and it still forces a real check every 3 minutes.</li>
             <li><strong>License keys</strong> to unlock a second Mac, and Manage subscription in the menu bar.</li>
@@ -76,7 +77,7 @@
             <li><strong>A Mac App Store edition</strong> for the United States, built from the same code. It is not listed yet.</li>
           </ul>
           <h3>For people on 1.x</h3>
-          <p>Updating changes nothing about what you pay. A Mac with an API key already saved keeps using that key and keeps paying only your provider; the first launch after the update asks once for your permission to keep sending screenshots to that provider. Running on your own key stays supported in the direct download. The Mac App Store edition is a separate install that starts fresh in its own sandbox folder: your key and settings don&rsquo;t carry over to it.</p>
+          <p>Grayout 1.x runs on your own API key. 2.0 does not: updating a 1.x Mac moves it onto the Grayout service, and Grayout stops using the key saved on it. You start with the 100 free checks, then need the 7-day trial or Grayout Pro to keep going. The first launch after the update asks once for your permission before any screenshot is sent. You can revoke the old key in your provider&rsquo;s console. The Mac App Store edition is a separate install that starts fresh in its own sandbox folder, and your settings don&rsquo;t carry over to it.</p>
         </div>
       </section>
 
@@ -162,7 +163,7 @@
             <li><a href="privacy.html">Privacy</a></li>
             <li><a href="terms.html">Terms</a></li>
             <li><a href="refunds.html">Refunds</a></li>
-            <li><a href="api-key.html">Use your own key</a></li>
+            <li data-when="noservice"><a href="api-key.html">Use your own key</a></li>
             <li><a href="https://github.com/aarushkandukoori/grayout">Source code</a></li>
           </ul>
         </div>

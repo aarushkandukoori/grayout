@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://*.workers.dev; base-uri 'self'; form-action 'none'; object-src 'none'; frame-src 'none'; manifest-src 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<title>Use your own API key | Grayout for Mac</title>
-<meta name="description" content="Grayout is open source. Run it on your own OpenAI or Anthropic key and pay your provider directly, a fraction of a cent per check.">
+<title>Your own API key in Grayout 1.x | Grayout for Mac</title>
+<meta name="description" content="Grayout 1.x runs on your own OpenAI or Anthropic key, paid to your provider directly. How to get one and what it costs. From 2.0 the download runs on the Grayout service.">
 <link rel="canonical" href="https://aarushkandukoori.github.io/grayout/api-key.html">
 <meta name="theme-color" content="#DDE2EE">
 <meta name="color-scheme" content="light">
@@ -15,16 +15,16 @@
 <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Grayout">
-<meta property="og:title" content="Run Grayout on your own API key">
-<meta property="og:description" content="Grayout is open source. Run it on your own OpenAI or Anthropic key and pay your provider directly, a fraction of a cent per check.">
+<meta property="og:title" content="Your own API key in Grayout 1.x">
+<meta property="og:description" content="Grayout 1.x runs on your own OpenAI or Anthropic key, paid to your provider directly. How to get one and what it costs. From 2.0 the download runs on the Grayout service.">
 <meta property="og:url" content="https://aarushkandukoori.github.io/grayout/api-key.html">
 <meta property="og:image" content="https://aarushkandukoori.github.io/grayout/img/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Grayout: a Mac desktop half in color and half in gray, with a red border on the gray side.">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Run Grayout on your own API key">
-<meta name="twitter:description" content="Grayout is open source. Run it on your own OpenAI or Anthropic key and pay your provider directly, a fraction of a cent per check.">
+<meta name="twitter:title" content="Your own API key in Grayout 1.x">
+<meta name="twitter:description" content="Grayout 1.x runs on your own OpenAI or Anthropic key, paid to your provider directly. How to get one and what it costs. From 2.0 the download runs on the Grayout service.">
 <meta name="twitter:image" content="https://aarushkandukoori.github.io/grayout/img/og.png">
 <link rel="preload" href="fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/eb-garamond-500-latin.woff" as="font" type="font/woff" crossorigin>
@@ -54,8 +54,9 @@
 <main id="main">
   <section class="band" aria-labelledby="key-title">
     <div class="wrap"><div class="doc doc--band"><div>
-      <h1 id="key-title">Use your own API key</h1>
-      <p class="lede">Grayout is open source under the MIT license. You can run it on your own OpenAI or Anthropic account, pay your provider directly, and keep the Grayout service out of the path entirely.</p>
+      <h1 id="key-title"><span data-when="noservice">Use your own API key</span><span data-when="service">Own API keys were a 1.x feature</span></h1>
+      <p class="lede" data-when="noservice">Grayout 1.0.1, today&rsquo;s release, runs on your own OpenAI or Anthropic account. You pay your provider directly, and the Grayout service is not in the path.</p>
+      <p class="lede" data-when="service">Grayout 2.0 runs on the Grayout service, so there is no API key to get. Running on your own OpenAI or Anthropic key was how Grayout 1.x worked.</p>
     </div><div class="toc-spacer" aria-hidden="true"></div></div>
     </div>
   </section>
@@ -63,12 +64,18 @@
   <div class="wrap">
     <div class="doc">
       <article class="prose">
+        <div class="callout callout--blue" data-when="service">
+          <p class="t">Grayout 2.0 runs on the Grayout service</p>
+          <p>The 2.0 download, from GitHub, Homebrew or the Mac App Store, starts with 100 free checks<span data-when="live">, then needs Grayout Pro. The monthly plan starts with a 7-day free trial for new subscribers.</span><span data-when="soon">, then needs Grayout Pro, which opens soon.</span> The own-key mode of Grayout 1.x is not in it.</p>
+          <p><a class="inline-link" href="pricing.html">See pricing</a> or <a class="inline-link" href="changelog.html#v2">what changed for 1.x users</a>.</p>
+        </div>
         <div class="callout callout--blue" data-when="noservice">
           <p class="t">Today&rsquo;s release works this way out of the box</p>
           <p>Grayout 1.0.1 asks for a key during setup. Get one below, paste it, and you are done.</p>
         </div>
         <p class="small">Looking for a Grayout Pro license key (it starts with <code>gry_</code>) instead? That lives on the <a class="inline-link" href="account.html">account page</a>.</p>
-        <p class="small">Your own key works in the direct download (GitHub or Homebrew) and in builds from source. The Mac App Store edition always uses the Grayout service and has no own-key mode.</p>
+        <div class="prose" data-when="noservice">
+        <p class="small">Your own key works in Grayout 1.0.1, today&rsquo;s direct download from GitHub or Homebrew. The Mac App Store edition always uses the Grayout service, and from Grayout 2.0 so does the direct download: neither has an own-key mode.</p>
 
         <h2 id="get"><span class="grad">Get a key in two minutes</span></h2>
         <h3 id="openai">OpenAI</h3>
@@ -85,20 +92,8 @@
         </ol>
 
         <h2 id="turn-it-on"><span class="grad">Paste it into Grayout</span></h2>
-        <p><strong>In 1.x:</strong> the welcome window asks for it on the Your API key screen. Paste it, click <strong>Test key</strong>, then <strong>Save and continue</strong>. Grayout works out the provider from the key. To change it later, open Settings from the menu bar. macOS asks once whether Grayout may use its own Keychain item; click Always Allow.</p>
-        <p><strong>In 2.0 and later</strong>, new installs use the Grayout service by default (100 free checks, then Grayout Pro). A Mac that already has a key saved keeps using it. To choose your own key explicitly, set <code>provider</code> in <code class="wrapcode">~/Library/Application Support/Grayout/config.json</code>:</p>
-        <div class="code"><pre id="cfg-json">{
-  "provider": "openai",
-  "model": "gpt-5-mini",
-  "changeGating": true
-}</pre><button class="copy" type="button" data-copy="#cfg-json"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.6"/><path d="M10.5 5.5V3.6a1.1 1.1 0 0 0-1.1-1.1H3.6a1.1 1.1 0 0 0-1.1 1.1v5.8a1.1 1.1 0 0 0 1.1 1.1h1.9"/></svg><span data-copy-label>Copy</span></button></div>
-        <p class="muted">Use <code>"anthropic"</code> with <code>"claude-haiku-4-5"</code> for an Anthropic key, or <code>"grayout"</code> to use the Grayout service. Then run it from source with the key in the environment:</p>
-        <div class="code"><pre id="cmd-run">git clone https://github.com/<wbr>aarushkandukoori/grayout
-cd grayout
-npm ci
-npm run helper
-OPENAI_API_KEY=sk-... npm start</pre><button class="copy" type="button" data-copy="#cmd-run"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.6"/><path d="M10.5 5.5V3.6a1.1 1.1 0 0 0-1.1-1.1H3.6a1.1 1.1 0 0 0-1.1 1.1v5.8a1.1 1.1 0 0 0 1.1 1.1h1.9"/></svg><span data-copy-label>Copy</span></button></div>
-        <p>Keys are stored encrypted with your Keychain, never logged, and never written to a plain file. Revoke a key any time in your provider&rsquo;s console.</p>
+        <p>In Grayout 1.x, the welcome window asks for it on the Your API key screen. Paste it, click <strong>Test key</strong>, then <strong>Save and continue</strong>. Grayout works out the provider from the key. To change it later, open Settings from the menu bar. macOS asks once whether Grayout may use its own Keychain item; click Always Allow.</p>
+        <p>Grayout 1.x stores keys encrypted with your Keychain, never logs them, and never writes them to a plain file. Revoke a key any time in your provider&rsquo;s console.</p>
 
         <h2 id="cost"><span class="grad">What it costs</span></h2>
         <p>Your provider bills you for every check. List prices as of September 2026, one display:</p>
@@ -119,18 +114,16 @@ OPENAI_API_KEY=sk-... npm start</pre><button class="copy" type="button" data-cop
           <li><strong>The provider could not be reached:</strong> check your connection, a VPN, or a firewall blocking api.openai.com or api.anthropic.com.</li>
         </ul>
 
-        <h2 id="server"><span class="grad">Run the service yourself</span></h2>
-        <p>The Grayout service is in the repository too, under <code>server/</code>: a Cloudflare Worker. Every endpoint is written down in <a href="https://github.com/aarushkandukoori/grayout/blob/main/docs/API-CONTRACT.md">API-CONTRACT.md</a>. Point the app at your own deployment with <code>apiBase</code> in config.json. Only https addresses, or http on localhost, are accepted, so a typo can&rsquo;t quietly send screenshots somewhere you didn&rsquo;t choose.</p>
-        <p>Every setting and its range is in the <a href="https://github.com/aarushkandukoori/grayout#readme">README</a>. This path gets community support on GitHub.</p>
+        <p>Questions about Grayout 1.x on your own key get community support on <a href="https://github.com/aarushkandukoori/grayout/issues">GitHub</a>.</p>
+        </div>
       </article>
-      <nav class="toc" aria-label="On this page" data-toc>
+      <nav class="toc" aria-label="On this page" data-toc data-when="noservice">
         <p class="eyebrow">On this page</p>
         <ol>
           <li><a href="#get">Get a key</a></li>
           <li><a href="#turn-it-on">Paste it into Grayout</a></li>
           <li><a href="#cost">What it costs</a></li>
           <li><a href="#trouble">If a key is refused</a></li>
-          <li><a href="#server">Run the service yourself</a></li>
         </ol>
       </nav>
     </div>
@@ -181,7 +174,7 @@ OPENAI_API_KEY=sk-... npm start</pre><button class="copy" type="button" data-cop
             <li><a href="privacy.html">Privacy</a></li>
             <li><a href="terms.html">Terms</a></li>
             <li><a href="refunds.html">Refunds</a></li>
-            <li><a href="api-key.html">Use your own key</a></li>
+            <li data-when="noservice"><a href="api-key.html">Use your own key</a></li>
             <li><a href="https://github.com/aarushkandukoori/grayout">Source code</a></li>
           </ul>
         </div>

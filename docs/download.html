@@ -87,18 +87,18 @@
           <li><strong>First launch</strong> - from the App Store there is no Gatekeeper warning, so you start at step 4 below.</li>
           <li><strong>Updates</strong> - through the App Store, like any other app. The direct download shows Update available in its menu, or updates with Homebrew.</li>
           <li><strong>The gray</strong> - the Mac App Store edition draws it with a click-through window of its own, which closes when Grayout quits. The direct download uses macOS&rsquo;s Color Filters switch.</li>
-          <li><strong>Your own API key</strong> - direct download and source builds only. The Mac App Store edition always uses the Grayout service.</li>
+          <li data-when="noservice"><strong>Your own API key</strong> - only Grayout 1.0.1, today&rsquo;s direct download. The Mac App Store edition always uses the Grayout service, and from Grayout 2.0 so does the direct download.</li>
           <li><strong>Your settings</strong> - the Mac App Store edition keeps them in its own sandbox folder, so settings and a saved license key don&rsquo;t carry over from the direct download. To use a subscription you already have, open Settings &gt; Your plan &gt; Connect an existing subscription, paste your key and click Activate.</li>
         </ul>
         <p class="muted">Use one edition at a time. Quit and delete the direct download before installing from the App Store, or both copies will try to gray the screen.</p>
 
         <div class="callout callout--amber" id="today" data-when="noservice">
           <p class="t">What you get today</p>
-          <p>The current release is Grayout 1.0.1. It runs on your own OpenAI or Anthropic API key: you paste the key during setup and pay your provider directly, a fraction of a cent per check. The Grayout service, with 100 free checks and no key to get, opens with the next release, along with Grayout Pro. <a href="api-key.html">How to get a key</a>.</p>
+          <p>The current release is Grayout 1.0.1. It runs on your own OpenAI or Anthropic API key: you paste the key during setup and pay your provider directly, a fraction of a cent per check. The Grayout service, with 100 free checks and no key to get, opens with the next release, Grayout 2.0, along with Grayout Pro. From 2.0 the download runs only on the Grayout service and no longer uses your own key. <a href="api-key.html">How to get a key</a> for 1.0.1.</p>
         </div>
         <div class="callout callout--blue" data-when="service">
           <p class="t">What you get</p>
-          <p>Grayout starts with 100 free checks. No card, no account, no API key. <span data-when="live">When they run out, subscribe from the app or the <a href="pricing.html">pricing page</a>.</span><span data-when="soon">Subscriptions are not open yet. When they open, you can upgrade from the Grayout menu.</span></p>
+          <p>Grayout runs on the Grayout service. It starts with 100 free checks, with no card, no account and no API key. <span data-when="live">After that it needs Grayout Pro: subscribe from the app or the <a href="pricing.html">pricing page</a>, and the monthly plan starts with a 7-day free trial for new subscribers.</span><span data-when="soon">After that it needs Grayout Pro. Subscriptions are not open yet. When they open, you can upgrade from the Grayout menu.</span></p>
         </div>
 
         <h2 id="homebrew"><span class="grad">Homebrew</span></h2>
@@ -165,6 +165,7 @@
         </div>
 
         <h2 id="updating"><span class="grad">Updating</span></h2>
+        <p data-when="service">Coming from Grayout 1.x? 1.x ran on your own API key. 2.0 runs on the Grayout service instead and doesn&rsquo;t use a saved key, so after the update you start with the 100 free checks<span data-when="live"> and can subscribe when they run out</span><span data-when="soon">, and can subscribe once subscriptions open</span>. <a href="changelog.html#v2">What changed in 2.0</a>.</p>
         <p>The direct download checks GitHub once a day and shows <strong>Update available</strong> in its menu when there is one; you can turn that off in Settings. Download the new DMG, drag Grayout over the old app, and relaunch. With Homebrew, run <code>brew upgrade --cask grayout</code>.</p>
         <p>The Mac App Store edition updates through the App Store, like any other app, and never checks GitHub.</p>
         <p>On the direct download, macOS sometimes asks for Screen Recording again after an update. If the switch is on but checks come back blank, choose Permissions &gt; Captures look blank? in the menu, or paste this in Terminal:</p>
@@ -182,7 +183,7 @@ cd grayout
 npm ci
 npm run helper
 npm start</pre><button class="copy" type="button" data-copy="#cmd-build"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.6"/><path d="M10.5 5.5V3.6a1.1 1.1 0 0 0-1.1-1.1H3.6a1.1 1.1 0 0 0-1.1 1.1v5.8a1.1 1.1 0 0 0 1.1 1.1h1.9"/></svg><span data-copy-label>Copy</span></button></div>
-        <p class="muted"><code>npm run dist</code> builds the DMGs. <a href="api-key.html">Running it on your own key</a> covers the rest.</p>
+        <p class="muted"><code>npm run dist</code> builds the DMGs.</p>
 
         <h2 id="uninstall"><span class="grad">Uninstall</span></h2>
         <p>Cancel any subscription first (<a href="account.html">how</a>). Then quit Grayout, drag it from Applications to the Trash, and delete <code class="wrapcode">~/Library/Application Support/Grayout</code>, which holds your settings and the 30-day log. Turn off its login item in System Settings &gt; General &gt; Login Items if it is still listed.</p>
@@ -230,7 +231,7 @@ npm start</pre><button class="copy" type="button" data-copy="#cmd-build"><svg vi
             <li><a href="privacy.html">Privacy</a></li>
             <li><a href="terms.html">Terms</a></li>
             <li><a href="refunds.html">Refunds</a></li>
-            <li><a href="api-key.html">Use your own key</a></li>
+            <li data-when="noservice"><a href="api-key.html">Use your own key</a></li>
             <li><a href="https://github.com/aarushkandukoori/grayout">Source code</a></li>
           </ul>
         </div>

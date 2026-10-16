@@ -16,12 +16,12 @@ Only the latest release is supported. Update the direct download by downloading 
 
 ## Threat model
 
-Grayout runs as your user, captures your screen, and, once you have allowed it in onboarding, sends the captures to the Grayout service (the address in `src/config.js`), which forwards them to OpenAI under Grayout's own key and returns a verdict. A self-hosted install (direct download and source builds only) replaces that hop with a direct call to Anthropic or OpenAI under your key. The Mac App Store edition is the same code with some features switched off by `src/channel.js`, running inside Apple's App Sandbox. The model below is what the design defends against and what it does not.
+Grayout runs as your user, captures your screen, and, once you have allowed it in onboarding, sends the captures to the Grayout service (the address in `src/config.js`), which forwards them to OpenAI under Grayout's own key and returns a verdict. Release builds have no other path: from 2.0 neither edition has an own-key mode or a Claude CLI engine. Grayout 1.x, which ran on your own key, called Anthropic or OpenAI directly instead. The Mac App Store edition is the same code with some features switched off by `src/channel.js`, running inside Apple's App Sandbox. The model below is what the design defends against and what it does not.
 
 ### Assets
 
 - The contents of your screen, at each check, on your Mac and in transit.
-- Your Grayout license key (and Canvas token, or an Anthropic or OpenAI key when self-hosting).
+- Your Grayout license key and Canvas token (in Grayout 1.x, your Anthropic or OpenAI key).
 - The shared model key the service uses on everyone's behalf. It is the single highest-value secret in the system.
 - The Stripe API key (the documented setup is a restricted `rk_` key with only the permissions the service uses; a full `sk_` key works but logs a warning), the webhook signing secret, and the two server secrets that make device tokens and license keys (`DEVICE_SECRET`, `LICENSE_SECRET`).
 - Webcam frames, if the camera is on.
@@ -48,11 +48,11 @@ Grayout runs as your user, captures your screen, and, once you have allowed it i
 - The verdict is coerced: anything not exactly `off_task: true` is on task, and confidence outside the allowed set becomes `low`.
 - Two consecutive high-confidence off-task verdicts are required before the screen reacts. An error, a refusal, an HTTP failure, or any billing state that is not "you may check" resets the count to zero, and two consecutive failed checks clear an existing alert. Nothing about money can gray your screen.
 - A watchdog restores color after 20 minutes regardless of state; color is also restored on every launch, on quit, on crash, on SIGINT and SIGTERM, on system shutdown, and from an always-enabled menu item.
-- A daily cap (1,200 checks), change-gating, and exponential backoff on rate limits and outages bound both the request rate and, when self-hosting, the spend from a runaway loop.
+- A daily cap (1,200 checks), change-gating, and exponential backoff on rate limits and outages bound both the request rate and the checks a runaway loop can use up.
 - Renderer windows run with `contextIsolation`, `sandbox`, no `nodeIntegration`, a strict Content Security Policy, and no remote content. Pages reach the main process only through the preload bridges in `ui/preload/`. Links opened from the app are limited to an allowlist of hosts, which now includes the Stripe checkout and billing-portal hosts.
 - No Automation, Accessibility, or Full Disk Access permission is ever requested. Frontmost-app detection uses `lsappinfo` on the direct download and the bundled overlay helper's `NSWorkspace` call on the Mac App Store edition.
 - No screenshot is captured and no check is sent until you allow it on the consent screen, which names who receives the screenshots. The permission is stored in `state.json` with its date and version, and turning off Send screenshots for checks in Settings withdraws it and pauses the loop.
-- The Mac App Store edition runs in Apple's App Sandbox: it can't read files outside its own container, its helper inherits the same sandbox, and which edition a build is comes only from Electron's `process.mas` in a packaged app, never from an environment variable or `config.json`. It has no self-update check, no own-key mode, no Claude CLI engine and no `apiBase` override, and its bundle does not contain the private-API grayscale helper.
+- The Mac App Store edition runs in Apple's App Sandbox: it can't read files outside its own container, its helper inherits the same sandbox, and which edition a build is comes only from Electron's `process.mas` in a packaged app, never from an environment variable or `config.json`. It has no self-update check and no `apiBase` override, and its bundle does not contain the private-API grayscale helper.
 - The menu-bar tooltip shows status only, never the activity phrase, so a glance at the menu bar reveals nothing about what was on screen.
 
 ### Mitigations in the service
@@ -64,7 +64,7 @@ Grayout runs as your user, captures your screen, and, once you have allowed it i
 - **The service mints device identities.** A device id only counts if it comes with a token the service made (an HMAC with `DEVICE_SECRET`), checked in constant time. Tokens are never stored.
 - Revoking a license is a single write, and the next check fails closed. A full refund, a card dispute and a card-fraud warning from the bank each revoke the license and cancel the subscription automatically.
 - **Images are never stored, never logged, and never written to disk by the service.** They exist for the length of one request. Neither are the work description, task titles, or the returned activity phrase. What persists is listed field by field in `PRIVACY.md`: the device record, the license record (Stripe customer id and subscription state, never the key), monthly counters, checkout bookkeeping, and keyed hashes used only for abuse limits (network addresses, and the email and card that started a trial).
-- All traffic is HTTPS, so the images are in transit under TLS between your Mac and the service, and between the service and OpenAI. There is no plaintext fallback and no configurable way to turn it off. Pointing `apiBase` at a non-HTTPS host is a self-hosting decision and is yours to make safely.
+- All traffic is HTTPS, so the images are in transit under TLS between your Mac and the service, and between the service and OpenAI. There is no plaintext fallback and no configurable way to turn it off. The app accepts plain http only for a service address on localhost, which is for development.
 - **Stripe webhooks are verified before anything is believed**: signature checked with Stripe's own `constructEventAsync` against the signing secret held in the Worker secrets, on the raw body. The endpoint fails closed (503) while the signing secret is missing or still a placeholder. Events are de-duplicated by id, and unknown event types return 200 and are ignored rather than guessed at.
 - **Billing state is read from Stripe, never taken from the client or from an event's contents.** Every verified subscription, invoice, refund or dispute event makes the service read the customer's subscriptions from Stripe and write what it finds, so events arriving late or out of order cannot revive a canceled plan. Access ends 3 days after the paid period, whatever the stored status says, and the service re-reads Stripe before it turns anyone away. The app reports nothing about its own plan that the service trusts.
 - **Sandbox and live never mix.** A key bought with a Stripe test card (`gry_test_`) never gets service from the live Worker, which has its own database.
@@ -77,7 +77,7 @@ Grayout runs as your user, captures your screen, and, once you have allowed it i
 - The verdict log (`verdicts.jsonl`) is a plaintext list of timestamps, category phrases (for example "social media feed"), and frontmost app names, kept for 30 days on your Mac. Anyone who can read your files can read it. Delete it from Settings, shorten `historyDays`, or set `logVerdicts` to `false`.
 - Malware running as your user can read the same files you can, including the encrypted `secrets.bin`, and can prompt the Keychain the same way the app does. Grayout does not defend against a compromised user account.
 - The never-capture list applies to the frontmost app only. Other windows on the same display are in the capture.
-- Your screenshots pass through the Grayout service and reach OpenAI. We do not store or log them; OpenAI's handling is governed by its own policy, linked from `PRIVACY.md`. If that arrangement is not acceptable, self-host: `provider` set to `anthropic` or `openai` removes the service from the path completely.
+- Your screenshots pass through the Grayout service and reach OpenAI. We do not store or log them; OpenAI's handling is governed by its own policy, linked from `PRIVACY.md`. Release builds have no mode that takes the service out of that path, so if the arrangement is not acceptable, don't send checks: leave Send screenshots for checks off, or quit Grayout.
 - Cloudflare operates the service and sees connection metadata, as any host does.
 - A license key is a bearer credential. Anyone who has it can spend your allowance from any machine until you ask for it to be rotated. It is not a password and it protects no data of yours.
 - A license key is derived from the Stripe customer, so the same customer always gets the same key. Replacing one leaked key is not built yet: until it is, a leaked key can only be revoked by hand, which also ends that subscription's service.
@@ -90,5 +90,5 @@ Grayout runs as your user, captures your screen, and, once you have allowed it i
 
 - Bypassing Grayout. It is not a lock. Quit is one click in the menu bar by design, and reports that a user can turn it off are not vulnerabilities.
 - Getting free checks by reinstalling. The free taste is a taste; see above.
-- Self-hosted deployments of `server/`. Your Worker, your secrets, your configuration.
+- Copies of `server/` that someone else deploys. Their Worker, their secrets, their configuration.
 - Monitoring other people. There is no remote view and there will not be one.
