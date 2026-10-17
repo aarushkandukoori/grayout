@@ -80,6 +80,8 @@ Every escape hatch stays enabled in every billing state, including Restore color
 
 No key, token, price id, webhook secret, or license key belongs in this repository, in a test fixture, in a commit message, or in an issue. The model key exists only in the Worker secret store. If you think you have leaked one, say so immediately in a private security report; rotating a key is a five-minute job and hiding one is not.
 
+That includes fakes. A test that needs a key-shaped value builds it at runtime, `['whsec', 'TestOnly0123456789abcdefghij'].join('_')`, and never writes it out as one literal. GitHub's secret scanning cannot tell a fake from a leak, and fake webhook secrets in this repository's tests once raised nine alerts. `tests/no-literal-secrets.test.js` fails on any literal shaped like a Stripe, OpenAI or Anthropic secret.
+
 ## Things that will not be merged
 
 - Telemetry, crash reporting, or any call home beyond what `PRIVACY.md` already lists.
